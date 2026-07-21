@@ -7,7 +7,7 @@ Self-contained Godot 4 addon for layered input maps and an editor UI.
 - **`CustomInputMap` / `InputMapAction`** — serializable action-layer resources
 - **`InputManager` + `Responder`** — runtime merge of active maps onto the engine `InputMap`
 - **`InputMapEditor`** — tree UI for editing maps (runtime or editor)
-- **Editor plugin** — inspecting a `CustomInputMap` resource embeds the editor in the Inspector
+- **Editor plugin** — bottom panel **"Input Map"** (opens when a `CustomInputMap` is selected in the Inspector)
 
 ## Install
 
@@ -23,7 +23,7 @@ Self-contained Godot 4 addon for layered input maps and an editor UI.
 
 ### Edit a resource in the editor
 
-Create or open a `CustomInputMap` `.tres`. The Inspector shows the full action/event editor. Changes call `emit_changed()` so the asset can be saved.
+Create or open a `CustomInputMap` `.tres`. The **Input Map** bottom panel loads it (same slot as Animation / Phantom Camera). Changes call `emit_changed()` so the asset can be saved.
 
 ### Runtime layers
 
