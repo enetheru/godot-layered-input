@@ -120,7 +120,7 @@ func popup_and_configure(
 		current_action_name: String = "",
 		current_action: Dictionary = {}
 ) -> void:
-	var events:Array = current_action.get("events", [])
+	var events: Array = current_action.get("events", [])
 	_action_events = events.duplicate()
 
 	if event != null:
@@ -130,8 +130,8 @@ func popup_and_configure(
 			if ie != null and ie.is_match(event):
 				_action_events.remove_at(i)
 				break
-		var a:InputEvent = event.duplicate()
-		var b:InputEvent = event.duplicate()
+		var a: InputEvent = event.duplicate()
+		var b: InputEvent = event.duplicate()
 		_set_event(a, b)
 	else:
 		_set_event(null, null)
@@ -147,7 +147,14 @@ func popup_and_configure(
 	else:
 		title = "Event Configuration"
 
+	# Bottom-panel parents can clip / break Window popups in the editor.
+	# Transient + exclusive keeps the dialog on top of the editor chrome.
+	if Engine.is_editor_hint():
+		exclusive = true
+		unresizable = false
 	popup_centered(Vector2i(661, 400))
+	# Ensure OK reflects current event (null → disabled).
+	_sync_ok_enabled()
 
 
 # ── event state ─────────────────────────────────────────────────────────────
@@ -180,14 +187,7 @@ func _set_event(
 		_original_event = original_event
 		event_label.text = EventListenerLineEdit.get_event_text(_event, true)
 
-		var exists := false
-		for v: Variant in _action_events:
-			var ie: InputEvent = v
-			if ie != null and ie.is_match(event):
-				exists = true
-				break
-		error.visible = exists
-		ok.disabled = exists
+		_sync_ok_enabled()
 
 		var show_mods := false
 		var show_device := false
@@ -253,11 +253,10 @@ func _set_event(
 		_original_event = null
 		event_listener.clear_event()
 		event_label.text = "No Event Configured"
-		error.hide()
-		ok.disabled = false
 		additional_options.hide()
 		input_list_tree.deselect_all()
 		_update_input_list()
+		_sync_ok_enabled()
 
 
 func _on_listen_input_changed(event: InputEvent) -> void:
@@ -578,9 +577,32 @@ func _get_current_device() -> int:
 	return device_option_button.selected - 1
 
 
+func _sync_ok_enabled() -> void:
+	if not is_instance_valid(ok):
+		return
+	# Allow OK only when a real event is configured and not a duplicate.
+	var duplicate: bool = false
+	if _event != null:
+		for v: Variant in _action_events:
+			var ie: InputEvent = v
+			if ie != null and ie.is_match(_event):
+				duplicate = true
+				break
+	if is_instance_valid(error):
+		error.visible = duplicate
+	ok.disabled = _event == null or duplicate
+
+
 func _on_ok_pressed() -> void:
+	_sync_ok_enabled()
+	if _event == null:
+		if is_instance_valid(error):
+			error.text = "No event configured. Listen for input or pick one from the list."
+			error.show()
+		return
 	if ok.disabled:
 		return
+	# Emit while still visible so listeners can read get_event() reliably.
 	confirmed.emit()
 	hide()
 

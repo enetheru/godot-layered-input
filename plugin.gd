@@ -7,6 +7,8 @@ const EditorScene = preload("res://addons/enetheru.input_map_editor/ui/input_map
 
 var _panel: InputMapEditor
 var _panel_button: Button
+## Avoid re-entrant configure when we caused the inspector refresh ourselves.
+var _suppress_edited_object_signal: bool = false
 
 
 func _enter_tree() -> void:
@@ -25,13 +27,12 @@ func _enter_tree() -> void:
 		@warning_ignore("return_value_discarded")
 		inspector.edited_object_changed.connect(_on_edited_object_changed)
 
-	# If a CustomInputMap is already under inspection, load it.
 	_on_edited_object_changed()
 
 
 func _exit_tree() -> void:
 	var inspector: EditorInspector = get_editor_interface().get_inspector()
-	if inspector.edited_object_changed.is_connected(_on_edited_object_changed):
+	if inspector and inspector.edited_object_changed.is_connected(_on_edited_object_changed):
 		inspector.edited_object_changed.disconnect(_on_edited_object_changed)
 
 	if _panel:
@@ -44,6 +45,8 @@ func _exit_tree() -> void:
 
 
 func _on_edited_object_changed() -> void:
+	if _suppress_edited_object_signal:
+		return
 	var obj: Object = get_editor_interface().get_inspector().get_edited_object()
 	if obj is CustomInputMap:
 		_edit_map(obj)
@@ -52,6 +55,9 @@ func _on_edited_object_changed() -> void:
 func _edit_map(map: CustomInputMap) -> void:
 	if _panel == null or map == null:
 		return
+	# Same instance already loaded — do not rebuild the tree (avoids lag loops).
+	if _panel.edit_map == map and _panel.resource_edit_mode:
+		return
 	_panel.configure_for_resource(map)
 	make_bottom_panel_item_visible(_panel)
 
@@ -59,9 +65,15 @@ func _edit_map(map: CustomInputMap) -> void:
 func _on_resource_modified(map: CustomInputMap) -> void:
 	if map == null:
 		return
-	map.emit_changed()
-	if map.resource_path.is_empty():
-		return
-	var fs: EditorFileSystem = get_editor_interface().get_resource_filesystem()
-	if fs:
-		fs.update_file(map.resource_path)
+	# Panel already called emit_changed(). Do not call update_file() here —
+	# that rescans the asset, re-fires edited_object_changed, and re-configures
+	# the panel in a slow loop.
+	#
+	# Suppress inspector churn while the editor acknowledges the mutation.
+	_suppress_edited_object_signal = true
+	# Defer clear so any synchronous inspector callbacks see the flag.
+	_clear_suppress.call_deferred()
+
+
+func _clear_suppress() -> void:
+	_suppress_edited_object_signal = false

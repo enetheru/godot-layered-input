@@ -62,6 +62,7 @@ func                        ________PROPERTIES_______              ()->void:pass
 ## Pure resource editing (editor plugin / inspector). Hides runtime view toggles
 ## and never touches [InputManager].
 var resource_edit_mode: bool = false
+var _refreshing: bool = false
 
 var _show_root: bool = true
 var _show_effective: bool = false
@@ -212,14 +213,20 @@ func _on_action_edited() -> void:
 func _on_event_config_confirmed() -> void:
 	var ev: InputEvent = event_config_dialog.get_event()
 	if ev == null:
+		show_message("No input event was configured.")
+		return
+	if _current_action_name.is_empty():
+		show_message("No action selected for this event.")
 		return
 	var new_action: Dictionary = _current_action.duplicate(true)
 	var action_events: Array = new_action.get("events", [])
 	var events: Array = action_events.duplicate()
+	# Store a duplicate so the dialog can clear its state without affecting the map.
+	var stored: InputEvent = ev.duplicate()
 	if _current_action_event_index == -1:
-		events.append(ev)
+		events.append(stored)
 	else:
-		events[_current_action_event_index] = ev
+		events[_current_action_event_index] = stored
 	new_action["events"] = events
 	action_edited.emit(_current_action_name, new_action)
 
@@ -499,9 +506,19 @@ func                        _________METHODS_________              ()->void:pass
 
 ## Rebuild the tree from the active view toggles and InputManager / edit_map.
 func refresh() -> void:
-	var selected_key:String = ""
-	var selected_col:int = 0
-	var selected:TreeItem = tree.get_selected()
+	if _refreshing:
+		return
+	if not is_instance_valid(tree):
+		return
+	_refreshing = true
+	_refresh_tree()
+	_refreshing = false
+
+
+func _refresh_tree() -> void:
+	var selected_key: String = ""
+	var selected_col: int = 0
+	var selected: TreeItem = tree.get_selected()
 	if selected:
 		selected_key = str(selected.get_meta(&"__select_key", selected.get_text(0)))
 		selected_col = tree.get_selected_column()
@@ -510,19 +527,19 @@ func refresh() -> void:
 	_collect_collapsed(tree.get_root(), collapsed)
 
 	tree.clear()
-	var root:TreeItem = tree.create_item()
+	var root: TreeItem = tree.create_item()
 
-	var section_count:int = 0
+	var section_count: int = 0
 	if _show_root:
 		section_count += 1
 	if _show_effective:
 		section_count += 1
 	if _show_loaded:
 		section_count += 1
-	var multi_section:int = section_count > 1
+	var multi_section: bool = section_count > 1
 
 	if _show_root:
-		var parent:TreeItem = root
+		var parent: TreeItem = root
 		if multi_section:
 			parent = _make_section_item(root, "Root Actions", &"section_root")
 		_populate_map_actions(
@@ -536,7 +553,7 @@ func refresh() -> void:
 		)
 
 	if _show_effective:
-		var parent:TreeItem = root
+		var parent: TreeItem = root
 		if multi_section or not _show_root:
 			parent = _make_section_item(root, "Effective Actions (read-only)", &"section_effective")
 		var effective := _get_effective_map()
@@ -551,7 +568,7 @@ func refresh() -> void:
 		)
 
 	if _show_loaded:
-		var parent:TreeItem = root
+		var parent: TreeItem = root
 		if multi_section or not _show_root:
 			parent = _make_section_item(root, "Loaded Actions (read-only)", &"section_loaded")
 		var responder_root := _get_responder_root()
@@ -565,7 +582,7 @@ func refresh() -> void:
 					selected_col
 			)
 		else:
-			var empty:TreeItem = tree.create_item(parent)
+			var empty: TreeItem = tree.create_item(parent)
 			empty.set_text(0, "(InputManager responder tree not available)")
 			empty.set_selectable(0, false)
 
@@ -1090,14 +1107,15 @@ func _host_refresh() -> void:
 	var map := _get_target_map()
 	if map == null:
 		return
-	if apply_edit_map_to_engine:
+	if apply_edit_map_to_engine and not Engine.is_editor_hint():
 		map.apply_to_engine()
-	# Runtime: rebuild merged engine map when we edited the live root layer.
-	if not resource_edit_mode:
+	# Runtime only: rebuild merged engine map when we edited the live root layer.
+	if not resource_edit_mode and not Engine.is_editor_hint():
 		var rr := _get_responder_root()
-		if rr != null and (map == rr.input_map or edit_map == null):
-			InputManager.rebuild_input_map()
-	# Notify editor / save pipeline that the resource mutated.
+		if rr != null and is_instance_valid(InputManager):
+			if map == rr.input_map or edit_map == null:
+				InputManager.rebuild_input_map()
+	# Notify editor / save pipeline that the resource mutated (once).
 	map.emit_changed()
 	resource_modified.emit(map)
 	refresh()
