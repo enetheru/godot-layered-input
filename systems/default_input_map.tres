@@ -1,0 +1,820 @@
+[gd_resource type="Resource" script_class="CustomInputMap" format=3 uid="uid://6hh6cxvfe0kf"]
+
+[ext_resource type="Script" uid="uid://bkqnc854wksva" path="res://addons/enetheru.input_map_editor/systems/input_map_action.gd" id="1_pc2b8"]
+[ext_resource type="Script" uid="uid://dnx2qot3j0di6" path="res://addons/enetheru.input_map_editor/systems/custom_input_map.gd" id="2_rrq4e"]
+
+[sub_resource type="InputEventKey" id="InputEventKey_eokxa"]
+physical_keycode = 83
+unicode = 83
+
+[sub_resource type="Resource" id="Resource_bembj"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_eokxa")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_gd6j6"]
+physical_keycode = 81
+unicode = 81
+
+[sub_resource type="Resource" id="Resource_a1fpq"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_gd6j6")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_1jxbj"]
+physical_keycode = 87
+unicode = 87
+
+[sub_resource type="Resource" id="Resource_kv70u"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_1jxbj")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_q43r4"]
+physical_keycode = 65
+unicode = 65
+
+[sub_resource type="Resource" id="Resource_v0yg0"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_q43r4")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_sry38"]
+physical_keycode = 68
+unicode = 68
+
+[sub_resource type="Resource" id="Resource_2biaq"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_sry38")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_l402h"]
+keycode = 4194328
+
+[sub_resource type="Resource" id="Resource_04f36"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_l402h")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_slkef"]
+keycode = 4194325
+
+[sub_resource type="Resource" id="Resource_lpswc"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_slkef")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_xjybw"]
+physical_keycode = 69
+unicode = 69
+
+[sub_resource type="Resource" id="Resource_bm5pu"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_xjybw")])
+
+[sub_resource type="Resource" id="Resource_lrvjs"]
+script = ExtResource("1_pc2b8")
+
+[sub_resource type="Resource" id="Resource_orj67"]
+script = ExtResource("1_pc2b8")
+
+[sub_resource type="InputEventKey" id="InputEventKey_oau72"]
+keycode = 4194328
+
+[sub_resource type="Resource" id="Resource_q47ko"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_oau72")])
+
+[sub_resource type="Resource" id="Resource_5tyhj"]
+script = ExtResource("1_pc2b8")
+
+[sub_resource type="InputEventKey" id="InputEventKey_iv7wr"]
+keycode = 4194325
+
+[sub_resource type="Resource" id="Resource_gswd7"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_iv7wr")])
+
+[sub_resource type="Resource" id="Resource_l4hhl"]
+script = ExtResource("1_pc2b8")
+
+[sub_resource type="InputEventKey" id="InputEventKey_vy051"]
+keycode = 4194326
+
+[sub_resource type="Resource" id="Resource_al043"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_vy051")])
+
+[sub_resource type="Resource" id="Resource_kvkt8"]
+script = ExtResource("1_pc2b8")
+
+[sub_resource type="InputEventKey" id="InputEventKey_pc2b8"]
+keycode = 4194309
+
+[sub_resource type="InputEventKey" id="InputEventKey_rrq4e"]
+keycode = 4194310
+
+[sub_resource type="InputEventKey" id="InputEventKey_qj4ua"]
+keycode = 32
+unicode = 32
+
+[sub_resource type="Resource" id="Resource_fxvnn"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_pc2b8"), SubResource("InputEventKey_rrq4e"), SubResource("InputEventKey_qj4ua")])
+
+[sub_resource type="Resource" id="Resource_cbr6v"]
+script = ExtResource("1_pc2b8")
+
+[sub_resource type="InputEventKey" id="InputEventKey_fxvnn"]
+device = -1
+keycode = 4194305
+
+[sub_resource type="Resource" id="Resource_fynsg"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_fxvnn")])
+metadata/_custom_type_script = "uid://bkqnc854wksva"
+
+[sub_resource type="InputEventKey" id="InputEventKey_56dbq"]
+keycode = 4194305
+
+[sub_resource type="Resource" id="Resource_s64hi"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_56dbq")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_b0g5v"]
+keycode = 4194305
+
+[sub_resource type="Resource" id="Resource_487lv"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_b0g5v")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_lvtbp"]
+keycode = 4194312
+
+[sub_resource type="Resource" id="Resource_aswfr"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_lvtbp")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_ktmsw"]
+command_or_control_autoremap = true
+keycode = 67
+unicode = 67
+
+[sub_resource type="InputEventKey" id="InputEventKey_3jdea"]
+command_or_control_autoremap = true
+keycode = 4194311
+
+[sub_resource type="Resource" id="Resource_3bd30"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_ktmsw"), SubResource("InputEventKey_3jdea")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_sip6a"]
+command_or_control_autoremap = true
+keycode = 88
+unicode = 88
+
+[sub_resource type="InputEventKey" id="InputEventKey_y22rs"]
+shift_pressed = true
+keycode = 4194312
+
+[sub_resource type="Resource" id="Resource_e38ma"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_sip6a"), SubResource("InputEventKey_y22rs")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_rxilv"]
+keycode = 4194322
+
+[sub_resource type="Resource" id="Resource_st6a7"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_rxilv")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_g31ei"]
+keycode = 4194318
+
+[sub_resource type="Resource" id="Resource_r8oix"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_g31ei")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_kdux3"]
+keycode = 4194312
+
+[sub_resource type="Resource" id="Resource_n2drc"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_kdux3")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_f17go"]
+command_or_control_autoremap = true
+keycode = 70
+unicode = 70
+
+[sub_resource type="Resource" id="Resource_x62t0"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_f17go")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_hiakn"]
+command_or_control_autoremap = true
+keycode = 76
+unicode = 76
+
+[sub_resource type="Resource" id="Resource_gnlvq"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_hiakn")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_0p02p"]
+keycode = 4194336
+
+[sub_resource type="Resource" id="Resource_tjr7a"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_0p02p")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_r7uuq"]
+keycode = 72
+unicode = 72
+
+[sub_resource type="Resource" id="Resource_s35jx"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_r7uuq")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_0dy1g"]
+keycode = 4194308
+
+[sub_resource type="Resource" id="Resource_jy5nf"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_0dy1g")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_jpkjq"]
+ctrl_pressed = true
+keycode = 77
+unicode = 77
+
+[sub_resource type="Resource" id="Resource_brxul"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_jpkjq")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_813rs"]
+keycode = 4194306
+
+[sub_resource type="Resource" id="Resource_4j7f8"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_813rs")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_w7kld"]
+shift_pressed = true
+keycode = 4194306
+
+[sub_resource type="Resource" id="Resource_qaaru"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_w7kld")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_gu410"]
+keycode = 4194312
+
+[sub_resource type="Resource" id="Resource_hyxyc"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_gu410")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_8pyiv"]
+command_or_control_autoremap = true
+keycode = 68
+unicode = 68
+
+[sub_resource type="Resource" id="Resource_0y11k"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_8pyiv")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_mtgba"]
+command_or_control_autoremap = true
+keycode = 4194319
+
+[sub_resource type="Resource" id="Resource_qk7lj"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_mtgba")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_choc7"]
+command_or_control_autoremap = true
+keycode = 4194321
+
+[sub_resource type="Resource" id="Resource_ysbfm"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_choc7")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_6n74p"]
+keycode = 4194317
+
+[sub_resource type="Resource" id="Resource_ix5aj"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_6n74p")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_agtae"]
+keycode = 4194319
+
+[sub_resource type="Resource" id="Resource_iqoeh"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_agtae")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_3sjip"]
+keycode = 4194370
+
+[sub_resource type="Resource" id="Resource_aau0x"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_3sjip")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_dvbtf"]
+keycode = 4194324
+
+[sub_resource type="Resource" id="Resource_gq1h8"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_dvbtf")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_361k0"]
+keycode = 4194323
+
+[sub_resource type="Resource" id="Resource_c1fr6"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_361k0")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_obo4x"]
+command_or_control_autoremap = true
+keycode = 86
+unicode = 86
+
+[sub_resource type="InputEventKey" id="InputEventKey_juxco"]
+shift_pressed = true
+keycode = 4194311
+
+[sub_resource type="Resource" id="Resource_bg2lm"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_obo4x"), SubResource("InputEventKey_juxco")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_nvepw"]
+command_or_control_autoremap = true
+shift_pressed = true
+keycode = 90
+unicode = 90
+
+[sub_resource type="InputEventKey" id="InputEventKey_bo402"]
+command_or_control_autoremap = true
+keycode = 89
+unicode = 89
+
+[sub_resource type="Resource" id="Resource_ywewc"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_nvepw"), SubResource("InputEventKey_bo402")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_mvc4h"]
+keycode = 4194321
+
+[sub_resource type="Resource" id="Resource_r8um6"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_mvc4h")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_gcka2"]
+keycode = 32
+unicode = 32
+
+[sub_resource type="Resource" id="Resource_2adbl"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_gcka2")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_n6ra8"]
+command_or_control_autoremap = true
+keycode = 96
+unicode = 96
+
+[sub_resource type="Resource" id="Resource_posoy"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_n6ra8")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_yrr2v"]
+command_or_control_autoremap = true
+keycode = 68
+unicode = 68
+
+[sub_resource type="Resource" id="Resource_qhifu"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_yrr2v")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_2gpf6"]
+keycode = 4194308
+
+[sub_resource type="InputEventKey" id="InputEventKey_blcrx"]
+shift_pressed = true
+keycode = 4194308
+
+[sub_resource type="Resource" id="Resource_u2jwx"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_2gpf6"), SubResource("InputEventKey_blcrx")])
+
+[sub_resource type="Resource" id="Resource_0y086"]
+script = ExtResource("1_pc2b8")
+
+[sub_resource type="InputEventKey" id="InputEventKey_c2ehl"]
+command_or_control_autoremap = true
+keycode = 4194308
+
+[sub_resource type="Resource" id="Resource_0wxlk"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_c2ehl")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_l6rvy"]
+command_or_control_autoremap = true
+shift_pressed = true
+keycode = 4194320
+
+[sub_resource type="Resource" id="Resource_4svh4"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_l6rvy")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_ub8od"]
+command_or_control_autoremap = true
+shift_pressed = true
+keycode = 4194322
+
+[sub_resource type="Resource" id="Resource_bbo7r"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_ub8od")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_lp6lr"]
+command_or_control_autoremap = true
+keycode = 4194318
+
+[sub_resource type="Resource" id="Resource_1b2cs"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_lp6lr")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_yr6fo"]
+command_or_control_autoremap = true
+keycode = 4194317
+
+[sub_resource type="Resource" id="Resource_6evb6"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_yr6fo")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_tuqlk"]
+keycode = 4194322
+
+[sub_resource type="Resource" id="Resource_lx5fr"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_tuqlk")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_ietc2"]
+keycode = 4194319
+
+[sub_resource type="Resource" id="Resource_2nq5s"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_ietc2")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_vpoc4"]
+keycode = 4194318
+
+[sub_resource type="Resource" id="Resource_cktu0"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_vpoc4")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_caxuo"]
+keycode = 4194317
+
+[sub_resource type="Resource" id="Resource_fduia"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_caxuo")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_hea6u"]
+keycode = 4194324
+
+[sub_resource type="Resource" id="Resource_5mwrq"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_hea6u")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_pm0xr"]
+keycode = 4194323
+
+[sub_resource type="Resource" id="Resource_vxume"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_pm0xr")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_l1y4r"]
+keycode = 4194321
+
+[sub_resource type="Resource" id="Resource_75paq"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_l1y4r")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_vdxul"]
+keycode = 4194320
+
+[sub_resource type="Resource" id="Resource_c1jed"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_vdxul")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_b8bi2"]
+command_or_control_autoremap = true
+keycode = 4194319
+
+[sub_resource type="Resource" id="Resource_81mt0"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_b8bi2")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_y73ep"]
+command_or_control_autoremap = true
+keycode = 4194321
+
+[sub_resource type="Resource" id="Resource_o86ja"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_y73ep")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_bkoqw"]
+keycode = 4194305
+
+[sub_resource type="Resource" id="Resource_g3gtr"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_bkoqw")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_7wj24"]
+keycode = 4194306
+
+[sub_resource type="InputEventKey" id="InputEventKey_twdlp"]
+keycode = 4194309
+
+[sub_resource type="InputEventKey" id="InputEventKey_cl0fn"]
+keycode = 4194310
+
+[sub_resource type="Resource" id="Resource_uc40h"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_7wj24"), SubResource("InputEventKey_twdlp"), SubResource("InputEventKey_cl0fn")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_uybtl"]
+ctrl_pressed = true
+keycode = 32
+unicode = 32
+
+[sub_resource type="Resource" id="Resource_vp5e4"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_uybtl")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_iq8wi"]
+shift_pressed = true
+keycode = 4194306
+
+[sub_resource type="InputEventKey" id="InputEventKey_vh7p4"]
+shift_pressed = true
+keycode = 4194309
+
+[sub_resource type="InputEventKey" id="InputEventKey_51nrb"]
+shift_pressed = true
+keycode = 4194310
+
+[sub_resource type="Resource" id="Resource_m3o6u"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_iq8wi"), SubResource("InputEventKey_vh7p4"), SubResource("InputEventKey_51nrb")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_5jvnu"]
+shift_pressed = true
+keycode = 4194306
+
+[sub_resource type="Resource" id="Resource_tnm7c"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_5jvnu")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_gosmv"]
+keycode = 4194312
+
+[sub_resource type="Resource" id="Resource_7ke0i"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_gosmv")])
+
+[sub_resource type="Resource" id="Resource_akmwn"]
+script = ExtResource("1_pc2b8")
+
+[sub_resource type="InputEventKey" id="InputEventKey_3w44t"]
+command_or_control_autoremap = true
+keycode = 4194312
+
+[sub_resource type="Resource" id="Resource_ya1ru"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_3w44t")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_l6l5m"]
+keycode = 4194306
+
+[sub_resource type="Resource" id="Resource_5pql6"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_l6l5m")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_4uehi"]
+keycode = 4194309
+
+[sub_resource type="InputEventKey" id="InputEventKey_kygb0"]
+keycode = 4194310
+
+[sub_resource type="InputEventKey" id="InputEventKey_fnkmf"]
+shift_pressed = true
+keycode = 4194309
+
+[sub_resource type="InputEventKey" id="InputEventKey_ygxko"]
+shift_pressed = true
+keycode = 4194310
+
+[sub_resource type="Resource" id="Resource_iyuwi"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_4uehi"), SubResource("InputEventKey_kygb0"), SubResource("InputEventKey_fnkmf"), SubResource("InputEventKey_ygxko")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_30wd8"]
+command_or_control_autoremap = true
+shift_pressed = true
+keycode = 4194309
+
+[sub_resource type="InputEventKey" id="InputEventKey_jq1wt"]
+command_or_control_autoremap = true
+shift_pressed = true
+keycode = 4194310
+
+[sub_resource type="Resource" id="Resource_xj4bu"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_30wd8"), SubResource("InputEventKey_jq1wt")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_6dsfc"]
+command_or_control_autoremap = true
+keycode = 4194309
+
+[sub_resource type="InputEventKey" id="InputEventKey_ipchi"]
+command_or_control_autoremap = true
+keycode = 4194310
+
+[sub_resource type="Resource" id="Resource_e5eq8"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_6dsfc"), SubResource("InputEventKey_ipchi")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_6c1nu"]
+command_or_control_autoremap = true
+keycode = 4194322
+
+[sub_resource type="Resource" id="Resource_qmbhm"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_6c1nu")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_7oxcl"]
+command_or_control_autoremap = true
+keycode = 4194320
+
+[sub_resource type="Resource" id="Resource_3amib"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_7oxcl")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_ir2tv"]
+command_or_control_autoremap = true
+keycode = 65
+unicode = 65
+
+[sub_resource type="Resource" id="Resource_utarn"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_ir2tv")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_3d2jr"]
+alt_pressed = true
+keycode = 71
+unicode = 71
+
+[sub_resource type="Resource" id="Resource_gwafs"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_3d2jr")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_e2may"]
+command_or_control_autoremap = true
+alt_pressed = true
+keycode = 68
+unicode = 68
+
+[sub_resource type="Resource" id="Resource_7mxx3"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_e2may")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_hcbg2"]
+keycode = 4194309
+
+[sub_resource type="InputEventKey" id="InputEventKey_5q6ri"]
+keycode = 4194310
+
+[sub_resource type="Resource" id="Resource_yuu6l"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_hcbg2"), SubResource("InputEventKey_5q6ri")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_71kg5"]
+keycode = 4194311
+
+[sub_resource type="Resource" id="Resource_0mg2c"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_71kg5")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_m8x5x"]
+command_or_control_autoremap = true
+keycode = 90
+unicode = 90
+
+[sub_resource type="Resource" id="Resource_6x5y3"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_m8x5x")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_lyvoa"]
+shift_pressed = true
+ctrl_pressed = true
+keycode = 85
+unicode = 85
+
+[sub_resource type="Resource" id="Resource_j4wrl"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_lyvoa")])
+
+[sub_resource type="InputEventKey" id="InputEventKey_d74nd"]
+keycode = 4194320
+
+[sub_resource type="Resource" id="Resource_p7qom"]
+script = ExtResource("1_pc2b8")
+events = Array[InputEvent]([SubResource("InputEventKey_d74nd")])
+
+[resource]
+script = ExtResource("2_rrq4e")
+_actions = Dictionary[StringName, ExtResource("1_pc2b8")]({
+&"spatial_editor/freelook_backwards": SubResource("Resource_bembj"),
+&"spatial_editor/freelook_down": SubResource("Resource_a1fpq"),
+&"spatial_editor/freelook_forward": SubResource("Resource_kv70u"),
+&"spatial_editor/freelook_left": SubResource("Resource_v0yg0"),
+&"spatial_editor/freelook_right": SubResource("Resource_2biaq"),
+&"spatial_editor/freelook_slow_modifier": SubResource("Resource_04f36"),
+&"spatial_editor/freelook_speed_modifier": SubResource("Resource_lpswc"),
+&"spatial_editor/freelook_up": SubResource("Resource_bm5pu"),
+&"spatial_editor/viewport_orbit_modifier_1": SubResource("Resource_lrvjs"),
+&"spatial_editor/viewport_orbit_modifier_2": SubResource("Resource_orj67"),
+&"spatial_editor/viewport_orbit_snap_modifier_1": SubResource("Resource_q47ko"),
+&"spatial_editor/viewport_orbit_snap_modifier_2": SubResource("Resource_5tyhj"),
+&"spatial_editor/viewport_pan_modifier_1": SubResource("Resource_gswd7"),
+&"spatial_editor/viewport_pan_modifier_2": SubResource("Resource_l4hhl"),
+&"spatial_editor/viewport_zoom_modifier_1": SubResource("Resource_al043"),
+&"spatial_editor/viewport_zoom_modifier_2": SubResource("Resource_kvkt8"),
+&"ui_accept": SubResource("Resource_fxvnn"),
+&"ui_accessibility_drag_and_drop": SubResource("Resource_cbr6v"),
+&"ui_back": SubResource("Resource_fynsg"),
+&"ui_cancel": SubResource("Resource_s64hi"),
+&"ui_close_dialog": SubResource("Resource_487lv"),
+&"ui_colorpicker_delete_preset": SubResource("Resource_aswfr"),
+&"ui_copy": SubResource("Resource_3bd30"),
+&"ui_cut": SubResource("Resource_e38ma"),
+&"ui_down": SubResource("Resource_st6a7"),
+&"ui_end": SubResource("Resource_r8oix"),
+&"ui_filedialog_delete": SubResource("Resource_n2drc"),
+&"ui_filedialog_find": SubResource("Resource_x62t0"),
+&"ui_filedialog_focus_path": SubResource("Resource_gnlvq"),
+&"ui_filedialog_refresh": SubResource("Resource_tjr7a"),
+&"ui_filedialog_show_hidden": SubResource("Resource_s35jx"),
+&"ui_filedialog_up_one_level": SubResource("Resource_jy5nf"),
+&"ui_focus_mode": SubResource("Resource_brxul"),
+&"ui_focus_next": SubResource("Resource_4j7f8"),
+&"ui_focus_prev": SubResource("Resource_qaaru"),
+&"ui_graph_delete": SubResource("Resource_hyxyc"),
+&"ui_graph_duplicate": SubResource("Resource_0y11k"),
+&"ui_graph_follow_left": SubResource("Resource_qk7lj"),
+&"ui_graph_follow_right": SubResource("Resource_ysbfm"),
+&"ui_home": SubResource("Resource_ix5aj"),
+&"ui_left": SubResource("Resource_iqoeh"),
+&"ui_menu": SubResource("Resource_aau0x"),
+&"ui_page_down": SubResource("Resource_gq1h8"),
+&"ui_page_up": SubResource("Resource_c1fr6"),
+&"ui_paste": SubResource("Resource_bg2lm"),
+&"ui_redo": SubResource("Resource_ywewc"),
+&"ui_right": SubResource("Resource_r8um6"),
+&"ui_select": SubResource("Resource_2adbl"),
+&"ui_swap_input_direction": SubResource("Resource_posoy"),
+&"ui_text_add_selection_for_next_occurrence": SubResource("Resource_qhifu"),
+&"ui_text_backspace": SubResource("Resource_u2jwx"),
+&"ui_text_backspace_all_to_left": SubResource("Resource_0y086"),
+&"ui_text_backspace_word": SubResource("Resource_0wxlk"),
+&"ui_text_caret_add_above": SubResource("Resource_4svh4"),
+&"ui_text_caret_add_below": SubResource("Resource_bbo7r"),
+&"ui_text_caret_document_end": SubResource("Resource_1b2cs"),
+&"ui_text_caret_document_start": SubResource("Resource_6evb6"),
+&"ui_text_caret_down": SubResource("Resource_lx5fr"),
+&"ui_text_caret_left": SubResource("Resource_2nq5s"),
+&"ui_text_caret_line_end": SubResource("Resource_cktu0"),
+&"ui_text_caret_line_start": SubResource("Resource_fduia"),
+&"ui_text_caret_page_down": SubResource("Resource_5mwrq"),
+&"ui_text_caret_page_up": SubResource("Resource_vxume"),
+&"ui_text_caret_right": SubResource("Resource_75paq"),
+&"ui_text_caret_up": SubResource("Resource_c1jed"),
+&"ui_text_caret_word_left": SubResource("Resource_81mt0"),
+&"ui_text_caret_word_right": SubResource("Resource_o86ja"),
+&"ui_text_clear_carets_and_selection": SubResource("Resource_g3gtr"),
+&"ui_text_completion_accept": SubResource("Resource_uc40h"),
+&"ui_text_completion_query": SubResource("Resource_vp5e4"),
+&"ui_text_completion_replace": SubResource("Resource_m3o6u"),
+&"ui_text_dedent": SubResource("Resource_tnm7c"),
+&"ui_text_delete": SubResource("Resource_7ke0i"),
+&"ui_text_delete_all_to_right": SubResource("Resource_akmwn"),
+&"ui_text_delete_word": SubResource("Resource_ya1ru"),
+&"ui_text_indent": SubResource("Resource_5pql6"),
+&"ui_text_newline": SubResource("Resource_iyuwi"),
+&"ui_text_newline_above": SubResource("Resource_xj4bu"),
+&"ui_text_newline_blank": SubResource("Resource_e5eq8"),
+&"ui_text_scroll_down": SubResource("Resource_qmbhm"),
+&"ui_text_scroll_up": SubResource("Resource_3amib"),
+&"ui_text_select_all": SubResource("Resource_utarn"),
+&"ui_text_select_word_under_caret": SubResource("Resource_gwafs"),
+&"ui_text_skip_selection_for_next_occurrence": SubResource("Resource_7mxx3"),
+&"ui_text_submit": SubResource("Resource_yuu6l"),
+&"ui_text_toggle_insert_mode": SubResource("Resource_0mg2c"),
+&"ui_undo": SubResource("Resource_6x5y3"),
+&"ui_unicode_start": SubResource("Resource_j4wrl"),
+&"ui_up": SubResource("Resource_p7qom")
+})
+metadata/_custom_type_script = "uid://dnx2qot3j0di6"

@@ -1,0 +1,162 @@
+[gd_scene format=3 uid="uid://cye1pwo2sfteo"]
+
+[ext_resource type="StyleBox" uid="uid://81wsa7gfwig6" path="res://addons/enetheru.input_map_editor/ui/res/sbf_input_map_editor.tres" id="1_j5pep"]
+[ext_resource type="Script" uid="uid://bd6londkafuml" path="res://addons/enetheru.input_map_editor/ui/input_map_editor.gd" id="1_qki46"]
+[ext_resource type="PackedScene" uid="uid://qx0n6lg5xgvm" path="res://addons/enetheru.input_map_editor/ui/event_config_dialog.tscn" id="2_a5nkh"]
+[ext_resource type="StyleBox" uid="uid://p58kkrovb2as" path="res://addons/enetheru.input_map_editor/ui/res/sbf_column_title.tres" id="3_7axco"]
+[ext_resource type="StyleBox" uid="uid://dday50u2lkyaj" path="res://addons/enetheru.input_map_editor/ui/res/sbf_line_edit.tres" id="3_cvjgg"]
+[ext_resource type="Script" uid="uid://25t6g8jhvn8c" path="res://addons/enetheru.input_map_editor/ui/event_listener_line_edit.gd" id="3_listener"]
+[ext_resource type="StyleBox" uid="uid://dre0pyckcv5dw" path="res://addons/enetheru.input_map_editor/ui/res/sbf_button_disabled.tres" id="5_5xaem"]
+[ext_resource type="StyleBox" uid="uid://ct5ertvlsd4bs" path="res://addons/enetheru.input_map_editor/ui/res/sbf_button_hover.tres" id="6_5xaem"]
+
+[sub_resource type="DPITexture" id="DPITexture_iu2iu"]
+_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M10.168 8.754a5 5 0 1 0-1.414 1.414l4.316 4.316 1.414-1.414zM6 3a3 3 0 0 1 0 6 3 3 0 0 1 0-6z\"/></svg>
+"
+base_scale = 1.25
+saturation = 2.0
+color_map = {
+Color(1, 0.37254903, 0.37254903, 1): Color(1, 0.47, 0.42, 1),
+Color(0.37254903, 1, 0.5921569, 1): Color(0.45, 0.95, 0.5, 1),
+Color(1, 0.8666667, 0.39607844, 1): Color(0.83, 0.78, 0.62, 1)
+}
+
+[sub_resource type="DPITexture" id="DPITexture_8q5o4"]
+_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M6.584 5.135 6.17 4.059l-.412 1.076h.826zm3.203 2.976a.95 1.06 0 0 0 0 2.14.95 1.06 0 0 0 0-2.14zM4 2a1 1 0 0 0-1 1v9a1 1 0 0 0 .995 1h8a1 1 0 0 0 1-1V3A1 1 0 0 0 12 2.007H4Zm1.475.646H6.89l1.865 4.27H7.268l-.286-.744H5.36l-.287.744H3.61l1.866-4.27Zm2.939 8.401a2.42 2.24 0 1 1 2.41.168c.296.465.837-.109 1.06-.007l.544.642c-.64.756-1.883.677-2.605.084-.394-.448-.866-.673-1.409-.887ZM1 4v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4h-1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4Z\"/></svg>
+"
+base_scale = 1.25
+saturation = 2.0
+color_map = {
+Color(1, 0.37254903, 0.37254903, 1): Color(1, 0.47, 0.42, 1),
+Color(0.37254903, 1, 0.5921569, 1): Color(0.45, 0.95, 0.5, 1),
+Color(1, 0.8666667, 0.39607844, 1): Color(0.83, 0.78, 0.62, 1)
+}
+
+[sub_resource type="DPITexture" id="DPITexture_daqw3"]
+_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"m7 1v6h-6v2h6v6h2v-6h6v-2h-6v-6z\"/></svg>"
+base_scale = 1.25
+saturation = 2.0
+color_map = {
+Color(1, 0.37254903, 0.37254903, 1): Color(1, 0.47, 0.42, 1),
+Color(0.37254903, 1, 0.5921569, 1): Color(0.45, 0.95, 0.5, 1),
+Color(1, 0.8666667, 0.39607844, 1): Color(0.83, 0.78, 0.62, 1)
+}
+
+[node name="InputMapEditor" type="PanelContainer" unique_id=511320335]
+propagate_maximum_size = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("1_j5pep")
+script = ExtResource("1_qki46")
+metadata/_tab_index = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1382143675]
+layout_mode = 2
+
+[node name="EditorEventSearchBar" type="HBoxContainer" parent="VBoxContainer" unique_id=828439756]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FilterNameLineEdit" type="LineEdit" parent="VBoxContainer/EditorEventSearchBar" unique_id=1934797019]
+layout_mode = 2
+size_flags_horizontal = 3
+accessibility_name = "Filter by Name"
+theme_override_styles/normal = ExtResource("3_cvjgg")
+placeholder_text = "Filter by Name"
+clear_button_enabled = true
+caret_blink = true
+caret_blink_interval = 0.5
+right_icon = SubResource("DPITexture_iu2iu")
+
+[node name="EventListenerLineEdit" type="LineEdit" parent="VBoxContainer/EditorEventSearchBar" unique_id=429255687]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.75
+accessibility_name = "Action Event"
+theme_override_styles/normal = ExtResource("3_cvjgg")
+placeholder_text = "Filter by Event"
+clear_button_enabled = true
+caret_blink_interval = 0.5
+right_icon = SubResource("DPITexture_8q5o4")
+script = ExtResource("3_listener")
+
+[node name="ClearAllButton" type="Button" parent="VBoxContainer/EditorEventSearchBar" unique_id=296899727]
+layout_mode = 2
+tooltip_text = "Clear all search filters."
+theme_override_styles/disabled = ExtResource("5_5xaem")
+disabled = true
+text = "Clear All"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=2122813055]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LineEdit" type="LineEdit" parent="VBoxContainer/HBoxContainer" unique_id=876628201]
+layout_mode = 2
+size_flags_horizontal = 3
+accessibility_name = "Add New Action"
+theme_override_styles/normal = ExtResource("3_cvjgg")
+placeholder_text = "Add New Action"
+keep_editing_on_text_submit = true
+clear_button_enabled = true
+caret_blink = true
+caret_blink_interval = 0.5
+
+[node name="AddButton" type="Button" parent="VBoxContainer/HBoxContainer" unique_id=2037229207]
+layout_mode = 2
+tooltip_text = "Action name cannot be empty."
+theme_override_styles/disabled = ExtResource("5_5xaem")
+disabled = true
+text = "Add"
+icon = SubResource("DPITexture_daqw3")
+
+[node name="ViewToggles" type="HBoxContainer" parent="VBoxContainer" unique_id=449013740]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="RootCheckButton" type="CheckButton" parent="VBoxContainer/ViewToggles" unique_id=449013739]
+layout_mode = 2
+tooltip_text = "Show actions from the InputManager responder root map (editable)."
+button_pressed = true
+text = "Root Actions"
+
+[node name="EffectiveCheckButton" type="CheckButton" parent="VBoxContainer/ViewToggles" unique_id=449013741]
+layout_mode = 2
+tooltip_text = "Show the merged effective map currently applied to the engine (read-only)."
+text = "Effective Actions"
+
+[node name="LoadedCheckButton" type="CheckButton" parent="VBoxContainer/ViewToggles" unique_id=449013742]
+layout_mode = 2
+tooltip_text = "Show every CustomInputMap contributed by the responder tree, nested by hierarchy (read-only)."
+text = "Loaded Actions"
+
+[node name="MarginContainer" type="MarginContainer" parent="VBoxContainer" unique_id=613053922]
+layout_mode = 2
+size_flags_vertical = 3
+theme_type_variation = &"NoBorderHorizontalBottom"
+
+[node name="Tree" type="Tree" parent="VBoxContainer/MarginContainer" unique_id=324097052]
+layout_mode = 2
+accessibility_name = "Action Map"
+theme_type_variation = &"TreeTable"
+theme_override_constants/h_separation = 13
+theme_override_constants/v_separation = 2
+theme_override_constants/inner_item_margin_bottom = 4
+theme_override_constants/inner_item_margin_left = 12
+theme_override_constants/inner_item_margin_right = 12
+theme_override_constants/inner_item_margin_top = 4
+theme_override_constants/button_margin = 2
+theme_override_constants/draw_guides = 0
+theme_override_styles/panel = ExtResource("1_j5pep")
+theme_override_styles/button_hover = ExtResource("6_5xaem")
+theme_override_styles/button_pressed = ExtResource("6_5xaem")
+theme_override_styles/title_button_normal = ExtResource("3_7axco")
+theme_override_styles/title_button_pressed = ExtResource("3_7axco")
+theme_override_styles/title_button_hover = ExtResource("3_7axco")
+columns = 3
+column_titles_visible = true
+hide_root = true
+
+[node name="InputEventConfigurationDialog" parent="." unique_id=1779753139 instance=ExtResource("2_a5nkh")]
