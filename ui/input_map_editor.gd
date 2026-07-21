@@ -52,16 +52,33 @@ func                        ________PROPERTIES_______              ()->void:pass
 @onready var tree: Tree = $VBoxContainer/MarginContainer/Tree
 @onready var event_config_dialog: EventConfigDialog = $InputEventConfigurationDialog
 
-## Optional map override. When null, edits target [InputManager] responder root map.
+## Operation modes for the panel (editor tooling vs live inspection).
+enum OperationMode {
+	## Edit a [CustomInputMap] asset (writable). Used by the bottom-panel plugin.
+	EDITOR,
+	## Inspect live InputManager state (effective / loaded layers). Prefer read-only.
+	MONITOR,
+}
+
+## Optional map override. When null (and not MONITOR), edits InputManager root map.
 @export var edit_map: CustomInputMap
 
 ## When true, after writing to the target map, also call
 ## [method CustomInputMap.apply_to_engine]. Prefer rebuild via InputManager instead.
 @export var apply_edit_map_to_engine: bool = false
 
-## Pure resource editing (editor plugin / inspector). Hides runtime view toggles
-## and never touches [InputManager].
-var resource_edit_mode: bool = false
+## Current panel mode. EDITOR = resource tooling; MONITOR = running-game inspection.
+@export var operation_mode: OperationMode = OperationMode.EDITOR:
+	set = set_operation_mode
+
+## Pure resource editing (editor plugin). Hides runtime view toggles
+## and never touches [InputManager]. Prefer [member operation_mode] == EDITOR.
+var resource_edit_mode: bool = false:
+	set(v):
+		resource_edit_mode = v
+		if v:
+			operation_mode = OperationMode.EDITOR
+
 var _refreshing: bool = false
 
 var _show_root: bool = true
@@ -317,21 +334,25 @@ func                        __Host_Actions___________              ()->void:pass
 ##[br]╰────────────────────────────────────────────────
 
 func _on_host_action_added(action_name: String) -> void:
+	if operation_mode == OperationMode.MONITOR:
+		return
 	var map := _get_target_map()
 	if map == null:
 		return
-	map.add_action(StringName(action_name))
+	map.ensure_action(StringName(action_name))
 	_host_refresh()
 
 
 func _on_host_action_edited(action_name: String, new_action: Dictionary) -> void:
+	if operation_mode == OperationMode.MONITOR:
+		return
 	var map := _get_target_map()
 	if map == null:
 		return
 	var key := StringName(action_name)
 	var deadzone: float = new_action.get("deadzone", CustomInputMap.DEFAULT_DEADZONE)
-	if not map.has_action(key):
-		map.add_action(key, deadzone)
+	# Materialize null placeholders; asserts used to fire when key existed with null def.
+	map.ensure_action(key, deadzone)
 	map.action_set_deadzone(key, deadzone)
 	map.action_clear_events(key)
 	for v: Variant in new_action.get("events", []):
@@ -343,6 +364,8 @@ func _on_host_action_edited(action_name: String, new_action: Dictionary) -> void
 
 
 func _on_host_action_removed(action_name: String) -> void:
+	if operation_mode == OperationMode.MONITOR:
+		return
 	var map := _get_target_map()
 	if map == null:
 		return
@@ -351,6 +374,8 @@ func _on_host_action_removed(action_name: String) -> void:
 
 
 func _on_host_action_renamed(old_name: String, new_name: String) -> void:
+	if operation_mode == OperationMode.MONITOR:
+		return
 	var map := _get_target_map()
 	if map == null:
 		return
@@ -365,13 +390,16 @@ func _on_host_action_renamed(old_name: String, new_name: String) -> void:
 			var dup: InputEvent = ev.duplicate()
 			events.append(dup)
 	map.erase_action(old_key)
-	map.add_action(new_key, deadzone)
+	map.ensure_action(new_key, deadzone)
+	map.action_set_deadzone(new_key, deadzone)
 	for ev: InputEvent in events:
 		map.action_add_event(new_key, ev)
 	_host_refresh()
 
 
 func _on_host_action_reordered(action_name: String, relative_to: String, before: bool) -> void:
+	if operation_mode == OperationMode.MONITOR:
+		return
 	var map := _get_target_map()
 	if map == null:
 		return
@@ -478,10 +506,11 @@ func _ready() -> void:
 	_on_add_edit_text_changed(line_edit.text)
 	_update_clear_all_enabled()
 
-	if resource_edit_mode:
-		_apply_resource_edit_ui()
-	else:
-		# Runtime / in-game: follow InputManager merges.
+	if resource_edit_mode or operation_mode == OperationMode.EDITOR:
+		if resource_edit_mode:
+			_apply_mode_ui()
+	# MONITOR (and runtime embeds) follow InputManager merges when available.
+	if operation_mode == OperationMode.MONITOR or not resource_edit_mode:
 		if is_instance_valid(InputManager):
 			if not InputManager.input_map_changed.is_connected(_on_input_map_changed):
 				@warning_ignore("return_value_discarded")
@@ -596,29 +625,64 @@ func load_from_custom_map(map: CustomInputMap, _builtins_prefix: String = "ui_")
 	refresh()
 
 
-## Configure for editing a [CustomInputMap] asset (editor plugin / inspector).
+func set_operation_mode(mode: OperationMode) -> void:
+	if operation_mode == mode:
+		return
+	operation_mode = mode
+	match operation_mode:
+		OperationMode.EDITOR:
+			# Writable resource editing; runtime views off unless caller re-enables.
+			_show_root = true
+			if resource_edit_mode:
+				_show_effective = false
+				_show_loaded = false
+		OperationMode.MONITOR:
+			# Live inspection: prefer effective map; mutations are ignored by host.
+			resource_edit_mode = false
+			_show_root = false
+			_show_effective = true
+			_show_loaded = true
+			apply_edit_map_to_engine = false
+	if is_node_ready():
+		_apply_mode_ui()
+		refresh()
+
+
+## Configure for editing a [CustomInputMap] asset (editor plugin bottom panel).
 ## Hides InputManager view toggles; all mutations write to [param map].
 func configure_for_resource(map: CustomInputMap) -> void:
 	resource_edit_mode = true
+	operation_mode = OperationMode.EDITOR
 	edit_map = map
 	apply_edit_map_to_engine = false
 	_show_root = true
 	_show_effective = false
 	_show_loaded = false
 	if is_node_ready():
-		_apply_resource_edit_ui()
+		_apply_mode_ui()
 		refresh()
 
 
-func _apply_resource_edit_ui() -> void:
-	if not resource_edit_mode:
-		return
+## Future: attach to a running game's InputManager and show effective/loaded maps.
+func configure_for_monitor() -> void:
+	operation_mode = OperationMode.MONITOR
+
+
+func _apply_mode_ui() -> void:
 	var toggles: Node = get_node_or_null(^"VBoxContainer/ViewToggles")
 	if toggles is CanvasItem:
-		(toggles as CanvasItem).visible = false
-	_show_root = true
-	_show_effective = false
-	_show_loaded = false
+		# EDITOR resource tooling: hide toggles. MONITOR: show effective/loaded.
+		(toggles as CanvasItem).visible = (operation_mode == OperationMode.MONITOR)
+	if is_instance_valid(root_check_button):
+		root_check_button.set_pressed_no_signal(_show_root)
+	if is_instance_valid(effective_check_button):
+		effective_check_button.set_pressed_no_signal(_show_effective)
+	if is_instance_valid(loaded_check_button):
+		loaded_check_button.set_pressed_no_signal(_show_loaded)
+
+
+func _apply_resource_edit_ui() -> void:
+	_apply_mode_ui()
 
 
 func load_from_engine(_builtins_prefix: String = "ui_") -> void:

@@ -53,34 +53,41 @@ func                        __Query__________________              ()->void:pass
 # │ \__\_\\_,_\___|_|  \_, |
 # ╰────────────────────|__/───
 
-func has_action(action:StringName) -> bool:
+## True if the action key exists (value may still be null — treated as empty def).
+func has_action(action: StringName) -> bool:
 	return _actions.has(action)
+
+
+## True if the action exists and has a non-null [InputMapAction] definition.
+func has_action_def(action: StringName) -> bool:
+	return _actions.get(action) != null
 
 
 func get_actions() -> Array[StringName]:
 	return _actions.keys()
 
 
-func action_get_deadzone(action:StringName) -> float:
-	var def:InputMapAction = _actions.get(action)
+## Returns deadzone, or [constant DEFAULT_DEADZONE] when missing/null (no warning).
+## Null definitions are intentional placeholders — same as a default-constructed def.
+func action_get_deadzone(action: StringName) -> float:
+	var def: InputMapAction = _actions.get(action)
 	if def == null:
-		push_warning("CustomInputMap.action_get_deadzone: unknown action '%s'" % action)
 		return DEFAULT_DEADZONE
 	return def.deadzone
 
 
-func action_get_events(action:StringName) -> Array[InputEvent]:
-	var def:InputMapAction = _actions.get(action)
+func action_get_events(action: StringName) -> Array[InputEvent]:
+	var def: InputMapAction = _actions.get(action)
 	if def == null:
 		return []
 	return def.events
 
 
-func action_has_event(action:StringName, event:InputEvent) -> bool:
-	var def:InputMapAction = _actions.get(action)
+func action_has_event(action: StringName, event: InputEvent) -> bool:
+	var def: InputMapAction = _actions.get(action)
 	if def == null or event == null:
 		return false
-	for ev:InputEvent in def.events:
+	for ev: InputEvent in def.events:
 		if ev != null and ev == event:
 			return true
 		if ev != null and event.is_match(ev, true):
@@ -99,51 +106,62 @@ func                        __Mutate_________________              ()->void:pass
 # │|_|  |_|\_,_|\__\__,_|\__\___|
 # ╰────────────────────────────────
 
-func add_action(action:StringName, deadzone:float = DEFAULT_DEADZONE) -> void:
-	var ima:InputMapAction = _actions.get(action)
+## Ensure a non-null [InputMapAction] exists for [param action] and return it.
+## Materializes null placeholders (allowed by the resource model).
+func ensure_action(action: StringName, deadzone: float = DEFAULT_DEADZONE) -> InputMapAction:
+	var ima: InputMapAction = _actions.get(action)
 	if ima != null:
-		push_warning("CustomInputMap: action '%s' already exists (deadzone %s)" % [action, ima.deadzone])
-		return
+		return ima
 	ima = InputMapAction.new()
 	ima.deadzone = deadzone
 	_actions[action] = ima
+	return ima
 
 
-func erase_action(action:StringName) -> void:
+func add_action(action: StringName, deadzone: float = DEFAULT_DEADZONE) -> void:
+	var ima: InputMapAction = _actions.get(action)
+	if ima != null:
+		push_warning("CustomInputMap: action '%s' already exists (deadzone %s)" % [action, ima.deadzone])
+		return
+	# Key may exist with null value — materialize instead of no-op.
+	ensure_action(action, deadzone)
+
+
+func erase_action(action: StringName) -> void:
 	if not _actions.erase(action):
 		push_warning("CustomInputMap: action '%s' not found" % action)
 
 
-func action_set_deadzone(action:StringName, deadzone:float) -> void:
-	assert(_actions.get(action) != null, "CustomInputMap: unknown action: '%s'" % action)
-	var ima:InputMapAction = _actions[action]
+func action_set_deadzone(action: StringName, deadzone: float) -> void:
+	var ima: InputMapAction = ensure_action(action, deadzone)
 	ima.deadzone = deadzone
 
 
-func action_add_event(action:StringName, event:InputEvent) -> void:
-	assert(event, "invalid event passed")
-	assert(_actions.get(action) != null, "CustomInputMap: unknown action: '%s'" % action)
-	var ima:InputMapAction = _actions[action]
+func action_add_event(action: StringName, event: InputEvent) -> void:
+	if event == null:
+		push_error("CustomInputMap.action_add_event: invalid event")
+		return
+	var ima: InputMapAction = ensure_action(action)
 	if action_has_event(action, event):
 		return
 	ima.events.append(event)
 
 
-func action_erase_event(action:StringName, event:InputEvent) -> void:
-	var ima:InputMapAction = _actions.get(action)
-	assert(ima and event, "action or event is invalid")
-	for i:int in range(ima.events.size() - 1, -1, -1): # Reverse Order
-		var ev:InputEvent = ima.events[i]
-		if ev == null: # Clean as we go.
+func action_erase_event(action: StringName, event: InputEvent) -> void:
+	var ima: InputMapAction = _actions.get(action)
+	if ima == null or event == null:
+		return
+	for i: int in range(ima.events.size() - 1, -1, -1):
+		var ev: InputEvent = ima.events[i]
+		if ev == null:
 			ima.events.remove_at(i)
 			continue
-		# Remove the match
 		if ev == event or event.is_match(ev, true):
 			ima.events.remove_at(i)
 
 
-func action_clear_events(action:StringName) -> void:
-	var def:InputMapAction = _actions.get(action)
+func action_clear_events(action: StringName) -> void:
+	var def: InputMapAction = _actions.get(action)
 	if def == null:
 		return
 	def.events.clear()
