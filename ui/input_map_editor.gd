@@ -18,6 +18,8 @@ extends PanelContainer
 
 ## Default pixel size for [TreeItem] buttons (layout uses texture size as-is).
 const TREE_BUTTON_SIZE: Vector2i = Vector2i(16, 16)
+## Preload avoids class_name placeholder failures while the plugin reloads.
+const _EventListenerScript = preload("res://addons/enetheru.input_map_editor/ui/event_listener_line_edit.gd")
 
 enum ItemButton {
 	ADD_EVENT,
@@ -54,7 +56,9 @@ class ActionInfo:
 func                        ________PROPERTIES_______              ()->void:pass
 
 @onready var filter_name_line_edit: LineEdit = $VBoxContainer/EditorEventSearchBar/FilterNameLineEdit
-@onready var event_listener_line_edit: EventListenerLineEdit = $VBoxContainer/EditorEventSearchBar/EventListenerLineEdit
+## Typed as LineEdit: during plugin reload the script may be a placeholder without
+## EventListenerLineEdit methods (see _listener_* helpers).
+@onready var event_listener_line_edit: LineEdit = $VBoxContainer/EditorEventSearchBar/EventListenerLineEdit
 @onready var clear_all_button: Button = $VBoxContainer/EditorEventSearchBar/ClearAllButton
 
 @onready var line_edit: LineEdit = $VBoxContainer/HBoxContainer/LineEdit
@@ -160,9 +164,10 @@ func _on_clear_all_search() -> void:
 	filter_name_line_edit.set_block_signals(true)
 	filter_name_line_edit.clear()
 	filter_name_line_edit.set_block_signals(false)
-	event_listener_line_edit.set_block_signals(true)
-	event_listener_line_edit.clear_event()
-	event_listener_line_edit.set_block_signals(false)
+	if is_instance_valid(event_listener_line_edit):
+		event_listener_line_edit.set_block_signals(true)
+		_listener_clear_event(event_listener_line_edit)
+		event_listener_line_edit.set_block_signals(false)
 	_on_search_bar_value_changed()
 
 
@@ -502,7 +507,8 @@ func _ready() -> void:
 
 	@warning_ignore_start("return_value_discarded")
 	filter_name_line_edit.text_changed.connect(_on_search_bar_value_changed.unbind(1))
-	event_listener_line_edit.event_changed.connect(_on_search_event_changed)
+	if is_instance_valid(event_listener_line_edit) and event_listener_line_edit.has_signal(&"event_changed"):
+		event_listener_line_edit.connect(&"event_changed", _on_search_event_changed)
 	clear_all_button.pressed.connect(_on_clear_all_search)
 	line_edit.text_changed.connect(_on_add_edit_text_changed)
 	line_edit.text_submitted.connect(_on_add_action_submitted)
@@ -571,6 +577,7 @@ func refresh() -> void:
 	if not is_instance_valid(tree):
 		return
 	_refreshing = true
+	# Always clear the flag — a mid-refresh error must not permanently freeze the tree.
 	_refresh_tree()
 	_refreshing = false
 
@@ -590,8 +597,7 @@ func _refresh_tree() -> void:
 	var root: TreeItem = tree.create_item()
 
 	# Resource / multi-file editor: one path root per open map.
-	# Use open_maps only (not edit_map fallback) so MONITOR mode never takes this path.
-	if resource_edit_mode or (operation_mode == OperationMode.EDITOR and not open_maps.is_empty()):
+	if resource_edit_mode or (operation_mode == OperationMode.EDITOR and not _get_open_maps().is_empty()):
 		_populate_open_map_roots(root, collapsed, selected_key, selected_col)
 		return
 
@@ -609,8 +615,8 @@ func _refresh_tree() -> void:
 		if multi_section:
 			parent = _make_section_item(root, "Root Actions", &"section_root")
 		var target := _get_target_map()
-		# Still show which resource is being edited when a map is assigned.
-		if target != null and not target.resource_path.is_empty():
+		# Path header for the file being edited (actions nest under it).
+		if target != null:
 			parent = _make_map_root_item(parent, target, collapsed, selected_key, selected_col)
 		_populate_map_actions(
 				parent,
@@ -622,6 +628,8 @@ func _refresh_tree() -> void:
 				selected_col,
 				target
 		)
+		if parent != root and parent != null:
+			_apply_map_root_collapsed(parent, collapsed)
 
 	if _show_effective:
 		var parent: TreeItem = root
@@ -675,7 +683,7 @@ func _populate_open_map_roots(
 		if map == null:
 			continue
 		var map_item := _make_map_root_item(root, map, collapsed, selected_key, selected_col)
-		var key_prefix := "map:%d" % map.get_instance_id()
+		var key_prefix := str(map_item.get_meta(&"__select_key"))
 		_populate_map_actions(
 				map_item,
 				map,
@@ -686,6 +694,8 @@ func _populate_open_map_roots(
 				selected_col,
 				map
 		)
+		# Collapse only after children exist; default is expanded so actions are visible.
+		_apply_map_root_collapsed(map_item, collapsed)
 
 
 ## Compatibility: load a flat editable list from a map (forces root view data).
@@ -732,9 +742,11 @@ func configure_for_resource(map: CustomInputMap) -> void:
 	_show_root = true
 	_show_effective = false
 	_show_loaded = false
-	_set_open_maps([map] if map != null else [])
 	edit_map = map
 	_current_map = map
+	open_maps.clear()
+	if map != null:
+		open_maps.append(map)
 	if is_node_ready():
 		_apply_mode_ui()
 		refresh()
@@ -856,7 +868,7 @@ func                        _________FILTERS_________              ()->void:pass
 func _has_filters() -> bool:
 	return (
 			not filter_name_line_edit.text.is_empty()
-			or event_listener_line_edit.get_event() != null
+			or _listener_get_event(event_listener_line_edit) != null
 	)
 
 
@@ -865,7 +877,7 @@ func _update_clear_all_enabled() -> void:
 
 
 func _should_display_action(action_name: String, events: Array) -> bool:
-	var search_ev := event_listener_line_edit.get_event()
+	var search_ev := _listener_get_event(event_listener_line_edit)
 	var event_match := true
 	if search_ev != null:
 		event_match = false
@@ -876,6 +888,33 @@ func _should_display_action(action_name: String, events: Array) -> bool:
 				break
 	var name_filter := filter_name_line_edit.text.strip_edges()
 	return event_match and (name_filter.is_empty() or name_filter.is_subsequence_ofn(action_name))
+
+
+## Safe access while EventListenerLineEdit may be a tool-script placeholder.
+func _listener_get_event(listener: Object) -> InputEvent:
+	if listener == null or not is_instance_valid(listener):
+		return null
+	if not listener.has_method(&"get_event"):
+		return null
+	return listener.call(&"get_event") as InputEvent
+
+
+func _listener_clear_event(listener: Object) -> void:
+	if listener == null or not is_instance_valid(listener):
+		return
+	if listener.has_method(&"clear_event"):
+		listener.call(&"clear_event")
+	elif listener is LineEdit:
+		(listener as LineEdit).clear()
+
+
+func _format_input_event_text(event: InputEvent, include_device: bool = true) -> String:
+	if event == null:
+		return ""
+	# Static helper on the preloaded script (safe during class_name placeholder windows).
+	if _EventListenerScript != null:
+		return str(_EventListenerScript.get_event_text(event, include_device))
+	return event.as_text()
 
 
 
@@ -900,13 +939,14 @@ func _make_section_item(parent: TreeItem, title: String, key: StringName) -> Tre
 func _make_map_root_item(
 		parent: TreeItem,
 		map: CustomInputMap,
-		collapsed: Dictionary,
+		_collapsed: Dictionary,
 		selected_key: String,
 		selected_col: int
 ) -> TreeItem:
 	var item: TreeItem = tree.create_item(parent)
 	var path := _map_display_path(map)
-	var select_key := "map:%d" % map.get_instance_id()
+	# Prefer stable path key over instance id (ids change across reloads).
+	var select_key := "map:%s" % path
 	item.set_text(0, path)
 	item.set_tooltip_text(0, path)
 	item.set_meta(&"__map", map)
@@ -916,10 +956,19 @@ func _make_map_root_item(
 	# Selectable so "add action" context can follow the chosen file root.
 	item.set_selectable(0, true)
 	item.set_selectable(1, false)
-	item.collapsed = collapsed.get(select_key, false)
+	# Leave expanded until children are attached (see _apply_map_root_collapsed).
+	item.collapsed = false
 	if selected_key == select_key:
-		item.select(selected_col)
+		item.select(0)
 	return item
+
+
+func _apply_map_root_collapsed(map_item: TreeItem, collapsed: Dictionary) -> void:
+	if map_item == null:
+		return
+	var select_key := str(map_item.get_meta(&"__select_key", ""))
+	# File roots default to expanded so nested actions are never hidden on first open.
+	map_item.collapsed = bool(collapsed.get(select_key, false))
 
 
 func _map_display_path(map: CustomInputMap) -> String:
@@ -957,14 +1006,28 @@ func _populate_map_actions(
 		selected_col: int,
 		owner_map: CustomInputMap = null
 ) -> void:
+	if parent == null:
+		return
 	if map == null:
 		var empty:TreeItem = tree.create_item(parent)
 		empty.set_text(0, "(no map)")
 		empty.set_selectable(0, false)
 		return
 
-	var actions := map.get_actions()
-	if actions.is_empty():
+	# Prefer iterating the exported dictionary directly — avoids typed Array
+	# conversion issues with Dictionary.keys() on some Godot builds.
+	var action_names: Array[StringName] = []
+	if map.has_method(&"get_actions"):
+		var raw: Variant = map.get_actions()
+		if raw is Array:
+			for k: Variant in raw:
+				action_names.append(k as StringName)
+	if action_names.is_empty() and map.get(&"_actions") is Dictionary:
+		var actions_dict: Dictionary = map.get(&"_actions")
+		for k: Variant in actions_dict.keys():
+			action_names.append(k as StringName)
+
+	if action_names.is_empty():
 		var empty:TreeItem = tree.create_item(parent)
 		empty.set_text(0, "(no actions)")
 		empty.set_selectable(0, false)
@@ -972,7 +1035,7 @@ func _populate_map_actions(
 			empty.set_meta(&"__map", owner_map)
 		return
 
-	for action_name: StringName in actions:
+	for action_name: StringName in action_names:
 		var events: Array = []
 		for ev: InputEvent in map.action_get_events(action_name):
 			if ev:
@@ -1136,7 +1199,7 @@ func _add_action_event(
 		event_item.set_meta(&"__map", owner_map)
 
 	# Column 0 — event label + type icon
-	event_item.set_text(0, EventListenerLineEdit.get_event_text(event, true))
+	event_item.set_text(0, _format_input_event_text(event, true))
 	event_item.set_icon(0, IconCache.for_event(event))
 	event_item.set_icon_max_width(0, TREE_BUTTON_SIZE.x)
 	# Column 1 — empty (align under deadzone)
@@ -1254,10 +1317,12 @@ func                        ________INPUT_MAP________              ()->void:pass
 
 func _get_open_maps() -> Array[CustomInputMap]:
 	var out: Array[CustomInputMap] = []
+	# Do not use is_instance_valid on Resources — editor proxies can fail that check
+	# (or pass it without a usable script), same class of bug as InputManager.
 	for m: CustomInputMap in open_maps:
-		if m != null and is_instance_valid(m) and not out.has(m):
+		if m != null and not out.has(m):
 			out.append(m)
-	if out.is_empty() and edit_map != null and is_instance_valid(edit_map):
+	if out.is_empty() and edit_map != null:
 		out.append(edit_map)
 	return out
 
@@ -1265,18 +1330,19 @@ func _get_open_maps() -> Array[CustomInputMap]:
 func _set_open_maps(maps: Array) -> void:
 	open_maps.clear()
 	for v: Variant in maps:
-		var m: CustomInputMap = v
-		if m != null and is_instance_valid(m) and not open_maps.has(m):
-			open_maps.append(m)
+		if v is CustomInputMap:
+			var m: CustomInputMap = v
+			if m != null and not open_maps.has(m):
+				open_maps.append(m)
 
 
 func _map_from_item(item: TreeItem) -> CustomInputMap:
 	var walk := item
 	while walk != null:
 		if walk.has_meta(&"__map"):
-			var m: CustomInputMap = walk.get_meta(&"__map")
-			if m != null and is_instance_valid(m):
-				return m
+			var m: Variant = walk.get_meta(&"__map")
+			if m is CustomInputMap:
+				return m as CustomInputMap
 		walk = walk.get_parent()
 	return null
 
@@ -1289,15 +1355,15 @@ func _set_mutation_context(item: TreeItem) -> void:
 
 
 func _get_mutation_map() -> CustomInputMap:
-	if _current_map != null and is_instance_valid(_current_map):
+	if _current_map != null:
 		return _current_map
 	return _get_target_map()
 
 
 func _get_target_map() -> CustomInputMap:
-	if _current_map != null and is_instance_valid(_current_map):
+	if _current_map != null:
 		return _current_map
-	if edit_map != null and is_instance_valid(edit_map):
+	if edit_map != null:
 		return edit_map
 	var opened := _get_open_maps()
 	if not opened.is_empty():

@@ -64,7 +64,12 @@ func has_action_def(action: StringName) -> bool:
 
 
 func get_actions() -> Array[StringName]:
-	return _actions.keys()
+	# Build a typed array explicitly — Dictionary.keys() returns an untyped Array
+	# which can fail the return conversion on some Godot versions.
+	var out: Array[StringName] = []
+	for key: StringName in _actions:
+		out.append(key)
+	return out
 
 
 ## Returns deadzone, or [constant DEFAULT_DEADZONE] when missing/null (no warning).
