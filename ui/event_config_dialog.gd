@@ -324,7 +324,13 @@ func _ready() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED and visible:
-		event_listener.grab_focus()
+		_focus_listener()
+	elif what == NOTIFICATION_POST_POPUP:
+		_focus_listener()
+	elif what == NOTIFICATION_WM_WINDOW_FOCUS_IN:
+		# Editor may hand window focus to the popup without focusing a child control.
+		if visible:
+			_focus_listener()
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -336,6 +342,23 @@ func                        _________METHODS_________              ()->void:pass
 
 func get_event() -> InputEvent:
 	return _event
+
+
+func _focus_listener() -> void:
+	if not is_instance_valid(event_listener):
+		return
+	# Window must finish showing / take OS focus before a child can hold focus.
+	# One deferred call is often too early under EditorPlugin bottom panels.
+	event_listener.call_deferred(&"grab_focus")
+	if is_inside_tree():
+		_focus_listener_next_frame.call_deferred()
+
+
+func _focus_listener_next_frame() -> void:
+	if not visible or not is_instance_valid(event_listener):
+		return
+	if not event_listener.has_focus():
+		event_listener.grab_focus()
 
 
 func set_allowed_input_types(type_masks: int) -> void:
@@ -381,11 +404,16 @@ func popup_and_configure(
 	# Bottom-panel parents can clip / break Window popups in the editor.
 	# Transient + exclusive keeps the dialog on top of the editor chrome.
 	if Engine.is_editor_hint():
+		transient = true
 		exclusive = true
 		unresizable = false
+	# Prefer the listener over any other focusable child when the window opens.
+	if is_instance_valid(event_listener):
+		event_listener.focus_mode = Control.FOCUS_ALL
 	popup_centered(Vector2i(661, 400))
 	# Ensure OK reflects current event (null → disabled).
 	_sync_ok_enabled()
+	_focus_listener()
 
 
 #       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #

@@ -86,8 +86,7 @@ signal event_changed(event: InputEvent)
 func                        __________EVENTS_________              ()->void:pass
 
 func _on_focus_entered() -> void:
-	# Code-driven focus should accept the next event immediately.
-	_ignore_next_event = false
+	placeholder_text = "Listening for Input"
 
 
 func _on_text_changed(new_text: String) -> void:
@@ -105,16 +104,16 @@ func                        ________OVERRIDES________              ()->void:pass
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_FOCUS_ENTER:
-			var window:Window = get_window()
-			if window and window is AcceptDialog:
-				var dialog:AcceptDialog = window
-				dialog.dialog_close_on_escape = false
+			var window: Window = get_window()
+			if window is AcceptDialog:
+				(window as AcceptDialog).dialog_close_on_escape = false
 			placeholder_text = "Listening for Input"
 		NOTIFICATION_FOCUS_EXIT:
-			var window:Window = get_window()
-			if window and window is AcceptDialog:
-				var dialog:AcceptDialog = window
-				dialog.dialog_close_on_escape = true
+			var window: Window = get_window()
+			if window is AcceptDialog:
+				(window as AcceptDialog).dialog_close_on_escape = true
+			# Only ignore the focusing click when the user focuses by mouse.
+			# Programmatic grab_focus() clears this again before the next event.
 			_ignore_next_event = true
 			placeholder_text = "Filter by Event"
 
@@ -122,10 +121,20 @@ func _notification(what: int) -> void:
 func _ready() -> void:
 	caret_blink = false
 	clear_button_enabled = true
+	focus_mode = Control.FOCUS_ALL
 	if placeholder_text.is_empty():
 		placeholder_text = "Filter by Event"
 	@warning_ignore("return_value_discarded")
 	text_changed.connect(_on_text_changed)
+	focus_entered.connect(_on_focus_entered)
+
+
+## Code-driven focus must accept the next bind immediately (engine EventListenerLineEdit).
+func grab_focus() -> void:
+	# Opening the config dialog via a tree button leaves a mouse-up in the queue.
+	# Accept the next non-key residual (mouse) once, then take real binds.
+	_ignore_next_event = false
+	super.grab_focus()
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -139,9 +148,13 @@ func _gui_input(event: InputEvent) -> void:
 		if mb.position.x > size.x - size.y:
 			return
 
+	# Swallow residual open-click / focus-click without eating the first key bind.
 	if _ignore_next_event:
 		_ignore_next_event = false
-		return
+		if event is InputEventMouseButton:
+			accept_event()
+			return
+		# Key/joy that arrived while ignore was set (e.g. focus race): treat as bind.
 
 	var event_to_check: InputEvent = event
 

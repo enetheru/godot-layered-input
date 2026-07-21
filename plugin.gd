@@ -79,8 +79,13 @@ func _on_edited_object_changed() -> void:
 func _edit_map(map: CustomInputMap) -> void:
 	if _panel == null or map == null:
 		return
-	# Same instance already loaded — do not rebuild the tree (avoids lag loops).
-	if _panel.edit_map == map and _panel.resource_edit_mode:
+	# Same instance already the sole open map — do not rebuild the tree (avoids lag loops).
+	if (
+			_panel.resource_edit_mode
+			and _panel.edit_map == map
+			and _panel.open_maps.size() == 1
+			and _panel.open_maps[0] == map
+	):
 		return
 	_panel.configure_for_resource(map)
 	make_bottom_panel_item_visible(_panel)

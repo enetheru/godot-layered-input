@@ -68,6 +68,7 @@ func                        ________PROPERTIES_______              ()->void:pass
 @onready var event_config_dialog: EventConfigDialog = $InputEventConfigurationDialog
 
 ## Optional map override. When null (and not MONITOR), edits InputManager root map.
+## In multi-map EDITOR mode this is the active/context map (add-action target).
 @export var edit_map: CustomInputMap
 
 ## When true, after writing to the target map, also call
@@ -86,6 +87,9 @@ var resource_edit_mode: bool = false:
 		if v:
 			operation_mode = OperationMode.EDITOR
 
+## Maps open in the tree (each gets a path root). Empty falls back to [member edit_map].
+var open_maps: Array[CustomInputMap] = []
+
 var _refreshing: bool = false
 
 var _show_root: bool = true
@@ -95,6 +99,8 @@ var _show_loaded: bool = false
 var _current_action: Dictionary = {}
 var _current_action_name: String = ""
 var _current_action_event_index: int = -1
+## Map that owns the action currently being edited (event dialog / host mutations).
+var _current_map: CustomInputMap
 
 var _message: AcceptDialog
 var _button_icon_add: Texture2D
@@ -207,6 +213,7 @@ func _on_action_edited() -> void:
 	var ti := tree.get_edited()
 	if ti == null or not _item_is_editable(ti):
 		return
+	_set_mutation_context(ti)
 	var col := tree.get_edited_column()
 	if col == 0:
 		var new_name := ti.get_text(0).strip_edges()
@@ -221,7 +228,7 @@ func _on_action_edited() -> void:
 			ti.set_text(0, old_name)
 			show_message("Invalid action name. It cannot contain '/', ':', '=', '\\' or '\"'.")
 			return
-		if _target_has_action(new_name):
+		if _map_has_action(_get_mutation_map(), new_name):
 			ti.set_text(0, old_name)
 			show_message("An action with the name '%s' already exists." % new_name)
 			return
@@ -232,6 +239,13 @@ func _on_action_edited() -> void:
 		var new_action: Dictionary = old_action.duplicate(true)
 		new_action["deadzone"] = ti.get_range(1)
 		action_edited.emit.call_deferred(action_name, new_action)
+
+
+func _on_tree_item_selected() -> void:
+	var item := tree.get_selected()
+	if item == null:
+		return
+	_set_mutation_context(item)
 
 
 func _on_event_config_confirmed() -> void:
@@ -274,6 +288,7 @@ func _on_tree_button_pressed(item: TreeItem, _column: int, id: int, mouse_button
 		ItemButton.ADD_EVENT:
 			if not _item_is_editable(item):
 				return
+			_set_mutation_context(item)
 			_current_action = item.get_meta(&"__action")
 			_current_action_name = item.get_meta(&"__name")
 			_current_action_event_index = -1
@@ -283,6 +298,7 @@ func _on_tree_button_pressed(item: TreeItem, _column: int, id: int, mouse_button
 			if not _item_is_editable(item):
 				return
 			var parent := item.get_parent()
+			_set_mutation_context(parent)
 			_current_action = parent.get_meta(&"__action")
 			_current_action_name = parent.get_meta(&"__name")
 			_current_action_event_index = item.get_meta(&"__index")
@@ -293,12 +309,14 @@ func _on_tree_button_pressed(item: TreeItem, _column: int, id: int, mouse_button
 		ItemButton.REMOVE_ACTION:
 			if not _item_is_editable(item):
 				return
+			_set_mutation_context(item)
 			action_removed.emit(item.get_meta(&"__name"))
 
 		ItemButton.REMOVE_EVENT:
 			if not _item_is_editable(item):
 				return
 			var parent := item.get_parent()
+			_set_mutation_context(parent)
 			var parent_action: Dictionary = parent.get_meta(&"__action")
 			var action: Dictionary = parent_action.duplicate(true)
 			var action_name: String = parent.get_meta(&"__name")
@@ -315,6 +333,7 @@ func _on_tree_button_pressed(item: TreeItem, _column: int, id: int, mouse_button
 			if not item.has_meta(&"__action_initial"):
 				push_error("Revert requested without __action_initial meta.")
 				return
+			_set_mutation_context(item)
 			var initial: Dictionary = item.get_meta(&"__action_initial")
 			var action: Dictionary = initial.duplicate(true)
 			var action_name: String = item.get_meta(&"__name")
@@ -343,17 +362,17 @@ func                        __Host_Actions___________              ()->void:pass
 func _on_host_action_added(action_name: String) -> void:
 	if operation_mode == OperationMode.MONITOR:
 		return
-	var map := _get_target_map()
+	var map := _get_mutation_map()
 	if map == null:
 		return
 	map.ensure_action(StringName(action_name))
-	_host_refresh()
+	_host_refresh(map)
 
 
 func _on_host_action_edited(action_name: String, new_action: Dictionary) -> void:
 	if operation_mode == OperationMode.MONITOR:
 		return
-	var map := _get_target_map()
+	var map := _get_mutation_map()
 	if map == null:
 		return
 	var key := StringName(action_name)
@@ -367,23 +386,23 @@ func _on_host_action_edited(action_name: String, new_action: Dictionary) -> void
 		if ev:
 			var dup: InputEvent = ev.duplicate()
 			map.action_add_event(key, dup)
-	_host_refresh()
+	_host_refresh(map)
 
 
 func _on_host_action_removed(action_name: String) -> void:
 	if operation_mode == OperationMode.MONITOR:
 		return
-	var map := _get_target_map()
+	var map := _get_mutation_map()
 	if map == null:
 		return
 	map.erase_action(StringName(action_name))
-	_host_refresh()
+	_host_refresh(map)
 
 
 func _on_host_action_renamed(old_name: String, new_name: String) -> void:
 	if operation_mode == OperationMode.MONITOR:
 		return
-	var map := _get_target_map()
+	var map := _get_mutation_map()
 	if map == null:
 		return
 	var old_key := StringName(old_name)
@@ -401,13 +420,13 @@ func _on_host_action_renamed(old_name: String, new_name: String) -> void:
 	map.action_set_deadzone(new_key, deadzone)
 	for ev: InputEvent in events:
 		map.action_add_event(new_key, ev)
-	_host_refresh()
+	_host_refresh(map)
 
 
 func _on_host_action_reordered(action_name: String, relative_to: String, before: bool) -> void:
 	if operation_mode == OperationMode.MONITOR:
 		return
-	var map := _get_target_map()
+	var map := _get_mutation_map()
 	if map == null:
 		return
 	var keys: Array[StringName] = map.get_actions()
@@ -445,7 +464,7 @@ func _on_host_action_reordered(action_name: String, relative_to: String, before:
 			if ev:
 				var dup: InputEvent = ev.duplicate()
 				map.action_add_event(k, dup)
-	_host_refresh()
+	_host_refresh(map)
 
 #endregion Host Actions
 
@@ -493,6 +512,7 @@ func _ready() -> void:
 	loaded_check_button.toggled.connect(_on_view_toggles_changed.unbind(1))
 	tree.item_edited.connect(_on_action_edited, CONNECT_DEFERRED)
 	tree.item_activated.connect(_on_tree_item_activated)
+	tree.item_selected.connect(_on_tree_item_selected)
 	tree.button_clicked.connect(_on_tree_button_pressed)
 	tree.set_drag_forwarding(_get_drag_data_fw, _can_drop_data_fw, _drop_data_fw)
 
@@ -516,8 +536,10 @@ func _ready() -> void:
 	if resource_edit_mode or operation_mode == OperationMode.EDITOR:
 		if resource_edit_mode:
 			_apply_mode_ui()
-	# MONITOR (and runtime embeds) follow InputManager merges when available.
-	if operation_mode == OperationMode.MONITOR or not resource_edit_mode:
+	# Runtime only: follow InputManager merges. Never touch the autoload in the
+	# editor — on plugin disable it can still pass is_instance_valid as a proxy
+	# without the real script/signals, which errors on .input_map_changed.
+	if not Engine.is_editor_hint() and not resource_edit_mode:
 		if is_instance_valid(InputManager):
 			if not InputManager.input_map_changed.is_connected(_on_input_map_changed):
 				@warning_ignore("return_value_discarded")
@@ -567,6 +589,12 @@ func _refresh_tree() -> void:
 	tree.clear()
 	var root: TreeItem = tree.create_item()
 
+	# Resource / multi-file editor: one path root per open map.
+	# Use open_maps only (not edit_map fallback) so MONITOR mode never takes this path.
+	if resource_edit_mode or (operation_mode == OperationMode.EDITOR and not open_maps.is_empty()):
+		_populate_open_map_roots(root, collapsed, selected_key, selected_col)
+		return
+
 	var section_count: int = 0
 	if _show_root:
 		section_count += 1
@@ -580,14 +608,19 @@ func _refresh_tree() -> void:
 		var parent: TreeItem = root
 		if multi_section:
 			parent = _make_section_item(root, "Root Actions", &"section_root")
+		var target := _get_target_map()
+		# Still show which resource is being edited when a map is assigned.
+		if target != null and not target.resource_path.is_empty():
+			parent = _make_map_root_item(parent, target, collapsed, selected_key, selected_col)
 		_populate_map_actions(
 				parent,
-				_get_target_map(),
+				target,
 				true,
 				"root",
 				collapsed,
 				selected_key,
-				selected_col
+				selected_col,
+				target
 		)
 
 	if _show_effective:
@@ -602,7 +635,8 @@ func _refresh_tree() -> void:
 				"effective",
 				collapsed,
 				selected_key,
-				selected_col
+				selected_col,
+				effective
 		)
 
 	if _show_loaded:
@@ -625,9 +659,40 @@ func _refresh_tree() -> void:
 			empty.set_selectable(0, false)
 
 
+func _populate_open_map_roots(
+		root: TreeItem,
+		collapsed: Dictionary,
+		selected_key: String,
+		selected_col: int
+) -> void:
+	var maps := _get_open_maps()
+	if maps.is_empty():
+		var empty: TreeItem = tree.create_item(root)
+		empty.set_text(0, "(no CustomInputMap selected)")
+		empty.set_selectable(0, false)
+		return
+	for map: CustomInputMap in maps:
+		if map == null:
+			continue
+		var map_item := _make_map_root_item(root, map, collapsed, selected_key, selected_col)
+		var key_prefix := "map:%d" % map.get_instance_id()
+		_populate_map_actions(
+				map_item,
+				map,
+				true,
+				key_prefix,
+				collapsed,
+				selected_key,
+				selected_col,
+				map
+		)
+
+
 ## Compatibility: load a flat editable list from a map (forces root view data).
 func load_from_custom_map(map: CustomInputMap, _builtins_prefix: String = "ui_") -> void:
+	_set_open_maps([map] if map != null else [])
 	edit_map = map
+	_current_map = map
 	_show_root = true
 	if is_instance_valid(root_check_button):
 		root_check_button.set_pressed_no_signal(true)
@@ -648,6 +713,7 @@ func set_operation_mode(mode: OperationMode) -> void:
 		OperationMode.MONITOR:
 			# Live inspection: prefer effective map; mutations are ignored by host.
 			resource_edit_mode = false
+			open_maps.clear()
 			_show_root = false
 			_show_effective = true
 			_show_loaded = true
@@ -658,15 +724,44 @@ func set_operation_mode(mode: OperationMode) -> void:
 
 
 ## Configure for editing a [CustomInputMap] asset (editor plugin bottom panel).
-## Hides InputManager view toggles; all mutations write to [param map].
+## Replaces the open list with [param map] only. Use [method open_map] to add more.
 func configure_for_resource(map: CustomInputMap) -> void:
 	resource_edit_mode = true
 	operation_mode = OperationMode.EDITOR
-	edit_map = map
 	apply_edit_map_to_engine = false
 	_show_root = true
 	_show_effective = false
 	_show_loaded = false
+	_set_open_maps([map] if map != null else [])
+	edit_map = map
+	_current_map = map
+	if is_node_ready():
+		_apply_mode_ui()
+		refresh()
+
+
+## Add [param map] as another editable root (multi-file). No-op if already open.
+func open_map(map: CustomInputMap) -> void:
+	if map == null:
+		return
+	resource_edit_mode = true
+	operation_mode = OperationMode.EDITOR
+	if not open_maps.has(map):
+		open_maps.append(map)
+	edit_map = map
+	_current_map = map
+	if is_node_ready():
+		_apply_mode_ui()
+		refresh()
+
+
+## Replace the full open-map list (multi-file editor).
+func set_open_maps(maps: Array[CustomInputMap]) -> void:
+	resource_edit_mode = true
+	operation_mode = OperationMode.EDITOR
+	_set_open_maps(maps)
+	edit_map = open_maps[0] if not open_maps.is_empty() else null
+	_current_map = edit_map
 	if is_node_ready():
 		_apply_mode_ui()
 		refresh()
@@ -802,6 +897,41 @@ func _make_section_item(parent: TreeItem, title: String, key: StringName) -> Tre
 	return item
 
 
+func _make_map_root_item(
+		parent: TreeItem,
+		map: CustomInputMap,
+		collapsed: Dictionary,
+		selected_key: String,
+		selected_col: int
+) -> TreeItem:
+	var item: TreeItem = tree.create_item(parent)
+	var path := _map_display_path(map)
+	var select_key := "map:%d" % map.get_instance_id()
+	item.set_text(0, path)
+	item.set_tooltip_text(0, path)
+	item.set_meta(&"__map", map)
+	item.set_meta(&"__map_root", true)
+	item.set_meta(&"__select_key", select_key)
+	item.set_custom_color(0, Color(0.75, 0.85, 1.0))
+	# Selectable so "add action" context can follow the chosen file root.
+	item.set_selectable(0, true)
+	item.set_selectable(1, false)
+	item.collapsed = collapsed.get(select_key, false)
+	if selected_key == select_key:
+		item.select(selected_col)
+	return item
+
+
+func _map_display_path(map: CustomInputMap) -> String:
+	if map == null:
+		return "(no map)"
+	if not map.resource_path.is_empty():
+		return map.resource_path
+	if not map.resource_name.is_empty():
+		return "%s (unsaved)" % map.resource_name
+	return "(unsaved CustomInputMap)"
+
+
 func _collect_collapsed(item: TreeItem, out: Dictionary) -> void:
 	if item == null:
 		return
@@ -824,7 +954,8 @@ func _populate_map_actions(
 		key_prefix: String,
 		collapsed: Dictionary,
 		selected_key: String,
-		selected_col: int
+		selected_col: int,
+		owner_map: CustomInputMap = null
 ) -> void:
 	if map == null:
 		var empty:TreeItem = tree.create_item(parent)
@@ -837,6 +968,8 @@ func _populate_map_actions(
 		var empty:TreeItem = tree.create_item(parent)
 		empty.set_text(0, "(no actions)")
 		empty.set_selectable(0, false)
+		if owner_map != null:
+			empty.set_meta(&"__map", owner_map)
 		return
 
 	for action_name: StringName in actions:
@@ -859,7 +992,8 @@ func _populate_map_actions(
 				"%s/%s" % [key_prefix, info.name],
 				collapsed,
 				selected_key,
-				selected_col
+				selected_col,
+				owner_map if owner_map != null else map
 		)
 
 
@@ -883,6 +1017,8 @@ func _populate_responder_branch(
 	node_item.set_text(0, label)
 	node_item.set_meta(&"__responder", true)
 	node_item.set_meta(&"__select_key", node_key)
+	if responder.input_map != null:
+		node_item.set_meta(&"__map", responder.input_map)
 	node_item.collapsed = collapsed.get(node_key, false)
 	node_item.set_custom_color(0, Color(0.85, 0.85, 0.7))
 
@@ -894,7 +1030,8 @@ func _populate_responder_branch(
 				node_key,
 				collapsed,
 				selected_key,
-				selected_col
+				selected_col,
+				responder.input_map
 		)
 
 	for child: Node in responder.get_children():
@@ -916,7 +1053,8 @@ func _add_action_item(
 		select_key: String,
 		collapsed: Dictionary,
 		selected_key: String,
-		selected_col: int
+		selected_col: int,
+		owner_map: CustomInputMap = null
 ) -> void:
 	var events: Array = action_info.action.get("events", [])
 	var deadzone: float = action_info.action.get("deadzone", 0.5)
@@ -925,6 +1063,8 @@ func _add_action_item(
 	action_item.set_meta(&"__name", action_info.name)
 	action_item.set_meta(&"__editable", action_info.editable)
 	action_item.set_meta(&"__select_key", select_key)
+	if owner_map != null:
+		action_item.set_meta(&"__map", owner_map)
 	action_item.collapsed = collapsed.get(select_key, false)
 
 	# Joined rounded bar on cols 0–1 (engine prop_subsection_stylebox_left/right).
@@ -974,7 +1114,7 @@ func _add_action_item(
 		if event == null: continue
 		var event_key:String = "%s#%d" % [select_key, evnt_idx]
 		var event_item:TreeItem = _add_action_event(
-				action_item, action_info, event, evnt_idx, event_key)
+				action_item, action_info, event, evnt_idx, event_key, owner_map)
 		if selected_key == event_key:
 			event_item.select(selected_col)
 
@@ -985,12 +1125,15 @@ func _add_action_event(
 			event:InputEvent,
 			evnt_idx:int,
 			event_key:String,
+			owner_map: CustomInputMap = null,
 ) -> TreeItem:
 	var event_item := tree.create_item(action_item)
 	event_item.set_meta(&"__event", event)
 	event_item.set_meta(&"__index", evnt_idx)
 	event_item.set_meta(&"__editable", action_info.editable)
 	event_item.set_meta(&"__select_key", event_key)
+	if owner_map != null:
+		event_item.set_meta(&"__map", owner_map)
 
 	# Column 0 — event label + type icon
 	event_item.set_text(0, EventListenerLineEdit.get_event_text(event, true))
@@ -1052,6 +1195,9 @@ func _can_drop_data_fw(at_position: Vector2, data: Variant) -> bool:
 		return false
 	if not _item_is_editable(selected) or not _item_is_editable(item):
 		return false
+	# Never drag across different map files.
+	if _map_from_item(selected) != _map_from_item(item):
+		return false
 	if d["input_type"] == "action" and item.has_meta(&"__event"):
 		return false
 	if d["input_type"] == "event" and item.get_parent() != selected.get_parent():
@@ -1071,10 +1217,12 @@ func _drop_data_fw(at_position: Vector2, data: Variant) -> void:
 	var d: Dictionary = data
 
 	if d["input_type"] == "action":
+		_set_mutation_context(selected)
 		var relative_to: String = target.get_meta(&"__name")
 		var action_name: String = selected.get_meta(&"__name")
 		action_reordered.emit(action_name, relative_to, drop_above)
 	elif d["input_type"] == "event":
+		_set_mutation_context(selected.get_parent())
 		var current_index: int = selected.get_meta(&"__index")
 		var target_index: int = target.get_meta(&"__index")
 		var parent_action: Dictionary = selected.get_parent().get_meta(&"__action")
@@ -1104,9 +1252,56 @@ func _drop_data_fw(at_position: Vector2, data: Variant) -> void:
 #    ██ ██   ████ ██       ██████     ██        ██      ██ ██   ██ ██          #
 func                        ________INPUT_MAP________              ()->void:pass
 
+func _get_open_maps() -> Array[CustomInputMap]:
+	var out: Array[CustomInputMap] = []
+	for m: CustomInputMap in open_maps:
+		if m != null and is_instance_valid(m) and not out.has(m):
+			out.append(m)
+	if out.is_empty() and edit_map != null and is_instance_valid(edit_map):
+		out.append(edit_map)
+	return out
+
+
+func _set_open_maps(maps: Array) -> void:
+	open_maps.clear()
+	for v: Variant in maps:
+		var m: CustomInputMap = v
+		if m != null and is_instance_valid(m) and not open_maps.has(m):
+			open_maps.append(m)
+
+
+func _map_from_item(item: TreeItem) -> CustomInputMap:
+	var walk := item
+	while walk != null:
+		if walk.has_meta(&"__map"):
+			var m: CustomInputMap = walk.get_meta(&"__map")
+			if m != null and is_instance_valid(m):
+				return m
+		walk = walk.get_parent()
+	return null
+
+
+func _set_mutation_context(item: TreeItem) -> void:
+	var map := _map_from_item(item)
+	if map != null:
+		_current_map = map
+		edit_map = map
+
+
+func _get_mutation_map() -> CustomInputMap:
+	if _current_map != null and is_instance_valid(_current_map):
+		return _current_map
+	return _get_target_map()
+
+
 func _get_target_map() -> CustomInputMap:
-	if edit_map != null:
+	if _current_map != null and is_instance_valid(_current_map):
+		return _current_map
+	if edit_map != null and is_instance_valid(edit_map):
 		return edit_map
+	var opened := _get_open_maps()
+	if not opened.is_empty():
+		return opened[0]
 	if resource_edit_mode:
 		return null
 	var rr := _get_responder_root()
@@ -1116,7 +1311,7 @@ func _get_target_map() -> CustomInputMap:
 
 
 func _get_effective_map() -> CustomInputMap:
-	if not is_instance_valid(InputManager):
+	if Engine.is_editor_hint() or not is_instance_valid(InputManager):
 		return null
 	return InputManager.effective_map
 
@@ -1131,30 +1326,37 @@ func _check_new_action_name(action_name: String) -> String:
 		return "Action name cannot be empty."
 	if not _is_action_name_valid(action_name):
 		return "Invalid action name. It cannot contain '/', ':', '=', '\\' or '\"'."
-	if _target_has_action(action_name):
+	if _map_has_action(_get_mutation_map(), action_name):
 		# If the target exists, then scroll to it
 		# optionally trigger an edit.
 		return "An action with the name '%s' already exists." % action_name
 	return ""
 
 
+func _map_has_action(map: CustomInputMap, action_name: String) -> bool:
+	if map == null:
+		return false
+	return map.has_action(StringName(action_name))
+
+
 func _target_has_action(action_name: String) -> bool:
-	var map := _get_target_map()
-	if map != null:
-		return map.has_action(StringName(action_name))
-	return false
+	return _map_has_action(_get_target_map(), action_name)
 
 
 func _submit_new_action(action_name: String) -> void:
 	var candidate := action_name.strip_edges()
 	if candidate.is_empty():
 		return
+	# Prefer the map under the current tree selection when multi-file is open.
+	var selected := tree.get_selected() if is_instance_valid(tree) else null
+	if selected != null:
+		_set_mutation_context(selected)
 	var err := _check_new_action_name(candidate)
 	if not err.is_empty():
 		show_message(err)
 		return
-	if _get_target_map() == null:
-		show_message("No root input map available. Ensure InputManager is running.")
+	if _get_mutation_map() == null:
+		show_message("No input map available. Select a CustomInputMap resource.")
 		return
 	# Emit first so host can read the name; clear after so text_changed
 	# does not race a second submit with an empty string.
@@ -1171,13 +1373,14 @@ func _submit_new_action(action_name: String) -> void:
 func                        ________INPUT_MGR________              ()->void:pass
 
 func _get_responder_root() -> Responder:
-	if not is_instance_valid(InputManager):
+	if Engine.is_editor_hint() or not is_instance_valid(InputManager):
 		return null
 	return InputManager.responder_root
 
 
-func _host_refresh() -> void:
-	var map := _get_target_map()
+func _host_refresh(map: CustomInputMap = null) -> void:
+	if map == null:
+		map = _get_mutation_map()
 	if map == null:
 		return
 	if apply_edit_map_to_engine and not Engine.is_editor_hint():
