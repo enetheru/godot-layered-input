@@ -1,12 +1,26 @@
 class_name Responder
 extends Node
 
-## Node in the [InputManager] responder tree.
+##[codeblock]
+##│ ___                          _
+##│| _ \___ ____ __  ___ _ _  __| |___ _ _
+##│|   / -_|_-< '_ \/ _ \ ' \/ _` / -_) '_|
+##│|_|_\___/__/ .__/\___/_||_\__,_\___|_|
+##╰───────────|_|────────────────────────────
+##[/codedblock]Node in the [InputManager] responder tree.
 ##[br]
 ## • [member input_map] — optional layer contributed while [member active].
 ##[br]
 ## • [member active] — when false, input processing is off and the map is
 ##   excluded from the merged engine [InputMap].
+
+
+# ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
+# ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
+# ██████  ██████  ██    ██ ██████  █████   ██████     ██    ██ █████   ███████ #
+# ██      ██   ██ ██    ██ ██      ██      ██   ██    ██    ██ ██           ██ #
+# ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
+func                        ________PROPERTIES_______              ()->void:pass
 
 ## Layer contributed to the merged InputMap while this responder is active.
 @export var input_map: CustomInputMap:
@@ -17,9 +31,23 @@ extends Node
 	set = set_active
 
 
+#      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
+#     ██    ██ ██    ██ ██      ██   ██ ██   ██ ██ ██   ██ ██      ██          #
+#     ██    ██ ██    ██ █████   ██████  ██████  ██ ██   ██ █████   ███████     #
+#     ██    ██  ██  ██  ██      ██   ██ ██   ██ ██ ██   ██ ██           ██     #
+#      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
+func                        ________OVERRIDES________              ()->void:pass
+
 func _enter_tree() -> void:
 	_sync_process_flags()
 
+
+#         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
+#         ████  ████ ██         ██    ██   ██ ██    ██ ██   ██ ██              #
+#         ██ ████ ██ █████      ██    ███████ ██    ██ ██   ██ ███████         #
+#         ██  ██  ██ ██         ██    ██   ██ ██    ██ ██   ██      ██         #
+#         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
+func                        _________METHODS_________              ()->void:pass
 
 func set_input_map(value: CustomInputMap) -> void:
 	if input_map == value:
@@ -69,6 +97,13 @@ func pop_responder() -> Node:
 	InputManager.rebuild_input_map()
 	return node
 
+
+#       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #
+#       ██ ████   ██    ██    ██      ██   ██ ████   ██ ██   ██ ██             #
+#       ██ ██ ██  ██    ██    █████   ██████  ██ ██  ██ ███████ ██             #
+#       ██ ██  ██ ██    ██    ██      ██   ██ ██  ██ ██ ██   ██ ██             #
+#       ██ ██   ████    ██    ███████ ██   ██ ██   ████ ██   ██ ███████        #
+func                        ________INTERNAL_________              ()->void:pass
 
 func _sync_process_flags() -> void:
 	set_process_input(active)

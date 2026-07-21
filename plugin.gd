@@ -1,15 +1,32 @@
 @tool
 extends EditorPlugin
+
+
 ## Bottom-panel editor for [CustomInputMap] resources (Phantom Camera-style).
 ## Selecting a CustomInputMap in the Inspector focuses this panel and loads it.
 
-const EditorScene = preload("res://addons/enetheru.input_map_editor/ui/input_map_editor.tscn")
+const EditorScene = preload("ui/input_map_editor.tscn")
+
+
+# ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
+# ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
+# ██████  ██████  ██    ██ ██████  █████   ██████     ██    ██ █████   ███████ #
+# ██      ██   ██ ██    ██ ██      ██      ██   ██    ██    ██ ██           ██ #
+# ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
+func                        ________PROPERTIES_______              ()->void:pass
 
 var _panel: InputMapEditor
 var _panel_button: Button
 ## Avoid re-entrant configure when we caused the inspector refresh ourselves.
 var _suppress_edited_object_signal: bool = false
 
+
+#      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
+#     ██    ██ ██    ██ ██      ██   ██ ██   ██ ██ ██   ██ ██      ██          #
+#     ██    ██ ██    ██ █████   ██████  ██████  ██ ██   ██ █████   ███████     #
+#     ██    ██  ██  ██  ██      ██   ██ ██   ██ ██ ██   ██ ██           ██     #
+#      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
+func                        ________OVERRIDES________              ()->void:pass
 
 func _enter_tree() -> void:
 	_panel = EditorScene.instantiate()
@@ -43,6 +60,13 @@ func _exit_tree() -> void:
 		_panel = null
 	_panel_button = null
 
+
+#       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #
+#       ██ ████   ██    ██    ██      ██   ██ ████   ██ ██   ██ ██             #
+#       ██ ██ ██  ██    ██    █████   ██████  ██ ██  ██ ███████ ██             #
+#       ██ ██  ██ ██    ██    ██      ██   ██ ██  ██ ██ ██   ██ ██             #
+#       ██ ██   ████    ██    ███████ ██   ██ ██   ████ ██   ██ ███████        #
+func                        ________INTERNAL_________              ()->void:pass
 
 func _on_edited_object_changed() -> void:
 	if _suppress_edited_object_signal:

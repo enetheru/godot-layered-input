@@ -17,7 +17,15 @@ extends Node
 ## Merge order is tree order (depth-first, children first-to-last) so
 ## later siblings both receive input first and win action-name conflicts.
 
-const INPUT_MAP: CustomInputMap = preload("res://addons/enetheru.input_map_editor/systems/default_input_map.tres")
+const INPUT_MAP: CustomInputMap = preload("default_input_map.tres")
+
+
+# ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
+# ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
+# ██████  ██████  ██    ██ ██████  █████   ██████     ██    ██ █████   ███████ #
+# ██      ██   ██ ██    ██ ██      ██      ██   ██    ██    ██ ██           ██ #
+# ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
+func                        ________PROPERTIES_______              ()->void:pass
 
 var responder_root: Responder
 
@@ -30,9 +38,24 @@ var undo_stack: Array = []
 var _want_rebuild: bool = false
 var _rebuilding: bool = false
 
+
+#            ███████ ██  ██████  ███    ██  █████  ██      ███████             #
+#            ██      ██ ██       ████   ██ ██   ██ ██      ██                  #
+#            ███████ ██ ██   ███ ██ ██  ██ ███████ ██      ███████             #
+#                 ██ ██ ██    ██ ██  ██ ██ ██   ██ ██           ██             #
+#            ███████ ██  ██████  ██   ████ ██   ██ ███████ ███████             #
+func                        _________SIGNALS_________              ()->void:pass
+
 ## Emitted after the engine [InputMap] has been replaced.
 signal input_map_changed(effective: CustomInputMap)
 
+
+#             ███████ ██    ██ ███████ ███    ██ ████████ ███████              #
+#             ██      ██    ██ ██      ████   ██    ██    ██                   #
+#             █████   ██    ██ █████   ██ ██  ██    ██    ███████              #
+#             ██       ██  ██  ██      ██  ██ ██    ██         ██              #
+#             ███████   ████   ███████ ██   ████    ██    ███████              #
+func                        __________EVENTS_________              ()->void:pass
 
 func _on_parent_child_order_changed() -> void:
 	var parent: Node = get_parent()
@@ -48,6 +71,13 @@ func _on_responder_tree_changed() -> void:
 	rebuild_input_map()
 
 
+#      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
+#     ██    ██ ██    ██ ██      ██   ██ ██   ██ ██ ██   ██ ██      ██          #
+#     ██    ██ ██    ██ █████   ██████  ██████  ██ ██   ██ █████   ███████     #
+#     ██    ██  ██  ██  ██      ██   ██ ██   ██ ██ ██   ██ ██           ██     #
+#      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
+func                        ________OVERRIDES________              ()->void:pass
+
 func _enter_tree() -> void:
 	var parent: Node = get_parent()
 	if parent and not parent.child_order_changed.is_connected(_on_parent_child_order_changed):
@@ -62,6 +92,13 @@ func _enter_tree() -> void:
 
 	rebuild_input_map()
 
+
+#         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
+#         ████  ████ ██         ██    ██   ██ ██    ██ ██   ██ ██              #
+#         ██ ████ ██ █████      ██    ███████ ██    ██ ██   ██ ███████         #
+#         ██  ██  ██ ██         ██    ██   ██ ██    ██ ██   ██      ██         #
+#         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
+func                        _________METHODS_________              ()->void:pass
 
 func push_state() -> void:
 	var copy: Responder = responder_root.duplicate()
@@ -100,6 +137,13 @@ func rebuild_input_map() -> void:
 		_want_rebuild = true
 		_rebuild_input_map.call_deferred()
 
+
+#       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #
+#       ██ ████   ██    ██    ██      ██   ██ ████   ██ ██   ██ ██             #
+#       ██ ██ ██  ██    ██    █████   ██████  ██ ██  ██ ███████ ██             #
+#       ██ ██  ██ ██    ██    ██      ██   ██ ██  ██ ██ ██   ██ ██             #
+#       ██ ██   ████    ██    ███████ ██   ██ ██   ████ ██   ██ ███████        #
+func                        ________INTERNAL_________              ()->void:pass
 
 func _collect_maps(node: Node, out: Array[CustomInputMap]) -> void:
 	if node is Responder:

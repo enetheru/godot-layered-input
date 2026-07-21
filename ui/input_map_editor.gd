@@ -1,7 +1,14 @@
 @tool
 class_name InputMapEditor
 extends PanelContainer
-## Action / event map editor UI.
+
+##[codeblock]
+##│ ___                _     __  __             ___    _ _ _
+##│|_ _|_ _  _ __ _  _| |_  |  \/  |__ _ _ __  | __|__| (_) |_ ___ _ _
+##│ | || ' \| '_ \ || |  _| | |\/| / _` | '_ \ | _|/ _` | |  _/ _ \ '_|
+##│|___|_||_| .__/\_,_|\__| |_|  |_\__,_| .__/ |___\__,_|_|\__\___/_|
+##╰─────────|_|─────────────────────────|_|──────────────────────────────
+##[/codeblock] Action / event map editor UI.
 ##
 ## Port of Godot's `ActionMapEditor` (editor/settings/action_map_editor.*).
 ## Binds to [InputManager] by default:
@@ -18,6 +25,14 @@ enum ItemButton {
 	REMOVE_ACTION,
 	REMOVE_EVENT,
 	REVERT_ACTION,
+}
+
+## Operation modes for the panel (editor tooling vs live inspection).
+enum OperationMode {
+	## Edit a [CustomInputMap] asset (writable). Used by the bottom-panel plugin.
+	EDITOR,
+	## Inspect live InputManager state (effective / loaded layers). Prefer read-only.
+	MONITOR,
 }
 
 ## One row in the action list (mirrors ActionMapEditor::ActionInfo).
@@ -51,14 +66,6 @@ func                        ________PROPERTIES_______              ()->void:pass
 
 @onready var tree: Tree = $VBoxContainer/MarginContainer/Tree
 @onready var event_config_dialog: EventConfigDialog = $InputEventConfigurationDialog
-
-## Operation modes for the panel (editor tooling vs live inspection).
-enum OperationMode {
-	## Edit a [CustomInputMap] asset (writable). Used by the bottom-panel plugin.
-	EDITOR,
-	## Inspect live InputManager state (effective / loaded layers). Prefer read-only.
-	MONITOR,
-}
 
 ## Optional map override. When null (and not MONITOR), edits InputManager root map.
 @export var edit_map: CustomInputMap
@@ -520,6 +527,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if Engine.is_editor_hint():
+		return
 	if is_instance_valid(InputManager):
 		if InputManager.input_map_changed.is_connected(_on_input_map_changed):
 			InputManager.input_map_changed.disconnect(_on_input_map_changed)

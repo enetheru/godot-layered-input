@@ -2,6 +2,13 @@
 class_name EventConfigDialog
 extends PopupPanel
 
+##[codeblock]
+##│ ___             _      ___           __ _        ___  _      _
+##│| __|_ _____ _ _| |_   / __|___ _ _  / _(_)__ _  |   \(_)__ _| |___  __ _
+##│| _|\ V / -_) ' \  _| | (__/ _ \ ' \|  _| / _` | | |) | / _` | / _ \/ _` |
+##│|___|\_/\___|_||_\__|  \___\___/_||_|_| |_\__, | |___/|_\__,_|_\___/\__, |
+##╰──────────────────────────────────────────|___/─────────────────────|___/───
+##[/codeblock]By-Line
 ## Configure a single [InputEvent] for an action binding.
 ##
 ## Port of Godot's `InputEventConfigurationDialog`
@@ -22,8 +29,12 @@ enum ModCheckbox {
 	MAX = 4,
 }
 
-signal confirmed
-signal canceled
+# ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
+# ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
+# ██████  ██████  ██    ██ ██████  █████   ██████     ██    ██ █████   ███████ #
+# ██      ██   ██ ██    ██ ██      ██      ██   ██    ██    ██ ██           ██ #
+# ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
+func                        ________PROPERTIES_______              ()->void:pass
 
 @onready var event_label: Label = $VBoxContainer/VBoxContainer/EventLabel
 @onready var event_listener: EventListenerLineEdit = $VBoxContainer/VBoxContainer/EventListenerLineEdit
@@ -57,6 +68,219 @@ var _allowed_input_types: int = EventListenerLineEdit.ALL_INPUT_TYPES
 var _in_tree_update: bool = false
 var _mod_checkboxes: Array[CheckBox] = []
 
+
+#            ███████ ██  ██████  ███    ██  █████  ██      ███████             #
+#            ██      ██ ██       ████   ██ ██   ██ ██      ██                  #
+#            ███████ ██ ██   ███ ██ ██  ██ ███████ ██      ███████             #
+#                 ██ ██ ██    ██ ██  ██ ██ ██   ██ ██           ██             #
+#            ███████ ██  ██████  ██   ████ ██   ██ ███████ ███████             #
+func                        _________SIGNALS_________              ()->void:pass
+
+signal confirmed
+signal canceled
+
+
+#             ███████ ██    ██ ███████ ███    ██ ████████ ███████              #
+#             ██      ██    ██ ██      ████   ██    ██    ██                   #
+#             █████   ██    ██ █████   ██ ██  ██    ██    ███████              #
+#             ██       ██  ██  ██      ██  ██ ██    ██         ██              #
+#             ███████   ████   ███████ ██   ████    ██    ███████              #
+func                        __________EVENTS_________              ()->void:pass
+
+func _on_listen_input_changed(event: InputEvent) -> void:
+	if event == null or event.is_echo() or not event.is_pressed():
+		return
+
+	var received: InputEvent = event
+	var received_original: InputEvent = received.duplicate()
+
+	var type := 0
+	if received is InputEventKey:
+		type = EventListenerLineEdit.InputType.KEY
+	elif received is InputEventJoypadButton:
+		type = EventListenerLineEdit.InputType.JOY_BUTTON
+	elif received is InputEventJoypadMotion:
+		type = EventListenerLineEdit.InputType.JOY_MOTION
+	elif received is InputEventMouseButton:
+		type = EventListenerLineEdit.InputType.MOUSE_BUTTON
+
+	if (_allowed_input_types & type) == 0:
+		return
+
+	if received is InputEventJoypadMotion:
+		var jm := received as InputEventJoypadMotion
+		jm.axis_value = signf(jm.axis_value)
+
+	if received is InputEventKey:
+		var k := received as InputEventKey
+		k.pressed = false
+		match key_mode.get_selected_id():
+			KeyMode.KEYCODE:
+				k.physical_keycode = KEY_NONE
+				k.key_label = KEY_NONE
+			KeyMode.PHY_KEYCODE:
+				k.keycode = KEY_NONE
+				k.key_label = KEY_NONE
+			KeyMode.UNICODE:
+				k.physical_keycode = KEY_NONE
+				k.keycode = KEY_NONE
+		if location_option_button.get_selected_id() == int(KEY_LOCATION_UNSPECIFIED):
+			k.location = KEY_LOCATION_UNSPECIFIED
+
+	if received is InputEventWithModifiers:
+		(received as InputEventWithModifiers).window_id = 0
+
+	received.device = _get_current_device()
+	_set_event(received, received_original)
+
+
+func _on_search_term_updated(_term: String = "") -> void:
+	_update_input_list()
+
+
+func _on_input_list_item_activated() -> void:
+	var selected := input_list_tree.get_selected()
+	if selected:
+		selected.collapsed = not selected.collapsed
+
+
+func _on_input_list_item_selected() -> void:
+	if _in_tree_update:
+		return
+	var selected := input_list_tree.get_selected()
+	if selected == null or selected.has_meta(&"__type"):
+		return
+
+	var input_type: int = selected.get_parent().get_meta(&"__type")
+	match input_type:
+		EventListenerLineEdit.InputType.KEY:
+			var keycode: int = selected.get_meta(&"__keycode")
+			var k := InputEventKey.new()
+			k.physical_keycode = keycode as Key
+			k.keycode = keycode as Key
+			k.key_label = keycode as Key
+			_apply_mod_checkboxes(k)
+			var ko: InputEventKey = k.duplicate() as InputEventKey
+			if key_mode.get_selected_id() == KeyMode.UNICODE:
+				key_mode.select(KeyMode.PHY_KEYCODE)
+			match key_mode.get_selected_id():
+				KeyMode.KEYCODE:
+					k.physical_keycode = KEY_NONE
+					k.keycode = keycode as Key
+					k.key_label = KEY_NONE
+				KeyMode.PHY_KEYCODE:
+					k.physical_keycode = keycode as Key
+					k.keycode = KEY_NONE
+					k.key_label = KEY_NONE
+			_set_event(k, ko, false)
+
+		EventListenerLineEdit.InputType.MOUSE_BUTTON:
+			var mb := InputEventMouseButton.new()
+			mb.button_index = selected.get_meta(&"__index")
+			_apply_mod_checkboxes(mb)
+			mb.device = _get_current_device()
+			_set_event(mb, mb, false)
+
+		EventListenerLineEdit.InputType.JOY_BUTTON:
+			var jb := InputEventJoypadButton.new()
+			jb.button_index = selected.get_meta(&"__index")
+			jb.device = _get_current_device()
+			_set_event(jb, jb, false)
+
+		EventListenerLineEdit.InputType.JOY_MOTION:
+			var jm := InputEventJoypadMotion.new()
+			jm.axis = selected.get_meta(&"__axis")
+			jm.axis_value = selected.get_meta(&"__value")
+			jm.device = _get_current_device()
+			_set_event(jm, jm, false)
+
+
+func _on_mod_toggled(pressed: bool, index: int) -> void:
+	if not (_event is InputEventWithModifiers):
+		return
+	var ie := _event as InputEventWithModifiers
+	match index:
+		ModCheckbox.ALT:
+			ie.alt_pressed = pressed
+		ModCheckbox.SHIFT:
+			ie.shift_pressed = pressed
+		ModCheckbox.CTRL:
+			if not command_control.button_pressed:
+				ie.ctrl_pressed = pressed
+		ModCheckbox.META:
+			if not command_control.button_pressed:
+				ie.meta_pressed = pressed
+	_set_event(ie, _original_event)
+
+
+func _on_autoremap_command_or_control_toggled(pressed: bool) -> void:
+	if _event is InputEventWithModifiers:
+		(_event as InputEventWithModifiers).command_or_control_autoremap = pressed
+		_set_event(_event, _original_event)
+	ctrl.visible = not pressed
+	windows.visible = not pressed
+
+
+func _on_key_mode_selected(_idx: int) -> void:
+	if not (_event is InputEventKey) or not (_original_event is InputEventKey):
+		return
+	var k := _event as InputEventKey
+	var ko := _original_event as InputEventKey
+	match key_mode.get_selected_id():
+		KeyMode.KEYCODE:
+			k.keycode = ko.keycode
+			k.physical_keycode = KEY_NONE
+			k.key_label = KEY_NONE
+		KeyMode.PHY_KEYCODE:
+			k.keycode = KEY_NONE
+			k.physical_keycode = ko.physical_keycode
+			k.key_label = KEY_NONE
+		KeyMode.UNICODE:
+			k.physical_keycode = KEY_NONE
+			k.keycode = KEY_NONE
+			k.key_label = ko.key_label
+	_set_event(k, _original_event)
+
+
+func _on_key_location_selected(_idx: int) -> void:
+	if not (_event is InputEventKey):
+		return
+	var k := _event as InputEventKey
+	k.location = location_option_button.get_selected_id() as KeyLocation
+	_set_event(k, _original_event)
+
+
+func _on_device_selection_changed(option_index: int) -> void:
+	if _event == null:
+		return
+	_event.device = option_index - 1
+	event_label.text = EventListenerLineEdit.get_event_text(_event, true)
+
+func _on_ok_pressed() -> void:
+	_sync_ok_enabled()
+	if _event == null:
+		if is_instance_valid(error):
+			error.text = "No event configured. Listen for input or pick one from the list."
+			error.show()
+		return
+	if ok.disabled:
+		return
+	# Emit while still visible so listeners can read get_event() reliably.
+	confirmed.emit()
+	hide()
+
+
+func _on_cancel_pressed() -> void:
+	canceled.emit()
+	hide()
+
+
+#      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
+#     ██    ██ ██    ██ ██      ██   ██ ██   ██ ██ ██   ██ ██      ██          #
+#     ██    ██ ██    ██ █████   ██████  ██████  ██ ██   ██ █████   ███████     #
+#     ██    ██  ██  ██  ██      ██   ██ ██   ██ ██ ██   ██ ██           ██     #
+#      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
+func                        ________OVERRIDES________              ()->void:pass
 
 func _ready() -> void:
 	visible = false
@@ -102,6 +326,13 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED and visible:
 		event_listener.grab_focus()
 
+
+#         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
+#         ████  ████ ██         ██    ██   ██ ██    ██ ██   ██ ██              #
+#         ██ ████ ██ █████      ██    ███████ ██    ██ ██   ██ ███████         #
+#         ██  ██  ██ ██         ██    ██   ██ ██    ██ ██   ██      ██         #
+#         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
+func                        _________METHODS_________              ()->void:pass
 
 func get_event() -> InputEvent:
 	return _event
@@ -157,7 +388,12 @@ func popup_and_configure(
 	_sync_ok_enabled()
 
 
-# ── event state ─────────────────────────────────────────────────────────────
+#       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #
+#       ██ ████   ██    ██    ██      ██   ██ ████   ██ ██   ██ ██             #
+#       ██ ██ ██  ██    ██    █████   ██████  ██ ██  ██ ███████ ██             #
+#       ██ ██  ██ ██    ██    ██      ██   ██ ██  ██ ██ ██   ██ ██             #
+#       ██ ██   ████    ██    ███████ ██   ██ ██   ████ ██   ██ ███████        #
+func                        ________INTERNAL_________              ()->void:pass
 
 func _set_event(
 		event: InputEvent,
@@ -259,59 +495,6 @@ func _set_event(
 		_sync_ok_enabled()
 
 
-func _on_listen_input_changed(event: InputEvent) -> void:
-	if event == null or event.is_echo() or not event.is_pressed():
-		return
-
-	var received: InputEvent = event
-	var received_original: InputEvent = received.duplicate()
-
-	var type := 0
-	if received is InputEventKey:
-		type = EventListenerLineEdit.InputType.KEY
-	elif received is InputEventJoypadButton:
-		type = EventListenerLineEdit.InputType.JOY_BUTTON
-	elif received is InputEventJoypadMotion:
-		type = EventListenerLineEdit.InputType.JOY_MOTION
-	elif received is InputEventMouseButton:
-		type = EventListenerLineEdit.InputType.MOUSE_BUTTON
-
-	if (_allowed_input_types & type) == 0:
-		return
-
-	if received is InputEventJoypadMotion:
-		var jm := received as InputEventJoypadMotion
-		jm.axis_value = signf(jm.axis_value)
-
-	if received is InputEventKey:
-		var k := received as InputEventKey
-		k.pressed = false
-		match key_mode.get_selected_id():
-			KeyMode.KEYCODE:
-				k.physical_keycode = KEY_NONE
-				k.key_label = KEY_NONE
-			KeyMode.PHY_KEYCODE:
-				k.keycode = KEY_NONE
-				k.key_label = KEY_NONE
-			KeyMode.UNICODE:
-				k.physical_keycode = KEY_NONE
-				k.keycode = KEY_NONE
-		if location_option_button.get_selected_id() == int(KEY_LOCATION_UNSPECIFIED):
-			k.location = KEY_LOCATION_UNSPECIFIED
-
-	if received is InputEventWithModifiers:
-		(received as InputEventWithModifiers).window_id = 0
-
-	received.device = _get_current_device()
-	_set_event(received, received_original)
-
-
-# ── manual input list ───────────────────────────────────────────────────────
-
-func _on_search_term_updated(_term: String = "") -> void:
-	_update_input_list()
-
-
 func _update_input_list() -> void:
 	input_list_tree.clear()
 	var root := input_list_tree.create_item()
@@ -393,63 +576,6 @@ func _update_input_list() -> void:
 			item.set_meta(&"__value", direction)
 
 
-func _on_input_list_item_activated() -> void:
-	var selected := input_list_tree.get_selected()
-	if selected:
-		selected.collapsed = not selected.collapsed
-
-
-func _on_input_list_item_selected() -> void:
-	if _in_tree_update:
-		return
-	var selected := input_list_tree.get_selected()
-	if selected == null or selected.has_meta(&"__type"):
-		return
-
-	var input_type: int = selected.get_parent().get_meta(&"__type")
-	match input_type:
-		EventListenerLineEdit.InputType.KEY:
-			var keycode: int = selected.get_meta(&"__keycode")
-			var k := InputEventKey.new()
-			k.physical_keycode = keycode as Key
-			k.keycode = keycode as Key
-			k.key_label = keycode as Key
-			_apply_mod_checkboxes(k)
-			var ko: InputEventKey = k.duplicate() as InputEventKey
-			if key_mode.get_selected_id() == KeyMode.UNICODE:
-				key_mode.select(KeyMode.PHY_KEYCODE)
-			match key_mode.get_selected_id():
-				KeyMode.KEYCODE:
-					k.physical_keycode = KEY_NONE
-					k.keycode = keycode as Key
-					k.key_label = KEY_NONE
-				KeyMode.PHY_KEYCODE:
-					k.physical_keycode = keycode as Key
-					k.keycode = KEY_NONE
-					k.key_label = KEY_NONE
-			_set_event(k, ko, false)
-
-		EventListenerLineEdit.InputType.MOUSE_BUTTON:
-			var mb := InputEventMouseButton.new()
-			mb.button_index = selected.get_meta(&"__index")
-			_apply_mod_checkboxes(mb)
-			mb.device = _get_current_device()
-			_set_event(mb, mb, false)
-
-		EventListenerLineEdit.InputType.JOY_BUTTON:
-			var jb := InputEventJoypadButton.new()
-			jb.button_index = selected.get_meta(&"__index")
-			jb.device = _get_current_device()
-			_set_event(jb, jb, false)
-
-		EventListenerLineEdit.InputType.JOY_MOTION:
-			var jm := InputEventJoypadMotion.new()
-			jm.axis = selected.get_meta(&"__axis")
-			jm.axis_value = selected.get_meta(&"__value")
-			jm.device = _get_current_device()
-			_set_event(jm, jm, false)
-
-
 func _apply_mod_checkboxes(mod: InputEventWithModifiers) -> void:
 	mod.alt_pressed = alt.button_pressed
 	mod.shift_pressed = shift.button_pressed
@@ -505,70 +631,6 @@ func _select_matching_input_list_item(event: InputEvent) -> void:
 	_in_tree_update = false
 
 
-# ── additional options ──────────────────────────────────────────────────────
-
-func _on_mod_toggled(pressed: bool, index: int) -> void:
-	if not (_event is InputEventWithModifiers):
-		return
-	var ie := _event as InputEventWithModifiers
-	match index:
-		ModCheckbox.ALT:
-			ie.alt_pressed = pressed
-		ModCheckbox.SHIFT:
-			ie.shift_pressed = pressed
-		ModCheckbox.CTRL:
-			if not command_control.button_pressed:
-				ie.ctrl_pressed = pressed
-		ModCheckbox.META:
-			if not command_control.button_pressed:
-				ie.meta_pressed = pressed
-	_set_event(ie, _original_event)
-
-
-func _on_autoremap_command_or_control_toggled(pressed: bool) -> void:
-	if _event is InputEventWithModifiers:
-		(_event as InputEventWithModifiers).command_or_control_autoremap = pressed
-		_set_event(_event, _original_event)
-	ctrl.visible = not pressed
-	windows.visible = not pressed
-
-
-func _on_key_mode_selected(_idx: int) -> void:
-	if not (_event is InputEventKey) or not (_original_event is InputEventKey):
-		return
-	var k := _event as InputEventKey
-	var ko := _original_event as InputEventKey
-	match key_mode.get_selected_id():
-		KeyMode.KEYCODE:
-			k.keycode = ko.keycode
-			k.physical_keycode = KEY_NONE
-			k.key_label = KEY_NONE
-		KeyMode.PHY_KEYCODE:
-			k.keycode = KEY_NONE
-			k.physical_keycode = ko.physical_keycode
-			k.key_label = KEY_NONE
-		KeyMode.UNICODE:
-			k.physical_keycode = KEY_NONE
-			k.keycode = KEY_NONE
-			k.key_label = ko.key_label
-	_set_event(k, _original_event)
-
-
-func _on_key_location_selected(_idx: int) -> void:
-	if not (_event is InputEventKey):
-		return
-	var k := _event as InputEventKey
-	k.location = location_option_button.get_selected_id() as KeyLocation
-	_set_event(k, _original_event)
-
-
-func _on_device_selection_changed(option_index: int) -> void:
-	if _event == null:
-		return
-	_event.device = option_index - 1
-	event_label.text = EventListenerLineEdit.get_event_text(_event, true)
-
-
 func _set_current_device(device: int) -> void:
 	device_option_button.select(device + 1)
 
@@ -591,25 +653,6 @@ func _sync_ok_enabled() -> void:
 	if is_instance_valid(error):
 		error.visible = duplicate
 	ok.disabled = _event == null or duplicate
-
-
-func _on_ok_pressed() -> void:
-	_sync_ok_enabled()
-	if _event == null:
-		if is_instance_valid(error):
-			error.text = "No event configured. Listen for input or pick one from the list."
-			error.show()
-		return
-	if ok.disabled:
-		return
-	# Emit while still visible so listeners can read get_event() reliably.
-	confirmed.emit()
-	hide()
-
-
-func _on_cancel_pressed() -> void:
-	canceled.emit()
-	hide()
 
 
 ## Practical key set for the manual picker (engine uses keycode_get_count() C++).
