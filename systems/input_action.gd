@@ -59,7 +59,7 @@ func _iter_init( state:Array ) -> bool:
 
 
 func _iter_next( state:Array ) -> bool:
-	var current_index:int = int( state[0] )
+	var current_index:int = state[0]
 	var next_index:int = _index_of_next_valid_event( current_index )
 	state[0] = next_index
 	return next_index >= 0
@@ -67,7 +67,7 @@ func _iter_next( state:Array ) -> bool:
 
 # event_index is state[0]: index into events for this loop step.
 func _iter_get( event_index:Variant ) -> Variant:
-	return events[int( event_index )]
+	return events[event_index]
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #

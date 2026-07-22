@@ -344,13 +344,16 @@ func popup_and_configure(
 	if is_instance_valid( event ):
 		# Drop one matching instance so the event being edited is not
 		# immediately flagged as a duplicate of itself.
+		var ie:InputEvent
 		for i:int in range( _action_events.size() ):
-			var ie:InputEvent = _action_events[i]
+			ie = _action_events[i]
 			if is_instance_valid( ie ) \
 			and ie.is_match( event ):
 				_action_events.remove_at( i )
 				break
-		_set_event( event.duplicate(), event.duplicate() )
+		ie = event.duplicate()
+		var og_ie:InputEvent = event.duplicate()
+		_set_event( ie, og_ie )
 	else:
 		_reset_configure_ui()
 

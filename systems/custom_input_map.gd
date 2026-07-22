@@ -66,7 +66,7 @@ func _iter_init( state:Array ) -> bool:
 
 func _iter_next( state:Array ) -> bool:
 	var cursor:Dictionary = state[0]
-	var next_index:int = int( cursor[&"index"] ) + 1
+	var next_index:int = cursor[&"index"] + 1
 	cursor[&"index"] = next_index
 	var action_names:Array = cursor[&"action_names"]
 	return next_index < action_names.size()
@@ -76,7 +76,7 @@ func _iter_next( state:Array ) -> bool:
 func _iter_get( cursor:Variant ) -> Variant:
 	var loop_state:Dictionary = cursor
 	var action_names:Array = loop_state[&"action_names"]
-	return action_names[int( loop_state[&"index"] )]
+	return action_names[loop_state[&"index"]]
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
