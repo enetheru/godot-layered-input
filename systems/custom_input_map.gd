@@ -16,8 +16,9 @@ extends Resource
 ## [br][br]
 ## There is no implicit project-settings base map — only maps contributed by
 ## active responders. Create `.tres` assets by hand and assign them on responders.
+## [br]Iterable: [code]for action_name in map:[/code] yields [StringName] keys
+## (same order as [method get_action_names]; keys snapshotted at loop start).
 ## [br]
-##[br][color=goldenrod]TODO[/color]:Implement iterators for actions
 ##[br][color=goldenrod]TODO[/color]:add a merge flag to apply_to_engine to
 ## merge InputAction Input Events
 
@@ -39,6 +40,35 @@ func                        ________PROPERTIES_______              ()->void:pass
 ## [br] definition is allowed to be null and is treated equivalently to
 ## a default constructed [InputActionMap]
 @export var _actions:Dictionary[StringName, InputAction] = {}
+
+
+#      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
+#     ██    ██ ██    ██ ██      ██   ██ ██   ██ ██ ██   ██ ██      ██          #
+#     ██    ██ ██    ██ █████   ██████  ██████  ██ ██   ██ █████   ███████     #
+#     ██    ██  ██  ██  ██      ██   ██ ██   ██ ██ ██   ██ ██           ██     #
+#      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
+func                        ________OVERRIDES________              ()->void:pass
+
+## [code]for action_name in map:[/code] — action name keys; state in [param iter].
+func _iter_init( iter:Array ) -> bool:
+	# Snapshot keys so nested loops / mid-loop mutation do not share one cursor.
+	var keys:Array = _actions.keys()
+	iter[0] = { &"i": 0, &"keys": keys }
+	return not keys.is_empty()
+
+
+func _iter_next( iter:Array ) -> bool:
+	var st:Dictionary = iter[0]
+	var i:int = int( st[&"i"] ) + 1
+	st[&"i"] = i
+	var keys:Array = st[&"keys"]
+	return i < keys.size()
+
+
+func _iter_get( iter:Variant ) -> Variant:
+	var st:Dictionary = iter
+	var keys:Array = st[&"keys"]
+	return keys[int( st[&"i"] )]
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -194,11 +224,12 @@ func                        __Clone___Merge__________              ()->void:pass
 
 ## Deep copy suitable for merge intermediates and mementos.
 func duplicate_map() -> CustomInputMap:
-	var dup := CustomInputMap.new()
+	var dup:CustomInputMap = CustomInputMap.new()
 	dup.resource_name = resource_name
-	for action_name:StringName in _actions.keys():
+	for action_name:StringName in self:
 		var ia:InputAction = _actions[action_name]
-		dup._actions[action_name] = ia.duplicate_action() if is_instance_valid( ia ) else null
+		dup._actions[action_name] = (
+				ia.duplicate_action() if is_instance_valid( ia ) else null )
 	return dup
 
 
@@ -209,7 +240,7 @@ func duplicate_map() -> CustomInputMap:
 ## existing names are kept (Dictionary default; less common for layer stacks).
 func merge( other:CustomInputMap, overwrite:bool = true ) -> void:
 	assert( is_instance_valid( other ), "CustomInputMap.merge: other is invalid" )
-	for action_name:StringName in other._actions.keys():
+	for action_name:StringName in other:
 		if not overwrite and _actions.has( action_name ):
 			continue
 		var ia:InputAction = other._actions[action_name]
@@ -250,7 +281,7 @@ static func from_engine() -> CustomInputMap:
 ## Push this map into the engine singleton, overriding wholesale any existing
 ## actions
 func apply_to_engine() -> void:
-	for action_name:StringName in _actions:
+	for action_name:StringName in self:
 		if InputMap.has_action( action_name ):
 			InputMap.erase_action( action_name )
 		var ia:InputAction = _actions[action_name]
@@ -258,11 +289,9 @@ func apply_to_engine() -> void:
 			InputMap.add_action( action_name, DEFAULT_DEADZONE )
 			continue
 		InputMap.add_action( action_name, ia.deadzone )
-		for ie:InputEvent in ia.events:
-			# TODO error checking when iterating over events may be mitigated when
-			# the iterator is implemented.
-			if is_instance_valid( ie ):
-				InputMap.action_add_event( action_name, ie )
+		# InputAction iterator skips null event slots.
+		for ie:InputEvent in ia:
+			InputMap.action_add_event( action_name, ie )
 
 #endregion Engine
 
@@ -294,7 +323,7 @@ static func from_project_settings() -> CustomInputMap:
 func save_to_config( path:String ) -> Error:
 	assert( not path.is_empty(), "CustomInputMap.save_to_config: empty path" )
 	var cfg:ConfigFile = ConfigFile.new()
-	for action_name:StringName in get_action_names():
+	for action_name:StringName in self:
 		cfg.set_value(
 				"input",
 				String( action_name ),
@@ -345,9 +374,8 @@ static func _action_to_project_dict( ia:InputAction ) -> Dictionary:
 	var deadzone:float = DEFAULT_DEADZONE
 	if is_instance_valid( ia ):
 		deadzone = ia.deadzone
-		for ie:InputEvent in ia.events:
-			if is_instance_valid( ie ):
-				events.append( ie )
+		for ie:InputEvent in ia:
+			events.append( ie )
 	return {
 		"deadzone": deadzone,
 		"events": events,

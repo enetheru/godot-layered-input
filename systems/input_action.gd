@@ -12,7 +12,8 @@ extends Resource
 ## Hand-author as a sub-resource inside a [CustomInputMap] `.tres`, or build
 ## in code via [method CustomInputMap.add_action] /
 ## [method CustomInputMap.add_action_event].
-##[br][color=goldenrod]TODO[/color]:Implement iterators for events.
+## [br]Iterable: [code]for event in action:[/code] yields valid [InputEvent]s
+## (null slots are skipped).
 
 
 const DEFAULT_DEADZONE:float = 0.2
@@ -44,6 +45,21 @@ func _init(
 	events = new_events
 
 
+## [code]for event in action:[/code] — valid events only; state lives in [param iter].
+func _iter_init( iter:Array ) -> bool:
+	iter[0] = _next_valid_event_index( -1 )
+	return int( iter[0] ) >= 0
+
+
+func _iter_next( iter:Array ) -> bool:
+	iter[0] = _next_valid_event_index( int( iter[0] ) )
+	return int( iter[0] ) >= 0
+
+
+func _iter_get( iter:Variant ) -> Variant:
+	return events[int( iter )]
+
+
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
 #         ████  ████ ██         ██    ██   ██ ██    ██ ██   ██ ██              #
 #         ██ ████ ██ █████      ██    ███████ ██    ██ ██   ██ ███████         #
@@ -55,18 +71,14 @@ func                        _________METHODS_________              ()->void:pass
 func duplicate_action() -> InputAction:
 	var out:InputAction = InputAction.new()
 	out.deadzone = deadzone
-	for ev:InputEvent in events:
-		if is_instance_valid( ev ):
-			out.events.append( ev.duplicate() )
+	for ev:InputEvent in self:
+		out.events.append( ev.duplicate() )
 	return out
 
 
 func has_event( event:InputEvent ) -> bool:
 	assert( event, "InputAction.has_event: event is invalid" )
-	for ev:InputEvent in events:
-		if ev == null:
-			push_warning( "InputAction.has_event: null entry in events" )
-			continue
+	for ev:InputEvent in self:
 		if _InputManager.compare_event( event, ev ):
 			return true
 	return false
@@ -94,3 +106,13 @@ func erase_event( event:InputEvent ) -> void:
 
 func clear_events() -> void:
 	events.clear()
+
+
+## Index of the next valid event after [param after], or [code]-1[/code] if none.
+func _next_valid_event_index( after:int ) -> int:
+	var i:int = after + 1
+	while i < events.size():
+		if is_instance_valid( events[i] ):
+			return i
+		i += 1
+	return -1
