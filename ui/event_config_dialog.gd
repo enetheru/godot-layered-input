@@ -84,9 +84,8 @@ func                        ________PROPERTIES_______              ()->void:pass
 @onready var ok:Button = $VBoxContainer/OKCancel/OK
 @onready var cancel:Button = $VBoxContainer/OKCancel/Cancel
 
-# FIXME This appears to be the event that is picked up by the listener, but its not
-# obvious by the name
-var _event:InputEvent
+## Working binding being edited (not EventListenerLineEdit's capture buffer).
+var _configured_event:InputEvent
 
 var _original_event:InputEvent
 
@@ -240,9 +239,9 @@ func _on_input_list_item_selected() -> void:
 
 
 func _on_mod_toggled( pressed:bool, index:int ) -> void:
-	if not (_event is InputEventWithModifiers):
+	if not (_configured_event is InputEventWithModifiers):
 		return
-	var ie:InputEventWithModifiers = _event
+	var ie:InputEventWithModifiers = _configured_event
 	match index:
 		ModCheckbox.ALT:
 			ie.alt_pressed = pressed
@@ -258,20 +257,20 @@ func _on_mod_toggled( pressed:bool, index:int ) -> void:
 
 
 func _on_autoremap_command_or_control_toggled( pressed:bool ) -> void:
-	if _event is InputEventWithModifiers:
-		var ie:InputEventWithModifiers = _event
+	if _configured_event is InputEventWithModifiers:
+		var ie:InputEventWithModifiers = _configured_event
 		ie.command_or_control_autoremap = pressed
-		_set_event( _event, _original_event )
+		_set_event( _configured_event, _original_event )
 	ctrl.visible = not pressed
 	windows.visible = not pressed
 
 
 func _on_key_mode_selected( _idx:int ) -> void:
-	if not (_event is InputEventKey) \
+	if not (_configured_event is InputEventKey) \
 	or not (_original_event is InputEventKey):
 		return
 
-	var ie :InputEventKey = _event
+	var ie :InputEventKey = _configured_event
 	var oie :InputEventKey = _original_event
 	match key_mode.get_selected_id():
 		KeyMode.KEYCODE:
@@ -290,22 +289,22 @@ func _on_key_mode_selected( _idx:int ) -> void:
 
 
 func _on_key_location_selected( _idx:int ) -> void:
-	if not (_event is InputEventKey):
+	if not (_configured_event is InputEventKey):
 		return
-	var ie:InputEventKey = _event
+	var ie:InputEventKey = _configured_event
 	ie.location = location_option_button.get_selected_id() as KeyLocation
 	_set_event( ie, _original_event )
 
 
 func _on_device_selection_changed( option_index:int ) -> void:
-	if is_instance_valid( _event ):
-		_event.device = option_index - 1
-		event_label.text = EventListenerLineEdit.get_event_text( _event, true )
+	if is_instance_valid( _configured_event ):
+		_configured_event.device = option_index - 1
+		event_label.text = EventListenerLineEdit.get_event_text( _configured_event, true )
 
 
 func _on_ok_pressed() -> void:
 	_sync_ok_enabled()
-	if not is_instance_valid( _event ):
+	if not is_instance_valid( _configured_event ):
 		if is_instance_valid( error ):
 			error.text = "No event configured. Listen for input or pick one from the list."
 			error.show()
@@ -313,7 +312,7 @@ func _on_ok_pressed() -> void:
 	if ok.disabled:
 		return
 	# Pass the event so listeners need not call get_event() after hide.
-	confirmed.emit( _event )
+	confirmed.emit( _configured_event )
 	hide()
 
 
@@ -397,7 +396,7 @@ func                        _________METHODS_________              ()->void:pass
 
 ## Configured binding while the dialog is open (also passed on [signal confirmed]).
 func get_event() -> InputEvent:
-	return _event
+	return _configured_event
 
 
 func set_allowed_input_types( type_masks:int ) -> void:
@@ -498,7 +497,7 @@ func _set_event(
 			update_input_list_selection:bool = true ) -> void:
 	if is_instance_valid( event ):
 		# Enter / Escape confirm or cancel when a binding is already set.
-		if is_instance_valid( _event ) \
+		if is_instance_valid( _configured_event ) \
 		and visible \
 		and event_listener.has_focus():
 			if event is InputEventKey:
@@ -519,9 +518,9 @@ func _set_event(
 		and not listener_event.is_match( event ):
 			event_listener.clear_event()
 
-		_event = event
+		_configured_event = event
 		_original_event = original_event
-		event_label.text = EventListenerLineEdit.get_event_text( _event, true )
+		event_label.text = EventListenerLineEdit.get_event_text( _configured_event, true )
 
 		_sync_ok_enabled()
 
@@ -555,7 +554,7 @@ func _set_event(
 					location_option_button.select( ie.location )
 					show_location = true
 			else:
-				_event = null
+				_configured_event = null
 				_original_event = null
 				event_listener.clear_event()
 				event_label.text = "No Event Configured"
@@ -586,7 +585,7 @@ func _set_event(
 			_select_matching_input_list_item( event )
 
 	else:
-		_event = null
+		_configured_event = null
 		_original_event = null
 		event_listener.clear_event()
 		event_label.text = "No Event Configured"
@@ -782,15 +781,15 @@ func _sync_ok_enabled() -> void:
 		return
 	# Allow OK only when a real event is configured and not a duplicate.
 	var do_dup:bool = false
-	if is_instance_valid(_event):
+	if is_instance_valid(_configured_event):
 		for v:Variant in _action_events:
 			var ie:InputEvent = v
-			if _InputManager.compare_event(ie, _event):
+			if _InputManager.compare_event(ie, _configured_event):
 				do_dup = true
 				break
 	if is_instance_valid(error):
 		error.visible = do_dup
-	ok.disabled = _event == null or do_dup
+	ok.disabled = _configured_event == null or do_dup
 
 
 ## Practical key set for the manual picker (engine uses keycode_get_count() C++).
