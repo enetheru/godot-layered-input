@@ -16,8 +16,8 @@ extends PopupPanel
 ##[br][br]
 ##[b]TODO[/b]:
 ##[br][color=goldenrod]TODO[/color]:The focus listener code could use some work
-## having to resort to multiple functions like focus next frame is a code smell to me.
-## better to create some timer, or await a signal.
+## (double call_deferred is same idle cycle, not a real next frame). Prefer
+## await process_frame / a short timer once the dialog API is solid.
 ##[br][color=goldenrod]TODO[/color]:public methods all need documentation.
 ##[br][color=goldenrod]TODO[/color]:private/internal methods need documentation
 ## using regular comments.
@@ -94,7 +94,7 @@ var _allowed_input_types:int = EventListenerLineEdit.ALL_INPUT_TYPES
 ## Coalesce manual-picker rebuilds (same idea as InputManager.request_rebuild).
 var _want_input_list_update:bool = false
 
-## Coalesce manual-list picks onto the next idle frame.
+## At most one deferred apply is queued for manual-list picks.
 ## [member _pending_list_item] is the intent; cleared to cancel (e.g. highlight-from-match).
 var _want_list_selection:bool = false
 var _pending_list_item:TreeItem = null
@@ -168,7 +168,7 @@ func _on_input_list_item_activated() -> void:
 
 
 func _on_input_list_item_selected() -> void:
-	# Record intent only; apply next idle so highlight-from-match can cancel.
+	# Record intent only; apply at idle time so highlight-from-match can cancel.
 	_pending_list_item = input_list_tree.get_selected()
 	_request_list_selection_apply()
 
@@ -394,17 +394,21 @@ func _focus_listener() -> void:
 	if not is_instance_valid( event_listener ):
 		return
 	# Window must finish showing / take OS focus before a child can hold focus.
-	# One deferred call is often too early under EditorPlugin bottom panels.
+	# call_deferred runs at idle time (not “next frame”); under bottom panels even
+	# that can be early, so queue a second attempt in the same idle cycle after the
+	# first (order preserved). True next-frame needs process_frame / timer — TODO above.
 	# manual_grab_focus: LineEdit.grab_focus cannot be overridden.
 	if event_listener.has_method( &"manual_grab_focus" ):
 		event_listener.call_deferred( &"manual_grab_focus" )
 	else:
 		event_listener.call_deferred( &"grab_focus" )
 	if is_inside_tree():
-		_focus_listener_next_frame.call_deferred()
+		_focus_listener_retry.call_deferred()
 
 
-func _focus_listener_next_frame() -> void:
+## Second grab attempt queued after the first deferred grab (same idle cycle if both
+## were deferred together; not a process/physics frame boundary).
+func _focus_listener_retry() -> void:
 	if not visible \
 	or not is_instance_valid( event_listener ):
 		return
@@ -545,7 +549,8 @@ func _apply_selected_key_mode( ie:InputEventKey ) -> void:
 			ie.keycode = KEY_NONE
 
 
-## Flag a manual-picker rebuild; coalesced onto the next idle frame.
+## Flag a manual-picker rebuild; at most one [method Object.call_deferred] is queued.
+## Runs at idle time (end of process/physics frames), not “next frame”.
 func _request_input_list_update() -> void:
 	if _want_input_list_update:
 		return
@@ -553,7 +558,8 @@ func _request_input_list_update() -> void:
 	_update_input_list.call_deferred()
 
 
-## Flag a manual-list pick; coalesced onto the next idle frame.
+## Flag a manual-list pick; at most one [method Object.call_deferred] is queued.
+## Runs at idle time (end of process/physics frames), not “next frame”.
 func _request_list_selection_apply() -> void:
 	if _want_list_selection:
 		return

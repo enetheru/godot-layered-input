@@ -144,7 +144,9 @@ func remove_responder( node:Responder ) -> void:
 		parent.remove_responder( node )
 
 
-## Flag a full map rebuild; coalesced onto the next idle frame.
+## Flag a full map rebuild; at most one [method Object.call_deferred] is queued.
+## Runs at idle time (MessageQueue flush — mainly end of process/physics frames),
+## not “next frame”; nested deferred work can still run in the same idle cycle.
 func request_rebuild() -> void:
 	if _want_rebuild:
 		return
