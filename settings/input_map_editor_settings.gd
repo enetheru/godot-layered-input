@@ -8,7 +8,9 @@ extends RefCounted
 ## path bugs). Values persist in [code]project.godot[/code] via
 ## [method ProjectSettings.set_initial_value] + [method ProjectSettings.save].
 ##
-## [member host_mode] requires disabling and re-enabling the plugin to apply.
+## [member host_mode] is read at plugin enable only. Changing it while the
+## plugin is loaded updates ProjectSettings and warns; teardown still uses the
+## host latched at attach. Disable/re-enable to apply a new host.
 
 
 const PREFIX:String = "input_map_editor"

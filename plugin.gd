@@ -7,7 +7,10 @@ extends EditorPlugin
 ## [br] • [b]Dock[/b] — [EditorDock] via [method add_dock] (any slot + floating)
 ## [br] • [b]Main screen[/b] — tab next to 2D/3D/Script
 ## [br] • [b]Inspector[/b] — [EditorInspectorPlugin] for [CustomInputMap]
-## [br]Changing host mode requires disable/enable of this plugin.
+## [br]Settings choose the host only at enable. Runtime and teardown use the
+## [br]mode latched at attach (and instance state), not a live re-read of the
+## [br]setting — so changing host mode mid-session does not break cleanup.
+## [br]Apply a new host mode by disable/enable of this plugin.
 
 
 const EditorScene = preload( "ui/input_map_editor.tscn" )
@@ -30,6 +33,9 @@ var _dock:EditorDock
 var _opts:InputMapEditorSettings
 var _inspector_plugin:EditorInspectorPlugin
 var _inspector_editor:InputMapEditor
+## Host mode latched in [method _attach_host]; [code]-1[/code] when unattached.
+## Teardown and in-session host queries use this, not ProjectSettings.
+var _attached_host_mode:int = -1
 
 var _suppress_edited_object_signal:bool = false
 var _dirty_maps:Array[CustomInputMap] = []
@@ -146,6 +152,7 @@ func _exit_tree() -> void:
 		_panel = null
 	_dock = null
 	_inspector_editor = null
+	_attached_host_mode = -1
 	# Explicit RefCounted teardown before drop (do not rely on PREDELETE).
 	var opts:InputMapEditorSettings = _opts
 	_opts = null
@@ -155,8 +162,14 @@ func _exit_tree() -> void:
 	# Intentionally leave ProjectSettings keys intact.
 
 
-## Editor may call this before [method _enter_tree]; read ProjectSettings only.
+## Editor may call this before [method _enter_tree]. While attached, report the
+## latched host so a mid-session setting change does not desync the main tab.
 func _has_main_screen() -> bool:
+	if _attached_host_mode >= 0:
+		return (
+				_attached_host_mode
+				== InputMapEditorSettings.HostMode.MAIN_SCREEN
+		)
 	return (
 			InputMapEditorSettings.read_host_mode()
 			== InputMapEditorSettings.HostMode.MAIN_SCREEN
@@ -222,10 +235,18 @@ func                        ________INTERNAL_________              ()->void:pass
 #region Host layout
 #MARK: Host layout
 
-func _host_mode() -> int:
+## ProjectSettings / opts value — only for [method _attach_host] enable path.
+func _settings_host_mode() -> int:
 	if _opts != null:
 		return _opts.host_mode as int
 	return InputMapEditorSettings.read_host_mode()
+
+
+## Mode of the host currently attached this load (not a live setting read).
+func _host_mode() -> int:
+	if _attached_host_mode >= 0:
+		return _attached_host_mode
+	return _settings_host_mode()
 
 
 func _is_host_main_screen() -> bool:
@@ -243,7 +264,9 @@ func _use_auto_raise() -> bool:
 
 
 func _attach_host() -> void:
-	match _host_mode():
+	# Latch once at enable. Later ProjectSettings edits must not change this.
+	_attached_host_mode = _settings_host_mode()
+	match _attached_host_mode:
 		InputMapEditorSettings.HostMode.MAIN_SCREEN:
 			# https://docs.godotengine.org/en/stable/tutorials/plugins/editor/making_main_screen_plugins.html
 			var main_screen:VBoxContainer = EditorInterface.get_editor_main_screen()
@@ -281,6 +304,9 @@ func _attach_host() -> void:
 			_panel.visible = true
 
 
+## Tear down whatever was actually attached (instance state). Never reads
+## [member host_mode] from ProjectSettings — a mid-session setting change must
+## not skip dock/inspector/main cleanup.
 func _detach_host() -> void:
 	if _inspector_plugin != null:
 		remove_inspector_plugin( _inspector_plugin )
@@ -292,6 +318,12 @@ func _detach_host() -> void:
 			_dock.remove_child( _panel )
 		_dock.queue_free()
 		_dock = null
+	# Main screen: panel lives under the editor main screen, not self.
+	# Inspector: panel is a child of this plugin (left for _exit_tree free).
+	elif is_instance_valid( _panel ):
+		var parent:Node = _panel.get_parent()
+		if parent != null and parent != self:
+			parent.remove_child( _panel )
 
 
 func _raise_editor_if_needed() -> void:
