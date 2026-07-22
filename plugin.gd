@@ -42,9 +42,29 @@ func _on_edited_object_changed() -> void:
 	var obj:Object = EditorInterface.get_inspector().get_edited_object()
 	if obj is CustomInputMap:
 		_edit_map( obj as CustomInputMap )
-	else:
-		# Inspector left a CustomInputMap — drop the stale action list.
-		_clear_edited_map()
+		return
+	# Nested InputAction under an open map — keep the bottom panel; do not wipe.
+	if obj is InputAction \
+	and _open_maps_contain_action( obj as InputAction ):
+		return
+	# Inspector left the map (and any nested actions) — drop the stale list.
+	_clear_edited_map()
+
+
+## Inspector mutated a property on the current object (e.g. `_actions` add/remove).
+## [CustomInputMap] emits [signal Resource.changed] from its `_actions` setter;
+## this is a second path so the panel still rebuilds if a future inspector path
+## mutates without going through that setter.
+func _on_inspector_property_edited( _property:String ) -> void:
+	if _panel == null:
+		return
+	var obj:Object = EditorInterface.get_inspector().get_edited_object()
+	if obj is CustomInputMap:
+		_refresh_panel_for_map( obj as CustomInputMap )
+		return
+	# Nested [InputAction] edit while the map is still open in the bottom panel.
+	if obj is InputAction:
+		_refresh_panel_if_action_in_open_maps( obj as InputAction )
 
 
 func _on_resource_modified( map:CustomInputMap ) -> void:
@@ -81,6 +101,8 @@ func _enter_tree() -> void:
 	var inspector:EditorInspector = EditorInterface.get_inspector()
 	if not inspector.edited_object_changed.is_connected( _on_edited_object_changed ):
 		_connect_sig( inspector.edited_object_changed, _on_edited_object_changed )
+	if not inspector.property_edited.is_connected( _on_inspector_property_edited ):
+		_connect_sig( inspector.property_edited, _on_inspector_property_edited )
 
 	_on_edited_object_changed()
 
@@ -95,9 +117,11 @@ func _exit_tree() -> void:
 		_export_plugin = null
 
 	var inspector:EditorInspector = EditorInterface.get_inspector()
-	if inspector \
-	and inspector.edited_object_changed.is_connected( _on_edited_object_changed ):
-		inspector.edited_object_changed.disconnect( _on_edited_object_changed )
+	if inspector:
+		if inspector.edited_object_changed.is_connected( _on_edited_object_changed ):
+			inspector.edited_object_changed.disconnect( _on_edited_object_changed )
+		if inspector.property_edited.is_connected( _on_inspector_property_edited ):
+			inspector.property_edited.disconnect( _on_inspector_property_edited )
 
 	if is_instance_valid( _panel ):
 		if _panel.resource_modified.is_connected( _on_resource_modified ):
@@ -169,6 +193,32 @@ func _clear_edited_map() -> void:
 	and _panel.open_maps.is_empty():
 		return
 	_panel.configure_for_resource( null )
+
+
+## Rebuild the bottom panel when [param map] is currently shown.
+func _refresh_panel_for_map( map:CustomInputMap ) -> void:
+	if _panel == null or map == null:
+		return
+	if _panel.edit_map != map and not _panel.open_maps.has( map ):
+		return
+	_panel.refresh()
+
+
+## True if [param action] is a non-null value in any open map.
+func _open_maps_contain_action( action:InputAction ) -> bool:
+	if _panel == null or action == null:
+		return false
+	for map:CustomInputMap in _panel.open_maps:
+		if map != null and map.get_actions().has( action ):
+			return true
+	return false
+
+
+## If [param action] is stored in an open map, refresh that map's tree.
+func _refresh_panel_if_action_in_open_maps( action:InputAction ) -> void:
+	if not _open_maps_contain_action( action ):
+		return
+	_panel.refresh()
 
 
 func _clear_suppress() -> void:

@@ -36,7 +36,12 @@ func                        ________PROPERTIES_______              ()->void:pass
 ## Maps Action names [StringName] to thier [InputActionMap] definitions
 ## [br] definition is allowed to be null and is treated equivalently to
 ## a default constructed [InputActionMap]
-@export var _actions:Dictionary[StringName, InputAction] = {}
+## [br]Inspector add/remove of dictionary keys goes through this setter; we
+## emit [signal Resource.changed] so [InputMapEditor] can rebuild the tree.
+@export var _actions:Dictionary[StringName, InputAction] = {}:
+	set( value ):
+		_actions = value
+		emit_changed()
 
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
