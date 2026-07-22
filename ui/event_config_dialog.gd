@@ -474,7 +474,11 @@ func _focus_listener() -> void:
 		return
 	# Window must finish showing / take OS focus before a child can hold focus.
 	# One deferred call is often too early under EditorPlugin bottom panels.
-	event_listener.call_deferred(&"grab_focus")
+	# manual_grab_focus: LineEdit.grab_focus cannot be overridden.
+	if event_listener.has_method( &"manual_grab_focus" ):
+		event_listener.call_deferred( &"manual_grab_focus" )
+	else:
+		event_listener.call_deferred( &"grab_focus" )
 	if is_inside_tree():
 		_focus_listener_next_frame.call_deferred()
 
@@ -483,7 +487,11 @@ func _focus_listener_next_frame() -> void:
 	if not visible \
 	or not is_instance_valid( event_listener ):
 		return
-	if not event_listener.has_focus():
+	if event_listener.has_focus():
+		return
+	if event_listener.has_method( &"manual_grab_focus" ):
+		event_listener.call( &"manual_grab_focus" )
+	else:
 		event_listener.grab_focus()
 
 

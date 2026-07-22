@@ -16,16 +16,19 @@ extends LineEdit
 ## While focused, key / mouse-button / joy events are consumed and exposed via
 ## [signal event_changed]. Hold [code]ui_cancel[/code] briefly to release focus.
 
-##TODO: Write documenation, indicate its a bitmask
+## Bitmask of accepted event kinds for [method set_allowed_input_types].
 enum InputType {
-	KEY          = 0x1,
+	KEY = 0x1,
 	MOUSE_BUTTON = 0x2,
-	JOY_BUTTON   = 0x4,
-	JOY_MOTION   = 0x8,
+	JOY_BUTTON = 0x4,
+	JOY_MOTION = 0x8,
 }
 
-const ALL_INPUT_TYPES: int = (
-		InputType.KEY | InputType.MOUSE_BUTTON | InputType.JOY_BUTTON | InputType.JOY_MOTION
+const ALL_INPUT_TYPES:int = (
+		InputType.KEY
+		| InputType.MOUSE_BUTTON
+		| InputType.JOY_BUTTON
+		| InputType.JOY_MOTION
 )
 
 ## Joy axis descriptions matching engine EventListenerLineEdit (axis*2 + direction).
@@ -62,11 +65,11 @@ const _HOLD_TO_UNFOCUS_MS: int = 3000
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-var allowed_input_types: int = ALL_INPUT_TYPES
-var _event: InputEvent
-var _ignore_next_event: bool = true
-var _hold_next_ms: int = 0
-var _hold_event: InputEvent
+var allowed_input_types:int = ALL_INPUT_TYPES
+var _event:InputEvent
+var _ignore_next_event:bool = true
+var _hold_next_ms:int = 0
+var _hold_event:InputEvent
 
 
 #            ███████ ██  ██████  ███    ██  █████  ██      ███████             #
@@ -76,7 +79,7 @@ var _hold_event: InputEvent
 #            ███████ ██  ██████  ██   ████ ██   ██ ███████ ███████             #
 func                        _________SIGNALS_________              ()->void:pass
 
-signal event_changed(event: InputEvent)
+signal event_changed( event:InputEvent )
 
 
 #             ███████ ██    ██ ███████ ███    ██ ████████ ███████              #
@@ -213,10 +216,10 @@ func clear_event() -> void:
 		return
 	_event = null
 	text = ""
-	event_changed.emit(null)
+	event_changed.emit( null )
 
 
-func set_allowed_input_types(type_masks: int) -> void:
+func set_allowed_input_types( type_masks:int ) -> void:
 	allowed_input_types = type_masks
 
 
@@ -224,8 +227,17 @@ func get_allowed_input_types() -> int:
 	return allowed_input_types
 
 
+#        ███████ ████████  █████  ████████ ██  ██████                          #
+#        ██         ██    ██   ██    ██    ██ ██                               #
+#        ███████    ██    ███████    ██    ██ ██                               #
+#             ██    ██    ██   ██    ██    ██ ██                               #
+#        ███████    ██    ██   ██    ██    ██  ██████                          #
+func                        _________STATIC__________              ()->void:pass
+
 ## Human-readable description of [param event].
-static func get_event_text(event: InputEvent, include_device: bool = true) -> String:
+static func get_event_text(
+			event:InputEvent,
+			include_device:bool = true ) -> String:
 	if event == null:
 		return ""
 

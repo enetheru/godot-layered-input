@@ -1,13 +1,17 @@
 class_name IconCache
 extends RefCounted
-## Shared textures for InputMapEditor / EventConfigDialog.
-## Prefers project [code]UI.ICONS[/code] and EditorIcons when present; otherwise
-## builds [DPITexture] fallbacks from the same SVGs the engine editor uses.
 
-const _COLOR_MAP: Dictionary = {
-	Color(1, 0.37254903, 0.37254903, 1): Color(1, 0.47, 0.42, 1),
-	Color(0.37254903, 1, 0.5921569, 1): Color(0.45, 0.95, 0.5, 1),
-	Color(1, 0.8666667, 0.39607844, 1): Color(0.83, 0.78, 0.62, 1),
+## Shared textures for [InputMapEditor] / [EventConfigDialog].
+##
+## Prefers project icons when present; otherwise builds [DPITexture] fallbacks
+## from the same SVGs the engine editor uses.
+##[br][color=goldenrod]TODO[/color]:Replace INVALID_KEY svg with a real mark.
+
+
+const _COLOR_MAP:Dictionary = {
+	Color( 1, 0.37254903, 0.37254903, 1 ): Color( 1, 0.47, 0.42, 1 ),
+	Color( 0.37254903, 1, 0.5921569, 1 ): Color( 0.45, 0.95, 0.5, 1 ),
+	Color( 1, 0.8666667, 0.39607844, 1 ): Color( 0.83, 0.78, 0.62, 1 ),
 }
 
 const SVG:Dictionary = {
@@ -21,7 +25,6 @@ const SVG:Dictionary = {
 	&"MOUSE": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M8 1a5 5 0 0 0-5 5v4a5 5 0 0 0 10 0V6a5 5 0 0 0-5-5zm-1 2.1A3 3 0 0 1 10 6v1H7zm-1 .9v1H5A3 3 0 0 1 6 4zm2 3h3v3a3 3 0 0 1-6 0V7h3z\"/></svg>",
 	&"JOY_BUTTON": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M5 4a4 4 0 0 0-4 4v1a3 3 0 0 0 3 3h1l1 3h4l1-3h1a3 3 0 0 0 3-3V8a4 4 0 0 0-4-4zm1 3h1v1H6zm3 0h1v1H9zM4.5 8.5A1.5 1.5 0 1 1 4.5 11a1.5 1.5 0 0 1 0-2.5zm7 0A1.5 1.5 0 1 1 11.5 11a1.5 1.5 0 0 1 0-2.5z\"/></svg>",
 	&"JOY_AXIS": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 2a5 5 0 1 1 0 10A5 5 0 0 1 8 3zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z\"/></svg>",
-	## TODO replace this svg text with something appropraite.
 	&"INVALID_KEY": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M8 2a6 6 0 1 0 5.65 4H11.5A4 4 0 1 1 8 4V2zm0 0V0l3 2.5L8 5V2z\"/></svg>",
 }
 
@@ -33,78 +36,83 @@ const SVG:Dictionary = {
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-static var _cache: Dictionary = {} # StringName -> Texture2D
-static var _sized_cache: Dictionary = {} # String -> Texture2D
+# StringName -> Texture2D
+static var _cache:Dictionary = {}
+# String -> Texture2D
+static var _sized_cache:Dictionary = {}
 
 
-#         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
-#         ████  ████ ██         ██    ██   ██ ██    ██ ██   ██ ██              #
-#         ██ ████ ██ █████      ██    ███████ ██    ██ ██   ██ ███████         #
-#         ██  ██  ██ ██         ██    ██   ██ ██    ██ ██   ██      ██         #
-#         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
-func                        _________METHODS_________              ()->void:pass
+#        ███████ ████████  █████  ████████ ██  ██████                          #
+#        ██         ██    ██   ██    ██    ██ ██                               #
+#        ███████    ██    ███████    ██    ██ ██                               #
+#             ██    ██    ██   ██    ██    ██ ██                               #
+#        ███████    ██    ██   ██    ██    ██  ██████                          #
+func                        _________STATIC__________              ()->void:pass
 
-static func get_icon(cache_key: StringName) -> Texture2D:
-	if _cache.has(cache_key):
+static func get_icon( cache_key:StringName ) -> Texture2D:
+	if _cache.has( cache_key ):
 		return _cache[cache_key]
 
-	var svg:String = SVG.get(cache_key, SVG.INVALID_KEY)
-	var tex: Texture2D = DPITexture.create_from_string(svg, 1.25, 2.0, _COLOR_MAP)
+	var svg:String = SVG.get( cache_key, SVG[&"INVALID_KEY"] )
+	var tex:Texture2D = DPITexture.create_from_string( svg, 1.25, 2.0, _COLOR_MAP )
 
 	_cache[cache_key] = tex
 	return tex
 
 
-## Resize or size-override [param source] so [method Texture2D.get_size] matches [param size].
-static func at_size(source: Texture2D, size: Vector2i) -> Texture2D:
+## Resize or size-override [param source] so [method Texture2D.get_size]
+## matches [param size].
+static func at_size( source:Texture2D, size:Vector2i ) -> Texture2D:
 	if source == null:
 		return null
 	if size.x <= 0 or size.y <= 0:
 		return source
-	var source_size: Vector2 = source.get_size()
-	if int(source_size.x) == size.x and int(source_size.y) == size.y:
+	var source_size:Vector2 = source.get_size()
+	if int( source_size.x ) == size.x and int( source_size.y ) == size.y:
 		return source
 
-	var key := "%s@%dx%d" % [str(source.get_rid().get_id()), size.x, size.y]
-	if _sized_cache.has(key):
+	var key:String = "%s@%dx%d" % [str( source.get_rid().get_id() ), size.x, size.y]
+	if _sized_cache.has( key ):
 		return _sized_cache[key]
 
-	var tex: Texture2D
-	var img: Image = source.get_image()
+	var tex:Texture2D
+	var img:Image = source.get_image()
 	if img != null and not img.is_empty():
-		var copy: Image = img.duplicate()
-		copy.resize(size.x, size.y, Image.INTERPOLATE_LANCZOS)
-		tex = ImageTexture.create_from_image(copy)
+		var copy:Image = img.duplicate()
+		copy.resize( size.x, size.y, Image.INTERPOLATE_LANCZOS )
+		tex = ImageTexture.create_from_image( copy )
 	else:
-		# DPITexture / compressed sources may not expose pixels; override reported size.
-		var fallback := ImageTexture.new()
+		# DPITexture / compressed sources may not expose pixels.
+		var fallback:ImageTexture = ImageTexture.new()
 		if img != null and not img.is_empty():
-			fallback.set_image(img)
+			fallback.set_image( img )
 		else:
-			var blank := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
-			blank.fill(Color(1, 1, 1, 0.4))
-			fallback.set_image(blank)
-		fallback.set_size_override(size)
+			var blank:Image = Image.create( size.x, size.y, false, Image.FORMAT_RGBA8 )
+			blank.fill( Color( 1, 1, 1, 0.4 ) )
+			fallback.set_image( blank )
+		fallback.set_size_override( size )
 		tex = fallback
 
 	_sized_cache[key] = tex
 	return tex
 
 
-static func for_event(event: InputEvent) -> Texture2D:
+static func for_event( event:InputEvent ) -> Texture2D:
 	if event is InputEventKey:
-		var key: InputEventKey = event
-		if key.physical_keycode == KEY_NONE and key.keycode == KEY_NONE and key.key_label != KEY_NONE:
-			return get_icon(&'KEYBOARD_LABEL')
+		var key:InputEventKey = event
+		if key.physical_keycode == KEY_NONE \
+		and key.keycode == KEY_NONE \
+		and key.key_label != KEY_NONE:
+			return get_icon( &"KEYBOARD_LABEL" )
 		if key.keycode != KEY_NONE:
-			return get_icon(&'KEYBOARD')
+			return get_icon( &"KEYBOARD" )
 		if key.physical_keycode != KEY_NONE:
-			return get_icon(&'KEYBOARD_PHYSICAL')
-		return get_icon(&'KEYBOARD')
+			return get_icon( &"KEYBOARD_PHYSICAL" )
+		return get_icon( &"KEYBOARD" )
 	if event is InputEventMouseButton:
-		return get_icon(&'MOUSE')
+		return get_icon( &"MOUSE" )
 	if event is InputEventJoypadButton:
-		return get_icon(&'JOY_BUTTON')
+		return get_icon( &"JOY_BUTTON" )
 	if event is InputEventJoypadMotion:
-		return get_icon(&'JOY_AXIS')
-	return get_icon(&'KEYBOARD')
+		return get_icon( &"JOY_AXIS" )
+	return get_icon( &"KEYBOARD" )

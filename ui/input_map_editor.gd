@@ -8,18 +8,25 @@ extends PanelContainer
 ##│ | || ' \| '_ \ || |  _| | |\/| / _` | '_ \ | _|/ _` | |  _/ _ \ '_|
 ##│|___|_||_| .__/\_,_|\__| |_|  |_\__,_| .__/ |___\__,_|_|\__\___/_|
 ##╰─────────|_|─────────────────────────|_|──────────────────────────────
-##[/codeblock] Action / event map editor UI.
+##[/codeblock]Action / event map editor UI.
 ##
 ## Port of Godot's `ActionMapEditor` (editor/settings/action_map_editor.*).
 ## Binds to [InputManager] by default:
 ##[br] • Root — editable map on [code]responder_root[/code]
 ##[br] • Effective — read-only merge currently applied to the engine
 ##[br] • Loaded — read-only hierarchy of every responder contribution
+##[br][br]
+##[color=goldenrod]TODO[/color]:Full style pass (name:Type, parens spacing) —
+## file is large; host mutations and map API already aligned with CustomInputMap.
+##[br][color=goldenrod]TODO[/color]:Rename @onready nodes with type suffixes.
+##[br][color=goldenrod]TODO[/color]:Split tree build / host mutations / drag-drop
+## into clearer #region blocks.
 
 ## Default pixel size for [TreeItem] buttons (layout uses texture size as-is).
-const TREE_BUTTON_SIZE: Vector2i = Vector2i(16, 16)
+const TREE_BUTTON_SIZE:Vector2i = Vector2i( 16, 16 )
 ## Preload avoids class_name placeholder failures while the plugin reloads.
-const _EventListenerScript = preload("res://addons/enetheru.input_map_editor/ui/event_listener_line_edit.gd")
+const _EventListenerScript = preload(
+		"res://addons/enetheru.input_map_editor/ui/event_listener_line_edit.gd" )
 
 enum ItemButton {
 	ADD_EVENT,
@@ -364,112 +371,115 @@ func                        __Host_Actions___________              ()->void:pass
 ##[br]│|_||_\___/__/\__| /_/ \_\__|\__|_\___/_||_/__/
 ##[br]╰────────────────────────────────────────────────
 
-func _on_host_action_added(action_name: String) -> void:
+func _on_host_action_added( action_name:String ) -> void:
 	if operation_mode == OperationMode.MONITOR:
 		return
-	var map := _get_mutation_map()
+	var map:CustomInputMap = _get_mutation_map()
 	if map == null:
 		return
-	map.ensure_action(StringName(action_name))
-	_host_refresh(map)
+	map.ensure_action( StringName( action_name ) )
+	_host_refresh( map )
 
 
-func _on_host_action_edited(action_name: String, new_action: Dictionary) -> void:
+func _on_host_action_edited( action_name:String, new_action:Dictionary ) -> void:
 	if operation_mode == OperationMode.MONITOR:
 		return
-	var map := _get_mutation_map()
+	var map:CustomInputMap = _get_mutation_map()
 	if map == null:
 		return
-	var key := StringName(action_name)
-	var deadzone: float = new_action.get("deadzone", CustomInputMap.DEFAULT_DEADZONE)
+	var key:StringName = StringName( action_name )
+	var deadzone:float = new_action.get( "deadzone", CustomInputMap.DEFAULT_DEADZONE )
 	# Materialize null placeholders; asserts used to fire when key existed with null def.
-	map.ensure_action(key, deadzone)
-	map.action_set_deadzone(key, deadzone)
-	map.action_clear_events(key)
-	for v: Variant in new_action.get("events", []):
-		var ev: InputEvent = v
-		if ev:
-			var dup: InputEvent = ev.duplicate()
-			map.action_add_event(key, dup)
-	_host_refresh(map)
+	map.ensure_action( key, deadzone )
+	map.set_action_deadzone( key, deadzone )
+	map.clear_action_events( key )
+	for v:Variant in new_action.get( "events", [] ):
+		var ev:InputEvent = v
+		if is_instance_valid( ev ):
+			var dup:InputEvent = ev.duplicate()
+			map.add_action_event( key, dup )
+	_host_refresh( map )
 
 
-func _on_host_action_removed(action_name: String) -> void:
+func _on_host_action_removed( action_name:String ) -> void:
 	if operation_mode == OperationMode.MONITOR:
 		return
-	var map := _get_mutation_map()
+	var map:CustomInputMap = _get_mutation_map()
 	if map == null:
 		return
-	map.erase_action(StringName(action_name))
-	_host_refresh(map)
+	map.erase_action( StringName( action_name ) )
+	_host_refresh( map )
 
 
-func _on_host_action_renamed(old_name: String, new_name: String) -> void:
+func _on_host_action_renamed( old_name:String, new_name:String ) -> void:
 	if operation_mode == OperationMode.MONITOR:
 		return
-	var map := _get_mutation_map()
+	var map:CustomInputMap = _get_mutation_map()
 	if map == null:
 		return
-	var old_key := StringName(old_name)
-	var new_key := StringName(new_name)
-	if not map.has_action(old_key):
+	var old_key:StringName = StringName( old_name )
+	var new_key:StringName = StringName( new_name )
+	if not map.has_action( old_key ):
 		return
-	var deadzone := map.action_get_deadzone(old_key)
-	var events: Array[InputEvent] = []
-	for ev: InputEvent in map.action_get_events(old_key):
-		if ev:
-			var dup: InputEvent = ev.duplicate()
-			events.append(dup)
-	map.erase_action(old_key)
-	map.ensure_action(new_key, deadzone)
-	map.action_set_deadzone(new_key, deadzone)
-	for ev: InputEvent in events:
-		map.action_add_event(new_key, ev)
-	_host_refresh(map)
+	var deadzone:float = map.get_action_deadzone( old_key )
+	var events:Array[InputEvent] = []
+	for ev:InputEvent in map.get_action_events( old_key ):
+		if is_instance_valid( ev ):
+			var dup:InputEvent = ev.duplicate()
+			events.append( dup )
+	map.erase_action( old_key )
+	map.ensure_action( new_key, deadzone )
+	map.set_action_deadzone( new_key, deadzone )
+	for ev:InputEvent in events:
+		map.add_action_event( new_key, ev )
+	_host_refresh( map )
 
 
-func _on_host_action_reordered(action_name: String, relative_to: String, before: bool) -> void:
+func _on_host_action_reordered(
+			action_name:String,
+			relative_to:String,
+			before:bool ) -> void:
 	if operation_mode == OperationMode.MONITOR:
 		return
-	var map := _get_mutation_map()
+	var map:CustomInputMap = _get_mutation_map()
 	if map == null:
 		return
-	var keys: Array[StringName] = map.get_actions()
-	var from_i := keys.find(StringName(action_name))
-	var to_i := keys.find(StringName(relative_to))
+	var keys:Array[StringName] = map.get_action_names()
+	var from_i:int = keys.find( StringName( action_name ) )
+	var to_i:int = keys.find( StringName( relative_to ) )
 	if from_i < 0 or to_i < 0 or from_i == to_i:
 		return
-	var moved: StringName = keys[from_i]
-	keys.remove_at(from_i)
-	to_i = keys.find(StringName(relative_to))
+	var moved:StringName = keys[from_i]
+	keys.remove_at( from_i )
+	to_i = keys.find( StringName( relative_to ) )
 	if to_i < 0:
 		return
 	if not before:
 		to_i += 1
-	@warning_ignore("return_value_discarded")
-	keys.insert(to_i, moved)
+	@warning_ignore( "return_value_discarded" )
+	keys.insert( to_i, moved )
 
-	var snapshot: Dictionary = {}
-	for k: StringName in map.get_actions():
-		var ev_list: Array = map.action_get_events(k).duplicate()
+	var snapshot:Dictionary = {}
+	for k:StringName in map.get_action_names():
+		var ev_list:Array = map.get_action_events( k ).duplicate()
 		snapshot[k] = {
-			"deadzone": map.action_get_deadzone(k),
-			"events": ev_list,
+			&"deadzone": map.get_action_deadzone( k ),
+			&"events": ev_list,
 		}
 	# Snapshot keys first — erase mutates the live dictionary.
-	var old_keys: Array[StringName] = map.get_actions()
-	for k: StringName in old_keys:
-		map.erase_action(k)
-	for k: StringName in keys:
-		var data: Dictionary = snapshot[k]
-		var deadzone: float = data["deadzone"]
-		map.add_action(k, deadzone)
-		for v: Variant in data["events"]:
-			var ev: InputEvent = v
-			if ev:
-				var dup: InputEvent = ev.duplicate()
-				map.action_add_event(k, dup)
-	_host_refresh(map)
+	var old_keys:Array[StringName] = map.get_action_names()
+	for k:StringName in old_keys:
+		map.erase_action( k )
+	for k:StringName in keys:
+		var data:Dictionary = snapshot[k]
+		var deadzone:float = data[&"deadzone"]
+		map.add_action( k, deadzone )
+		for v:Variant in data[&"events"]:
+			var ev:InputEvent = v
+			if is_instance_valid( ev ):
+				var dup:InputEvent = ev.duplicate()
+				map.add_action_event( k, dup )
+	_host_refresh( map )
 
 #endregion Host Actions
 
@@ -1014,39 +1024,27 @@ func _populate_map_actions(
 		empty.set_selectable(0, false)
 		return
 
-	# Prefer iterating the exported dictionary directly — avoids typed Array
-	# conversion issues with Dictionary.keys() on some Godot builds.
-	var action_names: Array[StringName] = []
-	if map.has_method(&"get_actions"):
-		var raw: Variant = map.get_actions()
-		if raw is Array:
-			for k: Variant in raw:
-				action_names.append(k as StringName)
-	if action_names.is_empty() and map.get(&"_actions") is Dictionary:
-		var actions_dict: Dictionary = map.get(&"_actions")
-		for k: Variant in actions_dict.keys():
-			action_names.append(k as StringName)
-
+	var action_names:Array[StringName] = map.get_action_names()
 	if action_names.is_empty():
-		var empty:TreeItem = tree.create_item(parent)
-		empty.set_text(0, "(no actions)")
-		empty.set_selectable(0, false)
+		var empty:TreeItem = tree.create_item( parent )
+		empty.set_text( 0, "(no actions)" )
+		empty.set_selectable( 0, false )
 		if owner_map != null:
-			empty.set_meta(&"__map", owner_map)
+			empty.set_meta( &"__map", owner_map )
 		return
 
-	for action_name: StringName in action_names:
-		var events: Array = []
-		for ev: InputEvent in map.action_get_events(action_name):
-			if ev:
-				events.append(ev)
-		if not _should_display_action(String(action_name), events):
+	for action_name:StringName in action_names:
+		var events:Array = []
+		for ev:InputEvent in map.get_action_events( action_name ):
+			if is_instance_valid( ev ):
+				events.append( ev )
+		if not _should_display_action( String( action_name ), events ):
 			continue
-		var info := ActionInfo.new()
-		info.name = String(action_name)
+		var info:ActionInfo = ActionInfo.new()
+		info.name = String( action_name )
 		info.action = {
-			"events": events,
-			"deadzone": map.action_get_deadzone(action_name),
+			&"events": events,
+			&"deadzone": map.get_action_deadzone( action_name ),
 		}
 		info.editable = editable
 		_add_action_item(

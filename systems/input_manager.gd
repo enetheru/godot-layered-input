@@ -7,17 +7,22 @@ extends Node
 ##│ | || ' \| '_ \ || |  _| | |\/| / _` | ' \/ _` / _` / -_) '_|
 ##│|___|_||_| .__/\_,_|\__| |_|  |_\__,_|_||_\__,_\__, \___|_|
 ##╰─────────|_|───────────────────────────────────|___/───────────
-##[/codeblock]
+##[/codeblock]Owns the responder branch and projects merged maps onto the engine.
 ##
+## Registered as the [code]InputManager[/code] autoload. Class name is
+## [code]_InputManager[/code] so the global name can match the autoload.
+##[br][br]
 ## Owns the responder branch (last child of the scene root) and projects the
 ## merged set of active [CustomInputMap] layers onto the engine [InputMap].
-## [br][br]
+##[br][br]
 ## No project-settings base map is kept. Only maps on active responders count.
-## [br][br]
-## Merge order is tree order (depth-first, children first-to-last) so
-## later siblings both receive input first and win action-name conflicts.
+##[br][br]
+## Merge order is tree order (depth-first, children first-to-last) so later
+## siblings both receive input first and win action-name conflicts.
+##[br][color=goldenrod]TODO[/color]:Decide whether undo_stack belongs here long-term.
 
-const INPUT_MAP: CustomInputMap = preload("default_input_map.tres")
+
+const INPUT_MAP:CustomInputMap = preload( "default_input_map.tres" )
 
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
@@ -27,16 +32,17 @@ const INPUT_MAP: CustomInputMap = preload("default_input_map.tres")
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-var responder_root: Responder
+var responder_root:Responder
 
 ## Last effective map pushed to the engine (for inspection and snapshots).
-var effective_map: CustomInputMap
+var effective_map:CustomInputMap
 
 ## Simple stack of responder-tree snapshots.
-var undo_stack: Array = []
+##[br][color=goldenrod]TODO[/color]:Typed array / memento type.
+var undo_stack:Array = []
 
-var _want_rebuild: bool = false
-var _rebuilding: bool = false
+var _want_rebuild:bool = false
+var _rebuilding:bool = false
 
 
 #            ███████ ██  ██████  ███    ██  █████  ██      ███████             #
@@ -47,7 +53,7 @@ var _rebuilding: bool = false
 func                        _________SIGNALS_________              ()->void:pass
 
 ## Emitted after the engine [InputMap] has been replaced.
-signal input_map_changed(effective: CustomInputMap)
+signal input_map_changed( effective:CustomInputMap )
 
 
 #             ███████ ██    ██ ███████ ███    ██ ████████ ███████              #
@@ -58,13 +64,13 @@ signal input_map_changed(effective: CustomInputMap)
 func                        __________EVENTS_________              ()->void:pass
 
 func _on_parent_child_order_changed() -> void:
-	var parent: Node = get_parent()
-	if not is_instance_valid(parent):
+	var parent:Node = get_parent()
+	if not is_instance_valid( parent ):
 		return
-	var child_count: int = parent.get_child_count()
+	var child_count:int = parent.get_child_count()
 	if get_index() == child_count - 1:
 		return
-	parent.move_child(self, -1)
+	parent.move_child( self, -1 )
 
 
 func _on_responder_tree_changed() -> void:
@@ -79,16 +85,18 @@ func _on_responder_tree_changed() -> void:
 func                        ________OVERRIDES________              ()->void:pass
 
 func _enter_tree() -> void:
-	var parent: Node = get_parent()
-	if parent and not parent.child_order_changed.is_connected(_on_parent_child_order_changed):
-		parent.child_order_changed.connect(_on_parent_child_order_changed, CONNECT_DEFERRED)
+	var parent:Node = get_parent()
+	if parent \
+	and not parent.child_order_changed.is_connected( _on_parent_child_order_changed ):
+		parent.child_order_changed.connect(
+				_on_parent_child_order_changed, CONNECT_DEFERRED )
 
 	responder_root = Responder.new()
 	responder_root.name = &"root"
 	responder_root.input_map = INPUT_MAP
-	add_child(responder_root)
-	if not responder_root.child_order_changed.is_connected(_on_responder_tree_changed):
-		responder_root.child_order_changed.connect(_on_responder_tree_changed)
+	add_child( responder_root )
+	if not responder_root.child_order_changed.is_connected( _on_responder_tree_changed ):
+		responder_root.child_order_changed.connect( _on_responder_tree_changed )
 
 	rebuild_input_map()
 
@@ -101,49 +109,59 @@ func _enter_tree() -> void:
 func                        _________METHODS_________              ()->void:pass
 
 func push_state() -> void:
-	var copy: Responder = responder_root.duplicate()
-	undo_stack.push_back(copy)
+	var copy:Responder = responder_root.duplicate()
+	undo_stack.push_back( copy )
 
 
 func pop_state() -> void:
 	if undo_stack.is_empty():
-		push_warning("InputManager.pop_state: undo stack empty")
+		push_warning( "InputManager.pop_state: undo stack empty" )
 		return
-	var last_state: Responder = undo_stack.pop_back()
-	var old_root: Responder = responder_root
-	if old_root.child_order_changed.is_connected(_on_responder_tree_changed):
-		old_root.child_order_changed.disconnect(_on_responder_tree_changed)
-	old_root.replace_by(last_state)
+	var last_state:Responder = undo_stack.pop_back()
+	var old_root:Responder = responder_root
+	if old_root.child_order_changed.is_connected( _on_responder_tree_changed ):
+		old_root.child_order_changed.disconnect( _on_responder_tree_changed )
+	old_root.replace_by( last_state )
 	responder_root = last_state
-	if not responder_root.child_order_changed.is_connected(_on_responder_tree_changed):
-		responder_root.child_order_changed.connect(_on_responder_tree_changed)
+	if not responder_root.child_order_changed.is_connected( _on_responder_tree_changed ):
+		responder_root.child_order_changed.connect( _on_responder_tree_changed )
 	old_root.queue_free()
 	rebuild_input_map()
 
 
-func add_responder(node: Responder) -> void:
-	responder_root.add_responder(node)
+func add_responder( node:Responder ) -> void:
+	responder_root.add_responder( node )
 
 
-## free is not called on the node removed from the tree
-func remove_responder(node: Responder) -> void:
-	if node.is_ancestor_of(responder_root):
-		var parent: Responder = node.get_parent()
-		parent.remove_responder(node)
+## free is not called on the node removed from the tree.
+func remove_responder( node:Responder ) -> void:
+	if not is_instance_valid( node ):
+		return
+	if node.is_ancestor_of( responder_root ):
+		var parent:Responder = node.get_parent()
+		parent.remove_responder( node )
 
 
+## Coalesce rebuilds onto the next idle frame.
 func rebuild_input_map() -> void:
 	if _want_rebuild == false:
 		_want_rebuild = true
 		_rebuild_input_map.call_deferred()
 
 
+#        ███████ ████████  █████  ████████ ██  ██████                          #
+#        ██         ██    ██   ██    ██    ██ ██                               #
+#        ███████    ██    ███████    ██    ██ ██                               #
+#             ██    ██    ██   ██    ██    ██ ██                               #
+#        ███████    ██    ██   ██    ██    ██  ██████                          #
+func                        _________STATIC__________              ()->void:pass
+
 static func compare_event(
 			a:InputEvent,
 			b:InputEvent,
 			exact_match:bool = true ) -> bool:
-	assert( a and b, "compare_event, a or b is invalid")
-	return a == b or a.is_match(b, exact_match)
+	assert( a and b, "InputManager.compare_event: a or b is invalid" )
+	return a == b or a.is_match( b, exact_match )
 
 
 #       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #
@@ -153,30 +171,30 @@ static func compare_event(
 #       ██ ██   ████    ██    ███████ ██   ██ ██   ████ ██   ██ ███████        #
 func                        ________INTERNAL_________              ()->void:pass
 
-func _collect_maps(node: Node, out: Array[CustomInputMap]) -> void:
+func _collect_maps( node:Node, out:Array[CustomInputMap] ) -> void:
 	if node is Responder:
-		var responder: Responder = node
+		var responder:Responder = node
 		if responder.contributes_map():
-			out.append(responder.input_map)
-	for child: Node in node.get_children():
-		_collect_maps(child, out)
+			out.append( responder.input_map )
+	for child:Node in node.get_children():
+		_collect_maps( child, out )
 
 
 func _rebuild_input_map() -> void:
-	assert(responder_root, "responder root missing")
+	assert( responder_root, "InputManager._rebuild_input_map: responder root missing" )
 	_want_rebuild = false
 	if _rebuilding:
 		return
 	_rebuilding = true
 
-	var layers: Array[CustomInputMap] = []
-	_collect_maps(responder_root, layers)
+	var layers:Array[CustomInputMap] = []
+	_collect_maps( responder_root, layers )
 
-	var effective: CustomInputMap = CustomInputMap.new()
-	for layer: CustomInputMap in layers:
-		effective = layer.merge_over(effective)
+	var effective:CustomInputMap = CustomInputMap.new()
+	for layer:CustomInputMap in layers:
+		effective = layer.merge_over( effective )
 
 	effective_map = effective
 	effective.apply_to_engine()
-	input_map_changed.emit(effective)
+	input_map_changed.emit( effective )
 	_rebuilding = false

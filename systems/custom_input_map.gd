@@ -142,7 +142,7 @@ func set_action_deadzone( action_name:StringName, deadzone:float ) -> void:
 
 func add_action_event(action_name:StringName, event:InputEvent) -> void:
 	if not is_instance_valid( event ):
-		push_error("CustomInputMap.action_add_event: invalid event")
+		push_error("CustomInputMap.add_action_event: invalid event")
 		return
 	var ia:InputAction = ensure_action( action_name )
 	ia.add_event( event )
