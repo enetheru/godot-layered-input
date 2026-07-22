@@ -96,6 +96,9 @@ var _allowed_input_types:int = EventListenerLineEdit.ALL_INPUT_TYPES
 
 var _in_tree_update:bool = false
 
+## Coalesce manual-picker rebuilds (same idea as InputManager.request_rebuild).
+var _want_input_list_update:bool = false
+
 var _mod_checkboxes:Array[CheckBox] = []
 
 
@@ -163,10 +166,7 @@ func _on_listen_input_changed( event:InputEvent ) -> void:
 
 
 func _on_search_term_updated( _term:String = "" ) -> void:
-	# FIXME This calls the update input list directly, It should set a flag
-	# the list should update in a deferred way, so that we arent doing
-	# extra work unnecessarily.
-	_update_input_list()
+	_request_input_list_update()
 
 
 func _on_input_list_item_activated() -> void:
@@ -596,9 +596,20 @@ func _set_event(
 		_sync_ok_enabled()
 
 
+## Flag a manual-picker rebuild; coalesced onto the next idle frame.
+func _request_input_list_update() -> void:
+	if _want_input_list_update:
+		return
+	_want_input_list_update = true
+	_update_input_list.call_deferred()
+
+
 # I dont like how much repetition this function looks like, but it might be
 # necessary
 func _update_input_list() -> void:
+	_want_input_list_update = false
+	if not is_instance_valid( input_list_tree ):
+		return
 	input_list_tree.clear()
 	var root:TreeItem = input_list_tree.create_item()
 	var search_term:String = filter_input_line_edit.text
