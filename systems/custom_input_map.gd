@@ -227,7 +227,7 @@ func                        __Clone___Merge__________              ()->void:pass
 # │ \___|_\___/_||_\___| /_/   |_|  |_\___|_| \__, \___|
 # ╰───────────────────────────────────────────|___/───────
 
-## Deep copy suitable for merge intermediates and mementos.
+## Deep copy suitable for merge intermediates and whole-map snapshots.
 func duplicate_map() -> CustomInputMap:
 	var dup:CustomInputMap = CustomInputMap.new()
 	dup.resource_name = resource_name
@@ -339,10 +339,12 @@ func                        __Project___config_______              ()->void:pass
 #│|_| |_| \___// \___\__|\__| /_/   \__\___/_||_|_| |_\__, |
 #╰───────────|__/─────────────────────────────────────|___/───
 
-## Reload project-settings actions into the engine, then snapshot.
-##[br]Authoring helper only — not used as a runtime base layer.
-##[br][br]
-##[color=goldenrod]TODO[/color]:Evaluate the need for this.
+## Authoring helper: reload [code]project.godot[/code] [input] into the live
+## [InputMap], then return a [method from_engine] snapshot.
+## [br][b]Side effect:[/b] [method InputMap.load_from_project_settings] clears
+## and rebuilds the engine map. Prefer [method from_engine] when you only need
+## the current map without reloading the project. Not used as a runtime base
+## layer — active maps come from responders.
 static func from_project_settings() -> CustomInputMap:
 	InputMap.load_from_project_settings()
 	return from_engine()

@@ -13,9 +13,9 @@ extends PopupPanel
 ## Port of Godot's `InputEventConfigurationDialog`
 ## (editor/settings/input_event_configuration_dialog.*).
 ## Scene nodes mirror the editor layout; OK/Cancel replace ConfirmationDialog.
-##[br][color=goldenrod]TODO[/color]:public methods all need documentation.
-##[br][color=goldenrod]TODO[/color]:private/internal methods need documentation
-## using regular comments.
+## [br]Open with [method popup_and_configure], read the result from
+## [signal confirmed] or [method get_event]. Restrict device kinds with
+## [method set_allowed_input_types].
 
 # Window fires this after popup (window.cpp); not BIND_CONSTANT'd for GDScript.
 const NOTIFICATION_POST_POPUP:int = 31
@@ -107,9 +107,10 @@ var _mod_checkboxes:Array[CheckBox] = []
 #            ███████ ██  ██████  ██   ████ ██   ██ ███████ ███████             #
 func                        _________SIGNALS_________              ()->void:pass
 
-## User accepted the dialog. [param event] is the configured binding (never null on emit).
+## User accepted the dialog. [param event] is the configured binding (never null).
 signal confirmed( event:InputEvent )
 
+## User dismissed the dialog without accepting (Cancel, window close, or Escape).
 signal canceled
 
 
@@ -318,20 +319,26 @@ func _notification(what:int) -> void:
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
-## Configured binding while the dialog is open (also passed on [signal confirmed]).
+## Binding currently shown in the dialog (also emitted on [signal confirmed]).
+## Null when nothing is configured yet or after a blank open.
 func get_event() -> InputEvent:
 	return _configured_event
 
 
+## Bitmask of [enum EventListenerLineEdit.InputType] values accepted from the
+## listener and the manual list. Defaults to all types.
 func set_allowed_input_types( type_masks:int ) -> void:
 	_allowed_input_types = type_masks
 	if is_instance_valid( event_listener ):
 		event_listener.set_allowed_input_types( type_masks )
 
 
-## Open dialog to edit [param event], or blank when [param event] is null.
-## [param current_action] expects
-## [code]{"events": Array, "deadzone": float}[/code] for duplicate detection.
+## Open centered to edit [param event], or blank when [param event] is null.
+## [param current_action_name] is shown in the window title when non-empty.
+## [param current_action] should be
+## [code]{"events": Array, "deadzone": float}[/code] so the dialog can flag
+## duplicates against other bindings on the same action (the event being edited
+## is excluded from that list).
 func popup_and_configure(
 			event:InputEvent = null,
 			current_action_name:String = "",

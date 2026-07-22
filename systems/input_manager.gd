@@ -19,9 +19,10 @@ extends Node
 ##[br][br]
 ## Merge order is tree order (depth-first, children first-to-last) so later
 ## siblings both receive input first and win action-name conflicts.
-## [br]Responder-tree undo lives here ([member undo_stack], [method push_state],
-## [method pop_state]) because this node owns [member responder_root] — not a
-## separate UndoRedo service or per-map editor history.
+## [br]Full responder-tree undo lives here ([member undo_stack],
+## [method push_state], [method pop_state]) because this node owns
+## [member responder_root] — not a separate UndoRedo service or per-map editor
+## history.
 
 
 const INPUT_MAP:CustomInputMap = preload( "default_input_map.tres" )
@@ -39,8 +40,8 @@ var responder_root:Responder
 ## Last effective map pushed to the engine (for inspection and snapshots).
 var effective_map:CustomInputMap
 
-## Mementos of [member responder_root] for [method push_state] / [method pop_state].
-## Each entry is a deep [method Node.duplicate] of the root branch.
+## Full deep copies of [member responder_root] for [method push_state] /
+## [method pop_state] (whole-tree snapshots only).
 var undo_stack:Array[Responder] = []
 
 var _want_rebuild:bool = false
