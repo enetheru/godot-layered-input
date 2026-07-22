@@ -291,10 +291,10 @@ static func from_engine() -> CustomInputMap:
 ## deadzone is updated from this map, and events are appended only when not
 ## already present ([method InputMap.action_has_event]). Null [InputAction]
 ## placeholders ensure the action exists with [constant DEFAULT_DEADZONE].
-func apply_to_engine( merge:bool = false ) -> void:
+func apply_to_engine( do_merge:bool = false ) -> void:
 	for action_name:StringName in self:
 		var ia:InputAction = _actions[action_name]
-		if merge:
+		if do_merge:
 			_merge_action_into_engine( action_name, ia )
 		else:
 			_replace_action_in_engine( action_name, ia )

@@ -119,6 +119,6 @@ func _clear_suppress() -> void:
 
 # Connect and report failures (Signal.connect returns Error).
 func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:
-	var err:Error = sig.connect( callable, flags )
+	var err:Error = sig.connect( callable, flags ) as Error
 	if err != OK:
 		push_error( "InputMapEditorPlugin._connect_sig: %s" % error_string( err ) )

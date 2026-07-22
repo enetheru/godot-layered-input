@@ -23,9 +23,9 @@ extends PanelContainer
 
 ## Default pixel size for [TreeItem] buttons (layout uses texture size as-is).
 const TREE_BUTTON_SIZE:Vector2i = Vector2i( 16, 16 )
+
 ## Preload avoids class_name placeholder failures while the plugin reloads.
-const _EventListenerScript = preload(
-		"res://addons/enetheru.input_map_editor/ui/event_listener_edit.gd" )
+const _EventListenerScript = preload("event_listener_line_edit.gd" )
 
 enum ItemButton {
 	ADD_EVENT,
@@ -1132,16 +1132,16 @@ func _add_action_item(
 		var events_eq:bool = _event_arrays_equal( initial_events, action_events )
 		var action_eq:bool = deadzone_eq and events_eq
 		action_item.set_meta( &"__action_initial", action_info.action_initial )
-		action_item.add_btn(
+		action_item.add_button(
 				Column.BUTTONS, _button_icon_revert, ItemButton.REVERT_ACTION,
 				action_eq or not action_info.editable,
 				"Cannot Revert - Action is same as initial" if action_eq else "Revert Action"
 		)
-	action_item.add_btn(
+	action_item.add_button(
 			Column.BUTTONS, _button_icon_add, ItemButton.ADD_EVENT,
 			not action_info.editable, "Add Event"
 	)
-	action_item.add_btn(
+	action_item.add_button(
 			Column.BUTTONS, _button_icon_remove, ItemButton.REMOVE_ACTION,
 			not action_info.editable,
 			"Remove Action" if action_info.editable else "Cannot Remove Action"
@@ -1180,11 +1180,11 @@ func _add_action_event(
 	event_item.set_icon( Column.ACTION, IconCache.for_event( event ) )
 	event_item.set_icon_max_width( Column.ACTION, TREE_BUTTON_SIZE.x )
 	# Column.DEADZONE left empty (align under deadzone).
-	event_item.add_btn(
+	event_item.add_button(
 			Column.BUTTONS, _button_icon_edit, ItemButton.EDIT_EVENT,
 			not action_info.editable, "Edit Event"
 	)
-	event_item.add_btn(
+	event_item.add_button(
 			Column.BUTTONS, _button_icon_remove, ItemButton.REMOVE_EVENT,
 			not action_info.editable, "Remove Event"
 	)
