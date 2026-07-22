@@ -18,7 +18,6 @@ extends PanelContainer
 ##[br][br]
 ##[color=goldenrod]TODO[/color]:Full style pass (name:Type, parens spacing) —
 ## file is large; host mutations and map API already aligned with CustomInputMap.
-##[br][color=goldenrod]TODO[/color]:Rename @onready nodes with type suffixes.
 ##[br][color=goldenrod]TODO[/color]:Split tree build / host mutations / drag-drop
 ## into clearer #region blocks.
 
@@ -26,7 +25,7 @@ extends PanelContainer
 const TREE_BUTTON_SIZE:Vector2i = Vector2i( 16, 16 )
 ## Preload avoids class_name placeholder failures while the plugin reloads.
 const _EventListenerScript = preload(
-		"res://addons/enetheru.input_map_editor/ui/event_listener_line_edit.gd" )
+		"res://addons/enetheru.input_map_editor/ui/event_listener_edit.gd" )
 
 enum ItemButton {
 	ADD_EVENT,
@@ -78,19 +77,19 @@ class ActionInfo:
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-@onready var filter_name_line_edit:LineEdit = $VBoxContainer/EditorEventSearchBar/FilterNameLineEdit
-@onready var event_listener_line_edit:EventListenerLineEdit = $VBoxContainer/EditorEventSearchBar/EventListenerLineEdit
-@onready var clear_all_button:Button = $VBoxContainer/EditorEventSearchBar/ClearAllButton
+@onready var filter_name_le:LineEdit = $VBoxContainer/EditorEventSearchBar/FilterNameLineEdit
+@onready var event_listener_edit:EventListenerLineEdit = $VBoxContainer/EditorEventSearchBar/EventListenerLineEdit
+@onready var clear_all_btn:Button = $VBoxContainer/EditorEventSearchBar/ClearAllButton
 
-@onready var line_edit: LineEdit = $VBoxContainer/HBoxContainer/LineEdit
-@onready var add_button: Button = $VBoxContainer/HBoxContainer/AddButton
+@onready var add_action_le: LineEdit = $VBoxContainer/HBoxContainer/LineEdit
+@onready var add_btn: Button = $VBoxContainer/HBoxContainer/AddButton
 
-@onready var root_check_button: CheckButton = $VBoxContainer/ViewToggles/RootCheckButton
-@onready var effective_check_button: CheckButton = $VBoxContainer/ViewToggles/EffectiveCheckButton
-@onready var loaded_check_button: CheckButton = $VBoxContainer/ViewToggles/LoadedCheckButton
+@onready var root_cb: CheckButton = $VBoxContainer/ViewToggles/RootCheckButton
+@onready var effective_cb: CheckButton = $VBoxContainer/ViewToggles/EffectiveCheckButton
+@onready var loaded_cb: CheckButton = $VBoxContainer/ViewToggles/LoadedCheckButton
 
-@onready var tree: Tree = $VBoxContainer/MarginContainer/Tree
-@onready var event_config_dialog: EventConfigDialog = $InputEventConfigurationDialog
+@onready var action_tree: Tree = $VBoxContainer/MarginContainer/Tree
+@onready var event_config_dlg: EventConfigDialog = $InputEventConfigurationDialog
 
 ## Optional map override. When null (and not MONITOR), edits InputManager root map.
 ## In multi-map EDITOR mode this is the active/context map (add-action target).
@@ -115,7 +114,7 @@ var resource_edit_mode: bool = false:
 		if v:
 			operation_mode = OperationMode.EDITOR
 
-## Maps open in the tree (each gets a path root). Empty falls back to [member edit_map].
+## Maps open in the action_tree (each gets a path root). Empty falls back to [member edit_map].
 var open_maps: Array[CustomInputMap] = []
 
 var _refreshing: bool = false
@@ -185,24 +184,24 @@ func _on_search_event_changed(event: InputEvent) -> void:
 
 
 func _on_clear_all_search() -> void:
-	filter_name_line_edit.set_block_signals(true)
-	filter_name_line_edit.clear()
-	filter_name_line_edit.set_block_signals(false)
-	if is_instance_valid( event_listener_line_edit ):
-		event_listener_line_edit.set_block_signals( true )
-		event_listener_line_edit.clear_event()
-		event_listener_line_edit.set_block_signals( false )
+	filter_name_le.set_block_signals(true)
+	filter_name_le.clear()
+	filter_name_le.set_block_signals(false)
+	if is_instance_valid( event_listener_edit ):
+		event_listener_edit.set_block_signals( true )
+		event_listener_edit.clear_event()
+		event_listener_edit.set_block_signals( false )
 	_on_search_bar_value_changed()
 
 
 func _on_view_toggles_changed() -> void:
-	_show_root = root_check_button.button_pressed
-	_show_effective = effective_check_button.button_pressed
-	_show_loaded = loaded_check_button.button_pressed
+	_show_root = root_cb.button_pressed
+	_show_effective = effective_cb.button_pressed
+	_show_loaded = loaded_cb.button_pressed
 	# Keep at least one view visible.
 	if not _show_root and not _show_effective and not _show_loaded:
 		_show_root = true
-		root_check_button.set_pressed_no_signal(true)
+		root_cb.set_pressed_no_signal(true)
 	refresh()
 
 #endregion View Filtering
@@ -223,7 +222,7 @@ func _on_add_edit_text_changed( action_name:String ) -> void:
 
 func _on_add_action_pressed() -> void:
 	# Snapshot text before any focus-change side effects.
-	var typed:String = line_edit.text
+	var typed:String = add_action_le.text
 	_submit_new_action( typed )
 
 
@@ -233,11 +232,11 @@ func _on_add_action_submitted( submitted:String ) -> void:
 #endregion Add Action
 
 func _on_action_edited() -> void:
-	var ti := tree.get_edited()
+	var ti := action_tree.get_edited()
 	if ti == null or not _item_is_editable(ti):
 		return
 	_set_mutation_context(ti)
-	var col:int = tree.get_edited_column()
+	var col:int = action_tree.get_edited_column()
 	if col == Column.ACTION:
 		var new_name:String = ti.get_text( Column.ACTION ).strip_edges()
 		var old_name:String = ti.get_meta( &"__name" )
@@ -262,7 +261,7 @@ func _on_action_edited() -> void:
 
 
 func _on_tree_item_selected() -> void:
-	var item := tree.get_selected()
+	var item := action_tree.get_selected()
 	if item == null:
 		return
 	_set_mutation_context(item)
@@ -311,7 +310,7 @@ func _on_tree_button_pressed(item: TreeItem, _column: int, id: int, mouse_button
 			_current_action = item.get_meta(&"__action")
 			_current_action_name = item.get_meta(&"__name")
 			_current_action_event_index = -1
-			event_config_dialog.popup_and_configure(null, _current_action_name, _current_action)
+			event_config_dlg.popup_and_configure(null, _current_action_name, _current_action)
 
 		ItemButton.EDIT_EVENT:
 			if not _item_is_editable(item):
@@ -323,7 +322,7 @@ func _on_tree_button_pressed(item: TreeItem, _column: int, id: int, mouse_button
 			_current_action_event_index = item.get_meta(&"__index")
 			var ie: InputEvent = item.get_meta(&"__event")
 			if ie:
-				event_config_dialog.popup_and_configure(ie, _current_action_name, _current_action)
+				event_config_dlg.popup_and_configure(ie, _current_action_name, _current_action)
 
 		ItemButton.REMOVE_ACTION:
 			if not _item_is_editable(item):
@@ -360,7 +359,7 @@ func _on_tree_button_pressed(item: TreeItem, _column: int, id: int, mouse_button
 
 
 func _on_tree_item_activated() -> void:
-	var item := tree.get_selected()
+	var item := action_tree.get_selected()
 	if item == null or not item.has_meta(&"__event"):
 		return
 	if not _item_is_editable(item):
@@ -505,36 +504,36 @@ func                        ________OVERRIDES________              ()->void:pass
 func _ready() -> void:
 	_ensure_button_icons()
 
-	tree.columns = 3
-	tree.set_column_title( Column.ACTION, "Action" )
-	tree.set_column_expand( Column.ACTION, true )
-	tree.set_column_clip_content( Column.ACTION, true )
-	tree.set_column_title( Column.DEADZONE, "Deadzone" )
-	tree.set_column_expand( Column.DEADZONE, false )
-	tree.set_column_custom_minimum_width( Column.DEADZONE, 80 )
+	action_tree.columns = 3
+	action_tree.set_column_title( Column.ACTION, "Action" )
+	action_tree.set_column_expand( Column.ACTION, true )
+	action_tree.set_column_clip_content( Column.ACTION, true )
+	action_tree.set_column_title( Column.DEADZONE, "Deadzone" )
+	action_tree.set_column_expand( Column.DEADZONE, false )
+	action_tree.set_column_custom_minimum_width( Column.DEADZONE, 80 )
 	# Buttons (revert / add|edit / remove), like the engine editor.
-	tree.set_column_title( Column.BUTTONS, "" )
-	tree.set_column_expand( Column.BUTTONS, false )
+	action_tree.set_column_title( Column.BUTTONS, "" )
+	action_tree.set_column_expand( Column.BUTTONS, false )
 	# ~3×16px icons + margins (engine packs all buttons in this column)
-	tree.set_column_custom_minimum_width( Column.BUTTONS, 72 )
+	action_tree.set_column_custom_minimum_width( Column.BUTTONS, 72 )
 
-	_connect_sig( filter_name_line_edit.text_changed, _on_search_bar_value_changed.unbind( 1 ) )
-	_connect_sig( event_listener_line_edit.event_changed, _on_search_event_changed )
-	_connect_sig( clear_all_button.pressed, _on_clear_all_search )
-	_connect_sig( line_edit.text_changed, _on_add_edit_text_changed )
-	_connect_sig( line_edit.text_submitted, _on_add_action_submitted )
-	_connect_sig( add_button.pressed, _on_add_action_pressed )
-	_connect_sig( root_check_button.toggled, _on_view_toggles_changed.unbind( 1 ) )
-	_connect_sig( effective_check_button.toggled, _on_view_toggles_changed.unbind( 1 ) )
-	_connect_sig( loaded_check_button.toggled, _on_view_toggles_changed.unbind( 1 ) )
-	_connect_sig( tree.item_edited, _on_action_edited, CONNECT_DEFERRED )
-	_connect_sig( tree.item_activated, _on_tree_item_activated )
-	_connect_sig( tree.item_selected, _on_tree_item_selected )
-	_connect_sig( tree.button_clicked, _on_tree_button_pressed )
-	tree.set_drag_forwarding( _get_drag_data_fw, _can_drop_data_fw, _drop_data_fw )
+	_connect_sig( filter_name_le.text_changed, _on_search_bar_value_changed.unbind( 1 ) )
+	_connect_sig( event_listener_edit.event_changed, _on_search_event_changed )
+	_connect_sig( clear_all_btn.pressed, _on_clear_all_search )
+	_connect_sig( add_action_le.text_changed, _on_add_edit_text_changed )
+	_connect_sig( add_action_le.text_submitted, _on_add_action_submitted )
+	_connect_sig( add_btn.pressed, _on_add_action_pressed )
+	_connect_sig( root_cb.toggled, _on_view_toggles_changed.unbind( 1 ) )
+	_connect_sig( effective_cb.toggled, _on_view_toggles_changed.unbind( 1 ) )
+	_connect_sig( loaded_cb.toggled, _on_view_toggles_changed.unbind( 1 ) )
+	_connect_sig( action_tree.item_edited, _on_action_edited, CONNECT_DEFERRED )
+	_connect_sig( action_tree.item_activated, _on_tree_item_activated )
+	_connect_sig( action_tree.item_selected, _on_tree_item_selected )
+	_connect_sig( action_tree.button_clicked, _on_tree_button_pressed )
+	action_tree.set_drag_forwarding( _get_drag_data_fw, _can_drop_data_fw, _drop_data_fw )
 
-	if event_config_dialog.has_signal( &"confirmed" ):
-		_connect_sig( event_config_dialog.confirmed, _on_event_config_confirmed )
+	if event_config_dlg.has_signal( &"confirmed" ):
+		_connect_sig( event_config_dlg.confirmed, _on_event_config_confirmed )
 
 	_connect_sig( action_added, _on_host_action_added )
 	_connect_sig( action_edited, _on_host_action_edited )
@@ -542,11 +541,11 @@ func _ready() -> void:
 	_connect_sig( action_renamed, _on_host_action_renamed )
 	_connect_sig( action_reordered, _on_host_action_reordered )
 
-	_show_root = root_check_button.button_pressed
-	_show_effective = effective_check_button.button_pressed
-	_show_loaded = loaded_check_button.button_pressed
+	_show_root = root_cb.button_pressed
+	_show_effective = effective_cb.button_pressed
+	_show_loaded = loaded_cb.button_pressed
 
-	_on_add_edit_text_changed(line_edit.text)
+	_on_add_edit_text_changed(add_action_le.text)
 	_update_clear_all_enabled()
 
 	if resource_edit_mode or operation_mode == OperationMode.EDITOR:
@@ -579,11 +578,11 @@ func _exit_tree() -> void:
 func                        _________METHODS_________              ()->void:pass
 
 
-## Rebuild the tree from the active view toggles and InputManager / edit_map.
+## Rebuild the action_tree from the active view toggles and InputManager / edit_map.
 func refresh() -> void:
 	if _refreshing:
 		return
-	if not is_instance_valid(tree):
+	if not is_instance_valid(action_tree):
 		return
 	_refreshing = true
 	# Always clear the flag — a mid-refresh error must not permanently freeze the tree.
@@ -594,16 +593,16 @@ func refresh() -> void:
 func _refresh_tree() -> void:
 	var selected_key: String = ""
 	var selected_col:int = Column.ACTION
-	var selected:TreeItem = tree.get_selected()
+	var selected:TreeItem = action_tree.get_selected()
 	if selected:
 		selected_key = str( selected.get_meta( &"__select_key", selected.get_text( Column.ACTION ) ) )
-		selected_col = tree.get_selected_column()
+		selected_col = action_tree.get_selected_column()
 
 	var collapsed: Dictionary = {}
-	_collect_collapsed(tree.get_root(), collapsed)
+	_collect_collapsed(action_tree.get_root(), collapsed)
 
-	tree.clear()
-	var root: TreeItem = tree.create_item()
+	action_tree.clear()
+	var root: TreeItem = action_tree.create_item()
 
 	# Resource / multi-file editor: one path root per open map.
 	if resource_edit_mode or (operation_mode == OperationMode.EDITOR and not _get_open_maps().is_empty()):
@@ -671,8 +670,8 @@ func _refresh_tree() -> void:
 					selected_col
 			)
 		else:
-			var empty: TreeItem = tree.create_item(parent)
-			empty.set_text( Column.ACTION, "(InputManager responder tree not available)" )
+			var empty: TreeItem = action_tree.create_item(parent)
+			empty.set_text( Column.ACTION, "(InputManager responder action_tree not available)" )
 			empty.set_selectable( Column.ACTION, false )
 
 
@@ -684,7 +683,7 @@ func _populate_open_map_roots(
 ) -> void:
 	var maps := _get_open_maps()
 	if maps.is_empty():
-		var empty: TreeItem = tree.create_item(root)
+		var empty: TreeItem = action_tree.create_item(root)
 		empty.set_text( Column.ACTION, "(no CustomInputMap selected)" )
 		empty.set_selectable( Column.ACTION, false )
 		return
@@ -713,8 +712,8 @@ func load_from_custom_map(map: CustomInputMap, _builtins_prefix: String = "ui_")
 	edit_map = map
 	_current_map = map
 	_show_root = true
-	if is_instance_valid(root_check_button):
-		root_check_button.set_pressed_no_signal(true)
+	if is_instance_valid(root_cb):
+		root_cb.set_pressed_no_signal(true)
 	refresh()
 
 
@@ -798,12 +797,12 @@ func _apply_mode_ui() -> void:
 	if toggles is CanvasItem:
 		# EDITOR resource tooling: hide toggles. MONITOR: show effective/loaded.
 		(toggles as CanvasItem).visible = (operation_mode == OperationMode.MONITOR)
-	if is_instance_valid(root_check_button):
-		root_check_button.set_pressed_no_signal(_show_root)
-	if is_instance_valid(effective_check_button):
-		effective_check_button.set_pressed_no_signal(_show_effective)
-	if is_instance_valid(loaded_check_button):
-		loaded_check_button.set_pressed_no_signal(_show_loaded)
+	if is_instance_valid(root_cb):
+		root_cb.set_pressed_no_signal(_show_root)
+	if is_instance_valid(effective_cb):
+		effective_cb.set_pressed_no_signal(_show_effective)
+	if is_instance_valid(loaded_cb):
+		loaded_cb.set_pressed_no_signal(_show_loaded)
 
 
 func _apply_resource_edit_ui() -> void:
@@ -813,8 +812,8 @@ func _apply_resource_edit_ui() -> void:
 func load_from_engine(_builtins_prefix: String = "ui_") -> void:
 	# Snapshot engine into a temporary display via effective view.
 	_show_effective = true
-	if is_instance_valid(effective_check_button):
-		effective_check_button.set_pressed_no_signal(true)
+	if is_instance_valid(effective_cb):
+		effective_cb.set_pressed_no_signal(true)
 	refresh()
 
 
@@ -842,7 +841,7 @@ func _ensure_button_icons() -> void:
 	_button_icon_revert = IconCache.at_size(IconCache.get_icon(&"RELOAD"), TREE_BUTTON_SIZE)
 
 		# Real Button controls can keep the source icon; expand_icon handles fit.
-	add_button.icon = IconCache.get_icon(&"ADD")
+	add_btn.icon = IconCache.get_icon(&"ADD")
 
 
 func _title_bg() -> Color:
@@ -876,17 +875,17 @@ func                        _________FILTERS_________              ()->void:pass
 
 func _has_filters() -> bool:
 	return (
-			not filter_name_line_edit.text.is_empty()
-			or event_listener_line_edit.get_event() != null
+			not filter_name_le.text.is_empty()
+			or event_listener_edit.get_event() != null
 	)
 
 
 func _update_clear_all_enabled() -> void:
-	clear_all_button.disabled = not _has_filters()
+	clear_all_btn.disabled = not _has_filters()
 
 
 func _should_display_action( action_name:String, events:Array ) -> bool:
-	var search_ev:InputEvent = event_listener_line_edit.get_event()
+	var search_ev:InputEvent = event_listener_edit.get_event()
 	var event_match:bool = true
 	if search_ev != null:
 		event_match = false
@@ -895,7 +894,7 @@ func _should_display_action( action_name:String, events:Array ) -> bool:
 			if ev != null and ev.is_match( search_ev, true ):
 				event_match = true
 				break
-	var name_filter:String = filter_name_line_edit.text.strip_edges()
+	var name_filter:String = filter_name_le.text.strip_edges()
 	return event_match and (
 			name_filter.is_empty() or name_filter.is_subsequence_ofn( action_name ) )
 
@@ -918,7 +917,7 @@ func _format_input_event_text( event:InputEvent, include_device:bool = true ) ->
 func                        __________TREE___________              ()->void:pass
 
 func _make_section_item(parent: TreeItem, title: String, key: StringName) -> TreeItem:
-	var item:TreeItem = tree.create_item(parent)
+	var item:TreeItem = action_tree.create_item(parent)
 	item.set_text( Column.ACTION, title )
 	item.set_selectable( Column.ACTION, false )
 	item.set_selectable( Column.DEADZONE, false )
@@ -933,7 +932,7 @@ func _make_map_root_item(
 			map: CustomInputMap,
 			_collapsed: Dictionary,
 			selected_key: String ) -> TreeItem:
-	var item: TreeItem = tree.create_item(parent)
+	var item: TreeItem = action_tree.create_item(parent)
 	var path := _map_display_path(map)
 	# Prefer stable path key over instance id (ids change across reloads).
 	var select_key := "map:%s" % path
@@ -999,14 +998,14 @@ func _populate_map_actions(
 	if parent == null:
 		return
 	if map == null:
-		var empty:TreeItem = tree.create_item(parent)
+		var empty:TreeItem = action_tree.create_item(parent)
 		empty.set_text( Column.ACTION, "(no map)" )
 		empty.set_selectable( Column.ACTION, false )
 		return
 
 	var action_names:Array[StringName] = map.get_action_names()
 	if action_names.is_empty():
-		var empty:TreeItem = tree.create_item( parent )
+		var empty:TreeItem = action_tree.create_item( parent )
 		empty.set_text( Column.ACTION, "(no actions)" )
 		empty.set_selectable( Column.ACTION, false )
 		if owner_map != null:
@@ -1047,7 +1046,7 @@ func _populate_responder_branch(
 		selected_col: int
 ) -> void:
 	var node_key := "%s/%s" % [key_prefix, responder.name]
-	var node_item := tree.create_item(parent)
+	var node_item := action_tree.create_item(parent)
 	var label := String(responder.name)
 	if not responder.active:
 		label += " (inactive)"
@@ -1099,7 +1098,7 @@ func _add_action_item(
 ) -> void:
 	var events: Array = action_info.action.get("events", [])
 	var deadzone: float = action_info.action.get("deadzone", 0.5)
-	var action_item := tree.create_item(parent)
+	var action_item := action_tree.create_item(parent)
 	action_item.set_meta(&"__action", action_info.action)
 	action_item.set_meta(&"__name", action_info.name)
 	action_item.set_meta(&"__editable", action_info.editable)
@@ -1133,16 +1132,16 @@ func _add_action_item(
 		var events_eq:bool = _event_arrays_equal( initial_events, action_events )
 		var action_eq:bool = deadzone_eq and events_eq
 		action_item.set_meta( &"__action_initial", action_info.action_initial )
-		action_item.add_button(
+		action_item.add_btn(
 				Column.BUTTONS, _button_icon_revert, ItemButton.REVERT_ACTION,
 				action_eq or not action_info.editable,
 				"Cannot Revert - Action is same as initial" if action_eq else "Revert Action"
 		)
-	action_item.add_button(
+	action_item.add_btn(
 			Column.BUTTONS, _button_icon_add, ItemButton.ADD_EVENT,
 			not action_info.editable, "Add Event"
 	)
-	action_item.add_button(
+	action_item.add_btn(
 			Column.BUTTONS, _button_icon_remove, ItemButton.REMOVE_ACTION,
 			not action_info.editable,
 			"Remove Action" if action_info.editable else "Cannot Remove Action"
@@ -1169,7 +1168,7 @@ func _add_action_event(
 			event_key:String,
 			owner_map: CustomInputMap = null,
 ) -> TreeItem:
-	var event_item := tree.create_item(action_item)
+	var event_item := action_tree.create_item(action_item)
 	event_item.set_meta(&"__event", event)
 	event_item.set_meta(&"__index", evnt_idx)
 	event_item.set_meta(&"__editable", action_info.editable)
@@ -1181,11 +1180,11 @@ func _add_action_event(
 	event_item.set_icon( Column.ACTION, IconCache.for_event( event ) )
 	event_item.set_icon_max_width( Column.ACTION, TREE_BUTTON_SIZE.x )
 	# Column.DEADZONE left empty (align under deadzone).
-	event_item.add_button(
+	event_item.add_btn(
 			Column.BUTTONS, _button_icon_edit, ItemButton.EDIT_EVENT,
 			not action_info.editable, "Edit Event"
 	)
-	event_item.add_button(
+	event_item.add_btn(
 			Column.BUTTONS, _button_icon_remove, ItemButton.REMOVE_EVENT,
 			not action_info.editable, "Remove Event"
 	)
@@ -1203,9 +1202,9 @@ func _add_action_event(
 func                        ________DRAG_DROP________              ()->void:pass
 
 func _get_drag_data_fw(at_position: Vector2) -> Variant:
-	var selected := tree.get_item_at_position(at_position)
+	var selected := action_tree.get_item_at_position(at_position)
 	if selected == null:
-		selected = tree.get_selected()
+		selected = action_tree.get_selected()
 	if selected == null or not _item_is_editable(selected):
 		return null
 	if not selected.has_meta(&"__action") and not selected.has_meta(&"__event"):
@@ -1213,7 +1212,7 @@ func _get_drag_data_fw(at_position: Vector2) -> Variant:
 
 	var label := Label.new()
 	label.text = selected.get_text( Column.ACTION )
-	tree.set_drag_preview(label)
+	action_tree.set_drag_preview(label)
 
 	var drag_data := {}
 	if selected.has_meta(&"__action"):
@@ -1221,7 +1220,7 @@ func _get_drag_data_fw(at_position: Vector2) -> Variant:
 	if selected.has_meta(&"__event"):
 		drag_data["input_type"] = "event"
 	drag_data["source"] = selected.get_instance_id()
-	tree.set_drop_mode_flags(Tree.DROP_MODE_INBETWEEN)
+	action_tree.set_drop_mode_flags(Tree.DROP_MODE_INBETWEEN)
 	return drag_data
 
 
@@ -1231,8 +1230,8 @@ func _can_drop_data_fw(at_position: Vector2, data: Variant) -> bool:
 	if not d.has("input_type"): return false
 	var source_id: int = d.get("source", 0)
 	var source: TreeItem = instance_from_id(source_id)
-	var selected := tree.get_selected()
-	var item := tree.get_item_at_position(at_position)
+	var selected := action_tree.get_selected()
+	var item := action_tree.get_item_at_position(at_position)
 	if selected == null or item == null or item == source:
 		return false
 	if not _item_is_editable(selected) or not _item_is_editable(item):
@@ -1250,11 +1249,11 @@ func _can_drop_data_fw(at_position: Vector2, data: Variant) -> bool:
 func _drop_data_fw(at_position: Vector2, data: Variant) -> void:
 	if not _can_drop_data_fw(at_position, data):
 		return
-	var selected := tree.get_selected()
-	var target := tree.get_item_at_position(at_position)
+	var selected := action_tree.get_selected()
+	var target := action_tree.get_item_at_position(at_position)
 	if target == null:
 		return
-	var drop_section := tree.get_drop_section_at_position(at_position)
+	var drop_section := action_tree.get_drop_section_at_position(at_position)
 	var drop_above := drop_section == -1
 	var d: Dictionary = data
 
@@ -1401,16 +1400,16 @@ func _apply_action_name_feedback( result:Dictionary ) -> void:
 	var code:int = result.get( &"code", ActionNameError.OK )
 	var msg:String = result.get( &"message", "" )
 	var ok:bool = code == ActionNameError.OK
-	add_button.disabled = not ok
+	add_btn.disabled = not ok
 	if ok:
-		add_button.tooltip_text = "Add action to map"
-		line_edit.tooltip_text = ""
-		line_edit.modulate = Color.WHITE
+		add_btn.tooltip_text = "Add action to map"
+		add_action_le.tooltip_text = ""
+		add_action_le.modulate = Color.WHITE
 	else:
-		add_button.tooltip_text = msg
-		line_edit.tooltip_text = msg
+		add_btn.tooltip_text = msg
+		add_action_le.tooltip_text = msg
 		# Light error tint on the field (theme-independent).
-		line_edit.modulate = Color( 1.0, 0.85, 0.85 )
+		add_action_le.modulate = Color( 1.0, 0.85, 0.85 )
 
 
 func _map_has_action( map:CustomInputMap, action_name:String ) -> bool:
@@ -1425,8 +1424,8 @@ func _target_has_action( action_name:String ) -> bool:
 
 func _submit_new_action( action_name:String ) -> void:
 	var candidate:String = action_name.strip_edges()
-	# Prefer the map under the current tree selection when multi-file is open.
-	var selected:TreeItem = tree.get_selected() if is_instance_valid( tree ) else null
+	# Prefer the map under the current action_tree selection when multi-file is open.
+	var selected:TreeItem = action_tree.get_selected() if is_instance_valid( action_tree ) else null
 	if selected != null:
 		_set_mutation_context( selected )
 	var result:Dictionary = _check_new_action_name( candidate )
@@ -1438,8 +1437,8 @@ func _submit_new_action( action_name:String ) -> void:
 	# Emit first so host can read the name; clear after so text_changed
 	# does not race a second submit with an empty string.
 	action_added.emit( candidate )
-	line_edit.clear()
-	_on_add_edit_text_changed( line_edit.text )
+	add_action_le.clear()
+	_on_add_edit_text_changed( add_action_le.text )
 
 
 #   ██ ███    ██ ██████  ██    ██ ████████     ███    ███  ██████  ██████      #
