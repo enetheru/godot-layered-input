@@ -149,12 +149,18 @@ func add_action_event(action_name:StringName, event:InputEvent) -> void:
 
 
 func erase_action_event( action_name:StringName, event:InputEvent ) -> void:
+	# action_name / event mistakes are caller bugs — not soft data warnings.
+	assert( not String( action_name ).is_empty(),
+			"CustomInputMap.erase_action_event: empty action_name" )
+	assert( is_instance_valid( event ),
+			"CustomInputMap.erase_action_event: invalid event" )
 	var ia:InputAction = _actions.get( action_name )
-	if is_instance_valid( ia ) \
-	and is_instance_valid( action_name ):
-		ia.erase_event( event )
+	if not is_instance_valid( ia ):
+		push_warning(
+				"CustomInputMap.erase_action_event: no InputAction for '%s'"
+				% action_name )
 		return
-	push_warning("CustomInputMap.erase_action_event: empty action_name or invalid event.")
+	ia.erase_event( event )
 
 
 func clear_action_events( action_name:StringName ) -> void:
