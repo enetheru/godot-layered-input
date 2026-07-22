@@ -50,31 +50,30 @@ func                        ________PROPERTIES_______              ()->void:pass
 ## Size passed to [method Window.popup_centered] when opening the dialog.
 @export var popup_size:Vector2i = Vector2i( 661, 400 )
 
-# FIXME: rename these nodes with short suffixes for their type, eg. lbl, vbox, btn.
-@onready var event_label:Label = $VBoxContainer/VBoxContainer/EventLabel
-@onready var event_listener:EventListenerLineEdit = $VBoxContainer/VBoxContainer/EventListenerLineEdit
+@onready var event_lbl:Label = $VBoxContainer/VBoxContainer/EventLabel
+@onready var event_listener_edit:EventListenerLineEdit = $VBoxContainer/VBoxContainer/EventListenerLineEdit
 
-@onready var filter_input_line_edit:LineEdit = $VBoxContainer/VBoxContainer/ManualSelection/FilterInputLineEdit
-@onready var input_list_tree:Tree = $VBoxContainer/VBoxContainer/ManualSelection/MarginContainer/Tree
+@onready var filter_input_le:LineEdit = $VBoxContainer/VBoxContainer/ManualSelection/FilterInputLineEdit
+@onready var input_tree:Tree = $VBoxContainer/VBoxContainer/ManualSelection/MarginContainer/Tree
 
-@onready var additional_options:VBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions
-@onready var device_container:HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/DeviceHBox
-@onready var device_option_button:OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/DeviceHBox/OptionButton
+@onready var additional_options_vbox:VBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions
+@onready var device_hbox:HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/DeviceHBox
+@onready var device_opt:OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/DeviceHBox/OptionButton
 
-@onready var mod_container:HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer
-@onready var alt:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Alt
-@onready var shift:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Shift
-@onready var ctrl:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Ctrl
-@onready var windows:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Windows
-@onready var command_control:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/CommandControl
+@onready var mod_hbox:HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer
+@onready var alt_cb:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Alt
+@onready var shift_cb:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Shift
+@onready var ctrl_cb:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Ctrl
+@onready var windows_cb:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Windows
+@onready var command_control_cb:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/CommandControl
 
-@onready var key_mode:OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/OptionButton
-@onready var location_container:HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/PhysicalLocation
-@onready var location_option_button:OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/PhysicalLocation/OptionButton
+@onready var key_mode_opt:OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/OptionButton
+@onready var location_hbox:HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/PhysicalLocation
+@onready var location_opt:OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/PhysicalLocation/OptionButton
 
-@onready var error:Label = $VBoxContainer/VBoxContainer/Error
-@onready var ok:Button = $VBoxContainer/OKCancel/OK
-@onready var cancel:Button = $VBoxContainer/OKCancel/Cancel
+@onready var error_lbl:Label = $VBoxContainer/VBoxContainer/Error
+@onready var ok_btn:Button = $VBoxContainer/OKCancel/OK
+@onready var cancel_btn:Button = $VBoxContainer/OKCancel/Cancel
 
 ## Working binding being edited (not EventListenerLineEdit's capture buffer).
 var _configured_event:InputEvent
@@ -145,7 +144,7 @@ func _on_listen_input_changed( event:InputEvent ) -> void:
 			# Avoid serializing pressed; actions ignore it.
 			k.pressed = false
 			_apply_selected_key_mode( k )
-			if location_option_button.get_selected_id() == KEY_LOCATION_UNSPECIFIED:
+			if location_opt.get_selected_id() == KEY_LOCATION_UNSPECIFIED:
 				k.location = KEY_LOCATION_UNSPECIFIED
 
 	if event is InputEventWithModifiers:
@@ -161,14 +160,14 @@ func _on_search_term_updated( _term:String = "" ) -> void:
 
 
 func _on_input_list_item_activated() -> void:
-	var selected:TreeItem = input_list_tree.get_selected()
+	var selected:TreeItem = input_tree.get_selected()
 	if selected:
 		selected.collapsed = not selected.collapsed
 
 
 func _on_input_list_item_selected() -> void:
 	# Record intent only; apply at idle time so highlight-from-match can cancel.
-	_pending_list_item = input_list_tree.get_selected()
+	_pending_list_item = input_tree.get_selected()
 	_request_list_selection_apply()
 
 
@@ -182,10 +181,10 @@ func _on_mod_toggled( pressed:bool, index:int ) -> void:
 		ModCheckbox.SHIFT:
 			ie.shift_pressed = pressed
 		ModCheckbox.CTRL:
-			if not command_control.button_pressed:
+			if not command_control_cb.button_pressed:
 				ie.ctrl_pressed = pressed
 		ModCheckbox.META:
-			if not command_control.button_pressed:
+			if not command_control_cb.button_pressed:
 				ie.meta_pressed = pressed
 	_set_event( ie, _original_event )
 
@@ -195,8 +194,8 @@ func _on_autoremap_command_or_control_toggled( pressed:bool ) -> void:
 		var ie:InputEventWithModifiers = _configured_event
 		ie.command_or_control_autoremap = pressed
 		_set_event( _configured_event, _original_event )
-	ctrl.visible = not pressed
-	windows.visible = not pressed
+	ctrl_cb.visible = not pressed
+	windows_cb.visible = not pressed
 
 
 func _on_key_mode_selected( _idx:int ) -> void:
@@ -206,7 +205,7 @@ func _on_key_mode_selected( _idx:int ) -> void:
 
 	var ie :InputEventKey = _configured_event
 	var oie :InputEventKey = _original_event
-	match key_mode.get_selected_id():
+	match key_mode_opt.get_selected_id():
 		KeyMode.KEYCODE:
 			ie.keycode = oie.keycode
 			ie.physical_keycode = KEY_NONE
@@ -226,24 +225,24 @@ func _on_key_location_selected( _idx:int ) -> void:
 	if not (_configured_event is InputEventKey):
 		return
 	var ie:InputEventKey = _configured_event
-	ie.location = location_option_button.get_selected_id() as KeyLocation
+	ie.location = location_opt.get_selected_id() as KeyLocation
 	_set_event( ie, _original_event )
 
 
 func _on_device_selection_changed( option_index:int ) -> void:
 	if is_instance_valid( _configured_event ):
 		_configured_event.device = option_index - 1
-		event_label.text = EventListenerLineEdit.get_event_text( _configured_event, true )
+		event_lbl.text = EventListenerLineEdit.get_event_text( _configured_event, true )
 
 
 func _on_ok_pressed() -> void:
 	_sync_ok_enabled()
 	if not is_instance_valid( _configured_event ):
-		if is_instance_valid( error ):
-			error.text = "No event configured. Listen for input or pick one from the list."
-			error.show()
+		if is_instance_valid( error_lbl ):
+			error_lbl.text = "No event configured. Listen for input or pick one from the list."
+			error_lbl.show()
 		return
-	if ok.disabled:
+	if ok_btn.disabled:
 		return
 	# Pass the event so listeners need not call get_event() after hide.
 	confirmed.emit( _configured_event )
@@ -266,39 +265,39 @@ func _ready() -> void:
 	visible = false
 	hide()
 
-	_mod_checkboxes = [alt, shift, ctrl, windows]
+	_mod_checkboxes = [alt_cb, shift_cb, ctrl_cb, windows_cb]
 
-	_connect_sig( event_listener.event_changed, _on_listen_input_changed )
-	_connect_sig( filter_input_line_edit.text_changed, _on_search_term_updated )
-	_connect_sig( input_list_tree.item_activated, _on_input_list_item_activated )
-	_connect_sig( input_list_tree.item_selected, _on_input_list_item_selected )
-	_connect_sig( device_option_button.item_selected, _on_device_selection_changed )
-	_connect_sig( alt.toggled, _on_mod_toggled.bind( ModCheckbox.ALT ) )
-	_connect_sig( shift.toggled, _on_mod_toggled.bind( ModCheckbox.SHIFT ) )
-	_connect_sig( ctrl.toggled, _on_mod_toggled.bind( ModCheckbox.CTRL ) )
-	_connect_sig( windows.toggled, _on_mod_toggled.bind( ModCheckbox.META ) )
-	_connect_sig( command_control.toggled, _on_autoremap_command_or_control_toggled )
-	_connect_sig( key_mode.item_selected, _on_key_mode_selected )
-	_connect_sig( location_option_button.item_selected, _on_key_location_selected )
-	_connect_sig( ok.pressed, _on_ok_pressed )
-	_connect_sig( cancel.pressed, _on_cancel_pressed )
+	_connect_sig( event_listener_edit.event_changed, _on_listen_input_changed )
+	_connect_sig( filter_input_le.text_changed, _on_search_term_updated )
+	_connect_sig( input_tree.item_activated, _on_input_list_item_activated )
+	_connect_sig( input_tree.item_selected, _on_input_list_item_selected )
+	_connect_sig( device_opt.item_selected, _on_device_selection_changed )
+	_connect_sig( alt_cb.toggled, _on_mod_toggled.bind( ModCheckbox.ALT ) )
+	_connect_sig( shift_cb.toggled, _on_mod_toggled.bind( ModCheckbox.SHIFT ) )
+	_connect_sig( ctrl_cb.toggled, _on_mod_toggled.bind( ModCheckbox.CTRL ) )
+	_connect_sig( windows_cb.toggled, _on_mod_toggled.bind( ModCheckbox.META ) )
+	_connect_sig( command_control_cb.toggled, _on_autoremap_command_or_control_toggled )
+	_connect_sig( key_mode_opt.item_selected, _on_key_mode_selected )
+	_connect_sig( location_opt.item_selected, _on_key_location_selected )
+	_connect_sig( ok_btn.pressed, _on_ok_pressed )
+	_connect_sig( cancel_btn.pressed, _on_cancel_pressed )
 	_connect_sig( close_requested, _on_cancel_pressed )
 
 	# Device list: index 0 = All Devices (-1), then 0..7
-	device_option_button.clear()
+	device_opt.clear()
 	for i:int in range(-1, 8):
-		device_option_button.add_item(
+		device_opt.add_item(
 				EventListenerLineEdit.get_device_string( i ) )
 
 	# Key-mode icons (engine sets these from EditorIcons).
-	if key_mode.item_count >= 3:
-		key_mode.set_item_icon( KeyMode.KEYCODE, IconCache.get_icon(&"KEYBOARD") )
-		key_mode.set_item_icon( KeyMode.PHY_KEYCODE, IconCache.get_icon(&"KEYBOARD_PHYSICAL") )
-		key_mode.set_item_icon( KeyMode.UNICODE, IconCache.get_icon(&"KEYBOARD_LABEL") )
+	if key_mode_opt.item_count >= 3:
+		key_mode_opt.set_item_icon( KeyMode.KEYCODE, IconCache.get_icon(&"KEYBOARD") )
+		key_mode_opt.set_item_icon( KeyMode.PHY_KEYCODE, IconCache.get_icon(&"KEYBOARD_PHYSICAL") )
+		key_mode_opt.set_item_icon( KeyMode.UNICODE, IconCache.get_icon(&"KEYBOARD_LABEL") )
 
 	_update_input_list()
-	additional_options.hide()
-	error.hide()
+	additional_options_vbox.hide()
+	error_lbl.hide()
 
 
 func _notification(what:int) -> void:
@@ -329,8 +328,8 @@ func get_event() -> InputEvent:
 ## listener and the manual list. Defaults to all types.
 func set_allowed_input_types( type_masks:int ) -> void:
 	_allowed_input_types = type_masks
-	if is_instance_valid( event_listener ):
-		event_listener.set_allowed_input_types( type_masks )
+	if is_instance_valid( event_listener_edit ):
+		event_listener_edit.set_allowed_input_types( type_masks )
 
 
 ## Open centered to edit [param event], or blank when [param event] is null.
@@ -374,8 +373,8 @@ func popup_and_configure(
 		exclusive = true
 		unresizable = false
 	# Prefer the listener over any other focusable child when the window opens.
-	if is_instance_valid( event_listener ):
-		event_listener.focus_mode = Control.FOCUS_ALL
+	if is_instance_valid( event_listener_edit ):
+		event_listener_edit.focus_mode = Control.FOCUS_ALL
 	popup_centered( popup_size )
 	# Ensure OK reflects current event (null → disabled).
 	_sync_ok_enabled()
@@ -387,10 +386,10 @@ func _reset_configure_ui() -> void:
 	_set_event( null, null )
 	for cb:CheckBox in _mod_checkboxes:
 		cb.set_pressed_no_signal( false )
-	key_mode.select( KeyMode.PHY_KEYCODE )
-	command_control.set_pressed_no_signal( false )
-	device_option_button.select( 0 )
-	location_option_button.select( 0 )
+	key_mode_opt.select( KeyMode.PHY_KEYCODE )
+	command_control_cb.set_pressed_no_signal( false )
+	device_opt.select( 0 )
+	location_opt.select( 0 )
 
 
 #       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #
@@ -403,7 +402,7 @@ func                        ________INTERNAL_________              ()->void:pass
 # Request focus on the listen field. Coalesced; runs an idle grab then one
 # process-frame retry (editor popups often are not focus-ready mid-notification).
 func _focus_listener() -> void:
-	if not is_instance_valid( event_listener ):
+	if not is_instance_valid( event_listener_edit ):
 		return
 	_want_focus_listener = true
 	if _focus_listener_running:
@@ -416,18 +415,18 @@ func _run_focus_listener() -> void:
 	while _want_focus_listener:
 		_want_focus_listener = false
 		if not visible \
-		or not is_instance_valid( event_listener ):
+		or not is_instance_valid( event_listener_edit ):
 			break
 		# Idle-time first attempt (manual_grab_focus: LineEdit.grab_focus is final).
-		event_listener.call_deferred( &"manual_grab_focus" )
+		event_listener_edit.call_deferred( &"manual_grab_focus" )
 		if not is_inside_tree():
 			break
 		await get_tree().process_frame
 		if not visible \
-		or not is_instance_valid( event_listener ):
+		or not is_instance_valid( event_listener_edit ):
 			break
-		if not event_listener.has_focus():
-			event_listener.manual_grab_focus()
+		if not event_listener_edit.has_focus():
+			event_listener_edit.manual_grab_focus()
 	_focus_listener_running = false
 
 
@@ -441,14 +440,14 @@ func _set_event(
 	if _try_confirm_or_cancel_shortcut( event ):
 		return
 
-	var listener_event:InputEvent = event_listener.get_event()
+	var listener_event:InputEvent = event_listener_edit.get_event()
 	if is_instance_valid( listener_event ) \
 	and not listener_event.is_match( event ):
-		event_listener.clear_event()
+		event_listener_edit.clear_event()
 
 	_configured_event = event
 	_original_event = original_event
-	event_label.text = EventListenerLineEdit.get_event_text( _configured_event, true )
+	event_lbl.text = EventListenerLineEdit.get_event_text( _configured_event, true )
 	_sync_ok_enabled()
 
 	if not _sync_options_from_event( event, original_event ):
@@ -463,7 +462,7 @@ func _set_event(
 func _try_confirm_or_cancel_shortcut( event:InputEvent ) -> bool:
 	if not is_instance_valid( _configured_event ) \
 	or not visible \
-	or not event_listener.has_focus():
+	or not event_listener_edit.has_focus():
 		return false
 	if not ( event is InputEventKey ):
 		return false
@@ -492,11 +491,11 @@ func _sync_options_from_event(
 	if event is InputEventWithModifiers:
 		show_mods = true
 		var mod:InputEventWithModifiers = event
-		alt.set_pressed_no_signal( mod.alt_pressed )
-		shift.set_pressed_no_signal( mod.shift_pressed )
-		ctrl.set_pressed_no_signal( mod.ctrl_pressed )
-		windows.set_pressed_no_signal( mod.meta_pressed )
-		command_control.set_pressed_no_signal( mod.command_or_control_autoremap )
+		alt_cb.set_pressed_no_signal( mod.alt_pressed )
+		shift_cb.set_pressed_no_signal( mod.shift_pressed )
+		ctrl_cb.set_pressed_no_signal( mod.ctrl_pressed )
+		windows_cb.set_pressed_no_signal( mod.meta_pressed )
+		command_control_cb.set_pressed_no_signal( mod.command_or_control_autoremap )
 
 	if event is InputEventKey:
 		show_key = true
@@ -505,13 +504,13 @@ func _sync_options_from_event(
 		if k.keycode == KEY_NONE \
 		and phys_key == KEY_NONE \
 		and k.key_label != KEY_NONE:
-			key_mode.select( KeyMode.UNICODE )
+			key_mode_opt.select( KeyMode.UNICODE )
 		elif k.keycode != KEY_NONE:
-			key_mode.select( KeyMode.KEYCODE )
+			key_mode_opt.select( KeyMode.KEYCODE )
 		elif phys_key != KEY_NONE:
-			key_mode.select( KeyMode.PHY_KEYCODE )
+			key_mode_opt.select( KeyMode.PHY_KEYCODE )
 			if phys_key in [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META]:
-				location_option_button.select( k.location )
+				location_opt.select( k.location )
 				show_location = true
 		else:
 			return false
@@ -521,34 +520,34 @@ func _sync_options_from_event(
 		show_device = true
 		_set_current_device( event.device )
 
-	mod_container.visible = show_mods
-	device_container.visible = show_device
-	key_mode.visible = show_key
-	location_container.visible = show_location
-	additional_options.show()
+	mod_hbox.visible = show_mods
+	device_hbox.visible = show_device
+	key_mode_opt.visible = show_key
+	location_hbox.visible = show_location
+	additional_options_vbox.show()
 
 	if original_event is InputEventKey:
 		var orig:InputEventKey = original_event
-		key_mode.set_item_disabled( KeyMode.KEYCODE, orig.keycode == KEY_NONE )
-		key_mode.set_item_disabled( KeyMode.PHY_KEYCODE, orig.physical_keycode == KEY_NONE )
-		key_mode.set_item_disabled( KeyMode.UNICODE, orig.key_label == KEY_NONE )
+		key_mode_opt.set_item_disabled( KeyMode.KEYCODE, orig.keycode == KEY_NONE )
+		key_mode_opt.set_item_disabled( KeyMode.PHY_KEYCODE, orig.physical_keycode == KEY_NONE )
+		key_mode_opt.set_item_disabled( KeyMode.UNICODE, orig.key_label == KEY_NONE )
 	return true
 
 
 func _clear_configured_event_ui() -> void:
 	_configured_event = null
 	_original_event = null
-	event_listener.clear_event()
-	event_label.text = "No Event Configured"
-	additional_options.hide()
-	input_list_tree.deselect_all()
+	event_listener_edit.clear_event()
+	event_lbl.text = "No Event Configured"
+	additional_options_vbox.hide()
+	input_tree.deselect_all()
 	_update_input_list()
 	_sync_ok_enabled()
 
 
 ## Zero unused keycode fields according to the key-mode option button.
 func _apply_selected_key_mode( ie:InputEventKey ) -> void:
-	match key_mode.get_selected_id():
+	match key_mode_opt.get_selected_id():
 		KeyMode.KEYCODE:
 			ie.physical_keycode = KEY_NONE
 			ie.key_label = KEY_NONE
@@ -597,8 +596,8 @@ func _apply_list_selection() -> void:
 			ie.key_label = keycode
 			_apply_mod_checkboxes( ie )
 			# Manual pick: UNICODE mode needs a key_label-only event; default to physical.
-			if key_mode.get_selected_id() == KeyMode.UNICODE:
-				key_mode.select( KeyMode.PHY_KEYCODE )
+			if key_mode_opt.get_selected_id() == KeyMode.UNICODE:
+				key_mode_opt.select( KeyMode.PHY_KEYCODE )
 			var dup:InputEventKey = ie.duplicate()
 			_apply_selected_key_mode( ie )
 			_set_event( ie, dup, false )
@@ -630,15 +629,15 @@ func _update_input_list() -> void:
 	_want_input_list_update = false
 	# Tree items are freed; drop any pending pick that pointed into the old tree.
 	_pending_list_item = null
-	if not is_instance_valid( input_list_tree ):
+	if not is_instance_valid( input_tree ):
 		return
-	input_list_tree.clear()
-	var root:TreeItem = input_list_tree.create_item()
-	var search_term:String = filter_input_line_edit.text
+	input_tree.clear()
+	var root:TreeItem = input_tree.create_item()
+	var search_term:String = filter_input_le.text
 	var collapse:bool = search_term.is_empty()
 
 	if (_allowed_input_types & EventListenerLineEdit.InputType.KEY):
-		var kb_root:TreeItem = input_list_tree.create_item( root )
+		var kb_root:TreeItem = input_tree.create_item( root )
 		# Column 0 - Name + Icon
 		kb_root.set_text( Column.LABEL, "Keyboard Keys" )
 		kb_root.set_icon( Column.LABEL, IconCache.get_icon( &"KEYBOARD" ) )
@@ -647,12 +646,12 @@ func _update_input_list() -> void:
 		# filter() is fine here: short list, editor-only rebuilds.
 		for keycode:int in _keyboard_keycodes().filter(
 				_keycode_matches_search.bind( search_term ) ):
-			var item:TreeItem = input_list_tree.create_item( kb_root )
+			var item:TreeItem = input_tree.create_item( kb_root )
 			item.set_text( Column.LABEL, OS.get_keycode_string( keycode ) )
 			item.set_meta( &"__keycode", keycode )
 
 	if (_allowed_input_types & EventListenerLineEdit.InputType.MOUSE_BUTTON):
-		var mouse_root:TreeItem = input_list_tree.create_item( root )
+		var mouse_root:TreeItem = input_tree.create_item( root )
 		mouse_root.set_text( Column.LABEL, "Mouse Buttons" )
 		mouse_root.set_icon( Column.LABEL, IconCache.get_icon( &"MOUSE" ) )
 		mouse_root.set_collapsed( collapse )
@@ -669,12 +668,12 @@ func _update_input_list() -> void:
 			var desc:String = EventListenerLineEdit.get_event_text( mb, false )
 			if not _matches_search( desc, search_term ):
 				continue
-			var item:TreeItem = input_list_tree.create_item( mouse_root )
+			var item:TreeItem = input_tree.create_item( mouse_root )
 			item.set_text( Column.LABEL, desc )
 			item.set_meta( &"__index", btn )
 
 	if (_allowed_input_types & EventListenerLineEdit.InputType.JOY_BUTTON):
-		var joyb_root:TreeItem = input_list_tree.create_item( root )
+		var joyb_root:TreeItem = input_tree.create_item( root )
 		joyb_root.set_text( Column.LABEL, "Joypad Buttons" )
 		joyb_root.set_icon( Column.LABEL, IconCache.get_icon( &"JOY_BUTTON" ) )
 		joyb_root.set_collapsed( collapse )
@@ -685,12 +684,12 @@ func _update_input_list() -> void:
 			var desc:String = EventListenerLineEdit.get_event_text( joyb, false )
 			if not _matches_search( desc, search_term ):
 				continue
-			var item:TreeItem = input_list_tree.create_item( joyb_root )
+			var item:TreeItem = input_tree.create_item( joyb_root )
 			item.set_text( Column.LABEL, desc )
 			item.set_meta( &"__index", i )
 
 	if (_allowed_input_types & EventListenerLineEdit.InputType.JOY_MOTION):
-		var joya_root:TreeItem = input_list_tree.create_item( root )
+		var joya_root:TreeItem = input_tree.create_item( root )
 		joya_root.set_text( Column.LABEL, "Joypad Axes" )
 		joya_root.set_icon( Column.LABEL, IconCache.get_icon( &"JOY_AXIS" ) )
 		joya_root.set_collapsed( collapse )
@@ -704,26 +703,26 @@ func _update_input_list() -> void:
 			var desc:String = EventListenerLineEdit.get_event_text( joym, false )
 			if not _matches_search( desc, search_term ):
 				continue
-			var item:TreeItem = input_list_tree.create_item( joya_root )
+			var item:TreeItem = input_tree.create_item( joya_root )
 			item.set_text( Column.LABEL, desc )
 			item.set_meta( &"__axis", axis )
 			item.set_meta( &"__value", direction )
 
 
 func _apply_mod_checkboxes( mod:InputEventWithModifiers ) -> void:
-	mod.alt_pressed = alt.button_pressed
-	mod.shift_pressed = shift.button_pressed
-	if command_control.button_pressed:
+	mod.alt_pressed = alt_cb.button_pressed
+	mod.shift_pressed = shift_cb.button_pressed
+	if command_control_cb.button_pressed:
 		mod.command_or_control_autoremap = true
 	else:
-		mod.ctrl_pressed = ctrl.button_pressed
-		mod.meta_pressed = windows.button_pressed
+		mod.ctrl_pressed = ctrl_cb.button_pressed
+		mod.meta_pressed = windows_cb.button_pressed
 
 
 func _select_matching_input_list_item( event:InputEvent ) -> void:
-	if input_list_tree.get_root() == null:
+	if input_tree.get_root() == null:
 		return
-	var category:TreeItem = input_list_tree.get_root().get_first_child()
+	var category:TreeItem = input_tree.get_root().get_first_child()
 	while category:
 		var input_item:TreeItem = category.get_first_child()
 		if is_instance_valid( input_item ):
@@ -734,7 +733,7 @@ func _select_matching_input_list_item( event:InputEvent ) -> void:
 						category.collapsed = false
 						# select() fires item_selected; cancel deferred apply — highlight only.
 						input_item.select( Column.LABEL )
-						input_list_tree.ensure_cursor_is_visible()
+						input_tree.ensure_cursor_is_visible()
 						_pending_list_item = null
 						return
 					input_item = input_item.get_next()
@@ -790,16 +789,16 @@ func _list_item_matches_event( item:TreeItem, event:InputEvent ) -> bool:
 
 
 func _set_current_device( device:int ) -> void:
-	device_option_button.select( device + 1 )
+	device_opt.select( device + 1 )
 
 
 func _get_current_device() -> int:
-	return device_option_button.selected - 1
+	return device_opt.selected - 1
 
 
 func _sync_ok_enabled() -> void:
 	# Scene nodes exist after _ready; guard only for early @tool calls.
-	if not is_instance_valid( ok ):
+	if not is_instance_valid( ok_btn ):
 		return
 	# Allow OK only when a real event is configured and not a duplicate.
 	var do_dup:bool = false
@@ -809,9 +808,9 @@ func _sync_ok_enabled() -> void:
 			if _InputManager.compare_event( ie, _configured_event ):
 				do_dup = true
 				break
-	if is_instance_valid( error ):
-		error.visible = do_dup
-	ok.disabled = _configured_event == null or do_dup
+	if is_instance_valid( error_lbl ):
+		error_lbl.visible = do_dup
+	ok_btn.disabled = _configured_event == null or do_dup
 
 
 # Connect and report failures (Signal.connect returns Error).
