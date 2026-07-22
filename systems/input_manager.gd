@@ -37,9 +37,8 @@ var responder_root:Responder
 ## Last effective map pushed to the engine (for inspection and snapshots).
 var effective_map:CustomInputMap
 
-## Simple stack of responder-tree snapshots.
-##[br][color=goldenrod]TODO[/color]:Typed array / memento type.
-var undo_stack:Array = []
+## Responder-tree snapshots for push/pop (duplicates of [member responder_root]).
+var undo_stack:Array[Responder] = []
 
 var _want_rebuild:bool = false
 var _rebuilding:bool = false
@@ -88,15 +87,17 @@ func _enter_tree() -> void:
 	var parent:Node = get_parent()
 	if parent \
 	and not parent.child_order_changed.is_connected( _on_parent_child_order_changed ):
-		parent.child_order_changed.connect(
-				_on_parent_child_order_changed, CONNECT_DEFERRED )
+		_connect_sig(
+				parent.child_order_changed,
+				_on_parent_child_order_changed,
+				CONNECT_DEFERRED )
 
 	responder_root = Responder.new()
 	responder_root.name = &"root"
 	responder_root.input_map = INPUT_MAP
 	add_child( responder_root )
 	if not responder_root.child_order_changed.is_connected( _on_responder_tree_changed ):
-		responder_root.child_order_changed.connect( _on_responder_tree_changed )
+		_connect_sig( responder_root.child_order_changed, _on_responder_tree_changed )
 
 	request_rebuild()
 
@@ -109,7 +110,8 @@ func _enter_tree() -> void:
 func                        _________METHODS_________              ()->void:pass
 
 func push_state() -> void:
-	var copy:Responder = responder_root.duplicate()
+	var copy:Responder = responder_root.duplicate() as Responder
+	assert( is_instance_valid( copy ), "InputManager.push_state: duplicate failed" )
 	undo_stack.push_back( copy )
 
 
@@ -124,7 +126,7 @@ func pop_state() -> void:
 	old_root.replace_by( last_state )
 	responder_root = last_state
 	if not responder_root.child_order_changed.is_connected( _on_responder_tree_changed ):
-		responder_root.child_order_changed.connect( _on_responder_tree_changed )
+		_connect_sig( responder_root.child_order_changed, _on_responder_tree_changed )
 	old_root.queue_free()
 	request_rebuild()
 
@@ -200,3 +202,10 @@ func _rebuild_input_map() -> void:
 	effective.apply_to_engine()
 	input_map_changed.emit( effective )
 	_rebuilding = false
+
+
+# Connect and report failures (Signal.connect returns Error).
+func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:
+	var err:Error = sig.connect( callable, flags )
+	if err != OK:
+		push_error( "InputManager._connect_sig: %s" % error_string( err ) )
