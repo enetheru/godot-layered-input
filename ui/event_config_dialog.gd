@@ -91,10 +91,13 @@ var _action_events:Array = []
 
 var _allowed_input_types:int = EventListenerLineEdit.ALL_INPUT_TYPES
 
-var _in_tree_update:bool = false
-
 ## Coalesce manual-picker rebuilds (same idea as InputManager.request_rebuild).
 var _want_input_list_update:bool = false
+
+## Coalesce manual-list picks onto the next idle frame.
+## [member _pending_list_item] is the intent; cleared to cancel (e.g. highlight-from-match).
+var _want_list_selection:bool = false
+var _pending_list_item:TreeItem = null
 
 var _mod_checkboxes:Array[CheckBox] = []
 
@@ -165,56 +168,9 @@ func _on_input_list_item_activated() -> void:
 
 
 func _on_input_list_item_selected() -> void:
-	# FIXME this guard indicates to me that we should be deferring
-	# the processing of the selection, and setting a variable that will be
-	# used as the selection.
-	if _in_tree_update:
-		return
-
-	var selected:TreeItem = input_list_tree.get_selected()
-
-	if not is_instance_valid( selected ) \
-	or selected.has_meta(&"__type"):
-		return
-
-	# TODO, looks like here is where we would set the flag, and tree_item
-	# to change selection
-
-	var input_type:int = selected.get_parent().get_meta(&"__type")
-	match input_type:
-		EventListenerLineEdit.InputType.KEY:
-			var keycode:Key = selected.get_meta( &"__keycode" ) as Key
-			var ie:InputEventKey = InputEventKey.new()
-			ie.physical_keycode = keycode
-			ie.keycode = keycode
-			ie.key_label = keycode
-			_apply_mod_checkboxes( ie )
-			# Manual pick: UNICODE mode needs a key_label-only event; default to physical.
-			if key_mode.get_selected_id() == KeyMode.UNICODE:
-				key_mode.select( KeyMode.PHY_KEYCODE )
-			var dup:InputEventKey = ie.duplicate()
-			_apply_selected_key_mode( ie )
-			_set_event( ie, dup, false )
-
-		EventListenerLineEdit.InputType.MOUSE_BUTTON:
-			var ie := InputEventMouseButton.new()
-			ie.button_index = selected.get_meta(&"__index")
-			_apply_mod_checkboxes( ie )
-			ie.device = _get_current_device()
-			_set_event( ie, ie, false )
-
-		EventListenerLineEdit.InputType.JOY_BUTTON:
-			var ie := InputEventJoypadButton.new()
-			ie.button_index = selected.get_meta(&"__index")
-			ie.device = _get_current_device()
-			_set_event( ie, ie, false )
-
-		EventListenerLineEdit.InputType.JOY_MOTION:
-			var ie := InputEventJoypadMotion.new()
-			ie.axis = selected.get_meta(&"__axis")
-			ie.axis_value = selected.get_meta(&"__value")
-			ie.device = _get_current_device()
-			_set_event( ie, ie, false )
+	# Record intent only; apply next idle so highlight-from-match can cancel.
+	_pending_list_item = input_list_tree.get_selected()
+	_request_list_selection_apply()
 
 
 func _on_mod_toggled( pressed:bool, index:int ) -> void:
@@ -597,10 +553,66 @@ func _request_input_list_update() -> void:
 	_update_input_list.call_deferred()
 
 
+## Flag a manual-list pick; coalesced onto the next idle frame.
+func _request_list_selection_apply() -> void:
+	if _want_list_selection:
+		return
+	_want_list_selection = true
+	_apply_list_selection.call_deferred()
+
+
+## Apply [member _pending_list_item] as the configured binding (user pick only).
+func _apply_list_selection() -> void:
+	_want_list_selection = false
+	var selected:TreeItem = _pending_list_item
+	_pending_list_item = null
+	if not is_instance_valid( selected ) \
+	or selected.has_meta( &"__type" ):
+		return
+
+	var input_type:int = selected.get_parent().get_meta( &"__type" )
+	match input_type:
+		EventListenerLineEdit.InputType.KEY:
+			var keycode:Key = selected.get_meta( &"__keycode" ) as Key
+			var ie:InputEventKey = InputEventKey.new()
+			ie.physical_keycode = keycode
+			ie.keycode = keycode
+			ie.key_label = keycode
+			_apply_mod_checkboxes( ie )
+			# Manual pick: UNICODE mode needs a key_label-only event; default to physical.
+			if key_mode.get_selected_id() == KeyMode.UNICODE:
+				key_mode.select( KeyMode.PHY_KEYCODE )
+			var dup:InputEventKey = ie.duplicate()
+			_apply_selected_key_mode( ie )
+			_set_event( ie, dup, false )
+
+		EventListenerLineEdit.InputType.MOUSE_BUTTON:
+			var ie:InputEventMouseButton = InputEventMouseButton.new()
+			ie.button_index = selected.get_meta( &"__index" )
+			_apply_mod_checkboxes( ie )
+			ie.device = _get_current_device()
+			_set_event( ie, ie, false )
+
+		EventListenerLineEdit.InputType.JOY_BUTTON:
+			var ie:InputEventJoypadButton = InputEventJoypadButton.new()
+			ie.button_index = selected.get_meta( &"__index" )
+			ie.device = _get_current_device()
+			_set_event( ie, ie, false )
+
+		EventListenerLineEdit.InputType.JOY_MOTION:
+			var ie:InputEventJoypadMotion = InputEventJoypadMotion.new()
+			ie.axis = selected.get_meta( &"__axis" )
+			ie.axis_value = selected.get_meta( &"__value" )
+			ie.device = _get_current_device()
+			_set_event( ie, ie, false )
+
+
 # I dont like how much repetition this function looks like, but it might be
 # necessary
 func _update_input_list() -> void:
 	_want_input_list_update = false
+	# Tree items are freed; drop any pending pick that pointed into the old tree.
+	_pending_list_item = null
 	if not is_instance_valid( input_list_tree ):
 		return
 	input_list_tree.clear()
@@ -694,7 +706,6 @@ func _apply_mod_checkboxes( mod:InputEventWithModifiers ) -> void:
 func _select_matching_input_list_item( event:InputEvent ) -> void:
 	if input_list_tree.get_root() == null:
 		return
-	_in_tree_update = true
 	var category:TreeItem = input_list_tree.get_root().get_first_child()
 	while category:
 		var input_item:TreeItem = category.get_first_child()
@@ -704,14 +715,14 @@ func _select_matching_input_list_item( event:InputEvent ) -> void:
 				while input_item:
 					if _list_item_matches_event( input_item, event ):
 						category.collapsed = false
+						# select() fires item_selected; cancel deferred apply — highlight only.
 						input_item.select( Column.LABEL )
 						input_list_tree.ensure_cursor_is_visible()
-						_in_tree_update = false
+						_pending_list_item = null
 						return
 					input_item = input_item.get_next()
 		category.collapsed = true
 		category = category.get_next()
-	_in_tree_update = false
 
 
 # True when [param text] should appear under the current search box filter.
