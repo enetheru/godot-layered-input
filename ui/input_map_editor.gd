@@ -1450,7 +1450,7 @@ func _host_refresh(map: CustomInputMap = null) -> void:
 		var rr := _get_responder_root()
 		if rr != null and is_instance_valid(InputManager):
 			if map == rr.input_map or edit_map == null:
-				InputManager.rebuild_input_map()
+				InputManager.request_rebuild()
 	# Notify editor / save pipeline that the resource mutated (once).
 	map.emit_changed()
 	resource_modified.emit(map)

@@ -79,7 +79,7 @@ func add_responder( node:Responder ) -> void:
 	InputManager.push_state()
 	add_child( node )
 	if node.contributes_map():
-		InputManager.rebuild_input_map()
+		InputManager.request_rebuild()
 
 
 ## Removing a responder does not free the node.
@@ -88,7 +88,7 @@ func remove_responder( node:Responder ) -> void:
 		return
 	InputManager.push_state()
 	remove_child( node )
-	InputManager.rebuild_input_map()
+	InputManager.request_rebuild()
 
 
 func pop_responder() -> Node:
@@ -98,7 +98,7 @@ func pop_responder() -> Node:
 	InputManager.push_state()
 	var node:Responder = layers[-1]
 	remove_child( node )
-	InputManager.rebuild_input_map()
+	InputManager.request_rebuild()
 	return node
 
 
@@ -121,6 +121,6 @@ func _notify_map_dirty() -> void:
 	# Autoload can be a placeholder while the editor plugin reloads.
 	if not is_instance_valid( InputManager ):
 		return
-	if not InputManager.has_method( &"rebuild_input_map" ):
+	if not InputManager.has_method( &"request_rebuild" ):
 		return
-	InputManager.rebuild_input_map()
+	InputManager.request_rebuild()

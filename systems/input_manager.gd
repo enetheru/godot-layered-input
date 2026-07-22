@@ -74,7 +74,7 @@ func _on_parent_child_order_changed() -> void:
 
 
 func _on_responder_tree_changed() -> void:
-	rebuild_input_map()
+	request_rebuild()
 
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
@@ -98,7 +98,7 @@ func _enter_tree() -> void:
 	if not responder_root.child_order_changed.is_connected( _on_responder_tree_changed ):
 		responder_root.child_order_changed.connect( _on_responder_tree_changed )
 
-	rebuild_input_map()
+	request_rebuild()
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -126,7 +126,7 @@ func pop_state() -> void:
 	if not responder_root.child_order_changed.is_connected( _on_responder_tree_changed ):
 		responder_root.child_order_changed.connect( _on_responder_tree_changed )
 	old_root.queue_free()
-	rebuild_input_map()
+	request_rebuild()
 
 
 func add_responder( node:Responder ) -> void:
@@ -142,12 +142,12 @@ func remove_responder( node:Responder ) -> void:
 		parent.remove_responder( node )
 
 
-## Coalesce rebuilds onto the next idle frame.
-## FIXME: rename this to something like request rebuilt, or flag rebuild.S
-func rebuild_input_map() -> void:
-	if _want_rebuild == false:
-		_want_rebuild = true
-		_rebuild_input_map.call_deferred()
+## Flag a full map rebuild; coalesced onto the next idle frame.
+func request_rebuild() -> void:
+	if _want_rebuild:
+		return
+	_want_rebuild = true
+	_rebuild_input_map.call_deferred()
 
 
 #        ███████ ████████  █████  ████████ ██  ██████                          #
@@ -181,6 +181,7 @@ func _collect_maps( node:Node, out:Array[CustomInputMap] ) -> void:
 		_collect_maps( child, out )
 
 
+## Internal rebuild body; schedule via [method request_rebuild].
 func _rebuild_input_map() -> void:
 	assert( responder_root, "InputManager._rebuild_input_map: responder root missing" )
 	_want_rebuild = false
