@@ -18,9 +18,6 @@ extends Resource
 ## active responders. Create `.tres` assets by hand and assign them on responders.
 ## [br]Supports [code]for action_name in map:[/code] — each element is a
 ## [StringName] action name, in the same order as [method get_action_names].
-## [br]
-##[br][color=goldenrod]TODO[/color]:add a merge flag to apply_to_engine to
-## merge InputAction Input Events
 
 
 ## Default deadzone
@@ -286,20 +283,49 @@ static func from_engine() -> CustomInputMap:
 	return new_map
 
 
-## Push this map into the engine singleton, overriding wholesale any existing
-## actions
-func apply_to_engine() -> void:
+## Push this map into the engine [InputMap] for each action name it contains.
+## [br]When [param merge] is [code]false[/code] (default), each name is erased
+## then re-added from this map (wholesale replace of that name only; other
+## engine actions are left alone).
+## [br]When [param merge] is [code]true[/code], existing engine actions are kept:
+## deadzone is updated from this map, and events are appended only when not
+## already present ([method InputMap.action_has_event]). Null [InputAction]
+## placeholders ensure the action exists with [constant DEFAULT_DEADZONE].
+func apply_to_engine( merge:bool = false ) -> void:
 	for action_name:StringName in self:
-		if InputMap.has_action( action_name ):
-			InputMap.erase_action( action_name )
 		var ia:InputAction = _actions[action_name]
-		if not is_instance_valid( ia ):
-			InputMap.add_action( action_name, DEFAULT_DEADZONE )
+		if merge:
+			_merge_action_into_engine( action_name, ia )
+		else:
+			_replace_action_in_engine( action_name, ia )
+
+
+# Erase-then-add this name from the engine map (wholesale for that name).
+func _replace_action_in_engine( action_name:StringName, ia:InputAction ) -> void:
+	if InputMap.has_action( action_name ):
+		InputMap.erase_action( action_name )
+	if not is_instance_valid( ia ):
+		InputMap.add_action( action_name, DEFAULT_DEADZONE )
+		return
+	InputMap.add_action( action_name, ia.deadzone )
+	for ie:InputEvent in ia:
+		InputMap.action_add_event( action_name, ie )
+
+
+# Keep existing engine events; update deadzone and append missing events.
+func _merge_action_into_engine( action_name:StringName, ia:InputAction ) -> void:
+	var deadzone:float = (
+			ia.deadzone if is_instance_valid( ia ) else DEFAULT_DEADZONE )
+	if not InputMap.has_action( action_name ):
+		InputMap.add_action( action_name, deadzone )
+	else:
+		InputMap.action_set_deadzone( action_name, deadzone )
+	if not is_instance_valid( ia ):
+		return
+	for ie:InputEvent in ia:
+		if InputMap.action_has_event( action_name, ie ):
 			continue
-		InputMap.add_action( action_name, ia.deadzone )
-		# InputAction iterator skips null event slots.
-		for ie:InputEvent in ia:
-			InputMap.action_add_event( action_name, ie )
+		InputMap.action_add_event( action_name, ie )
 
 #endregion Engine
 
