@@ -12,8 +12,8 @@ extends Resource
 ## Hand-author as a sub-resource inside a [CustomInputMap] `.tres`, or build
 ## in code via [method CustomInputMap.add_action] /
 ## [method CustomInputMap.add_action_event].
-## [br]Iterable: [code]for event in action:[/code] yields valid [InputEvent]s
-## (null slots are skipped).
+## [br]Supports [code]for event in action:[/code] — each element is a valid
+## [InputEvent] in storage order (empty/null slots are not visited).
 
 
 const DEFAULT_DEADZONE:float = 0.2
@@ -45,21 +45,29 @@ func _init(
 	events = new_events
 
 
-## [code]for event in action:[/code] — valid events only; state lives in [param iter].
-func _iter_init( iter:Array ) -> bool:
-	iter[0] = _next_valid_event_index( -1 )
-	return iter[0] >= 0
+# for-in: Object._iter_* — Godot gives a one-slot Array (state) so the loop can
+# update the cursor by reference. Nested loops each get their own Array.
+#   _iter_init → write state[0], return true if a first element exists
+#   _iter_next → advance state[0], return true if another element remains
+#   _iter_get  → return current element; argument is state[0], not the Array
+# state[0] here is the index into events of the current valid InputEvent.
+func _iter_init( state:Array ) -> bool:
+	# Start before slot 0 so the same advance helper can find the first valid.
+	var first_index:int = _index_of_next_valid_event( -1 )
+	state[0] = first_index
+	return first_index >= 0
 
 
-func _iter_next( iter:Array ) -> bool:
-	var after:int = iter[0]
-	iter[0] = _next_valid_event_index( after )
-	return iter[0] >= 0
+func _iter_next( state:Array ) -> bool:
+	var current_index:int = int( state[0] )
+	var next_index:int = _index_of_next_valid_event( current_index )
+	state[0] = next_index
+	return next_index >= 0
 
 
-func _iter_get( iter:Variant ) -> Variant:
-	var ia:InputEvent = iter
-	return events[ia]
+# event_index is state[0]: index into events for this loop step.
+func _iter_get( event_index:Variant ) -> Variant:
+	return events[int( event_index )]
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -110,11 +118,11 @@ func clear_events() -> void:
 	events.clear()
 
 
-## Index of the next valid event after [param after], or [code]-1[/code] if none.
-func _next_valid_event_index( after:int ) -> int:
-	var i:int = after + 1
-	while i < events.size():
-		if is_instance_valid( events[i] ):
-			return i
-		i += 1
+# First valid event index after after_index, or -1 if none remain.
+func _index_of_next_valid_event( after_index:int ) -> int:
+	var index:int = after_index + 1
+	while index < events.size():
+		if is_instance_valid( events[index] ):
+			return index
+		index += 1
 	return -1

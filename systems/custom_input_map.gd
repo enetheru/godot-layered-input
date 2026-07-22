@@ -16,8 +16,8 @@ extends Resource
 ## [br][br]
 ## There is no implicit project-settings base map — only maps contributed by
 ## active responders. Create `.tres` assets by hand and assign them on responders.
-## [br]Iterable: [code]for action_name in map:[/code] yields [StringName] keys
-## (same order as [method get_action_names]; keys snapshotted at loop start).
+## [br]Supports [code]for action_name in map:[/code] — each element is a
+## [StringName] action name, in the same order as [method get_action_names].
 ## [br]
 ##[br][color=goldenrod]TODO[/color]:add a merge flag to apply_to_engine to
 ## merge InputAction Input Events
@@ -49,26 +49,34 @@ func                        ________PROPERTIES_______              ()->void:pass
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
-## [code]for action_name in map:[/code] — action name keys; state in [param iter].
-func _iter_init( iter:Array ) -> bool:
-	# Snapshot keys so nested loops / mid-loop mutation do not share one cursor.
-	var keys:Array = _actions.keys()
-	iter[0] = { &"i": 0, &"keys": keys }
-	return not keys.is_empty()
+# for-in: Object._iter_* — Godot gives a one-slot Array (state) so the loop can
+# update the cursor by reference. Nested loops each get their own Array.
+#   _iter_init → write state[0], return true if a first element exists
+#   _iter_next → advance state[0], return true if another element remains
+#   _iter_get  → return current element; argument is state[0], not the Array
+func _iter_init( state:Array ) -> bool:
+	# Snapshot names so nested loops / mid-loop edits do not share a cursor.
+	var action_names:Array = _actions.keys()
+	state[0] = {
+		&"index": 0,
+		&"action_names": action_names,
+	}
+	return not action_names.is_empty()
 
 
-func _iter_next( iter:Array ) -> bool:
-	var st:Dictionary = iter[0]
-	var i:int = st[&"i"] + 1
-	st[&"i"] = i
-	var keys:Array = st[&"keys"]
-	return i < keys.size()
+func _iter_next( state:Array ) -> bool:
+	var cursor:Dictionary = state[0]
+	var next_index:int = int( cursor[&"index"] ) + 1
+	cursor[&"index"] = next_index
+	var action_names:Array = cursor[&"action_names"]
+	return next_index < action_names.size()
 
 
-func _iter_get( iter:Variant ) -> Variant:
-	var st:Dictionary = iter
-	var keys:Array = st[&"keys"]
-	return keys[ st[&"i"] ]
+# cursor is state[0] from init/next: { index, action_names }
+func _iter_get( cursor:Variant ) -> Variant:
+	var loop_state:Dictionary = cursor
+	var action_names:Array = loop_state[&"action_names"]
+	return action_names[int( loop_state[&"index"] )]
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
