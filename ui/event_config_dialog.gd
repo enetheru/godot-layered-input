@@ -340,8 +340,8 @@ func popup_and_configure(
 	var events:Array = current_action.get("events", [])
 	_action_events = events.duplicate()
 
-	# This looks like its resetting the UI, should perhaps be separated into
-	# its own method,
+	# FIXME: This looks like its resetting the UI, should perhaps be separated
+	# into its own method,
 	if is_instance_valid( event ):
 		_set_event( null, null )
 		for cb:CheckBox in _mod_checkboxes:
@@ -359,6 +359,7 @@ func popup_and_configure(
 			and ie.is_match( event ):
 				_action_events.remove_at( i )
 				break
+		# FIXME event is invalid duplicate is not available.
 		var a:InputEvent = event.duplicate()
 		var b:InputEvent = event.duplicate()
 		_set_event( a, b )
@@ -579,7 +580,7 @@ func _apply_list_selection() -> void:
 	var input_type:int = selected.get_parent().get_meta( &"__type" )
 	match input_type:
 		EventListenerLineEdit.InputType.KEY:
-			var keycode:Key = selected.get_meta( &"__keycode" ) as Key
+			var keycode:Key = selected.get_meta( &"__keycode" )
 			var ie:InputEventKey = InputEventKey.new()
 			ie.physical_keycode = keycode
 			ie.keycode = keycode
@@ -805,7 +806,7 @@ func _sync_ok_enabled() -> void:
 
 # Connect and report failures (Signal.connect returns Error).
 func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:
-	var err:Error = sig.connect( callable, flags )
+	var err:Error = sig.connect( callable, flags ) as Error
 	if err != OK:
 		push_error( "EventConfigDialog._connect_sig: %s" % error_string( err ) )
 

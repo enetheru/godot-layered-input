@@ -59,7 +59,7 @@ func _iter_init( iter:Array ) -> bool:
 
 func _iter_next( iter:Array ) -> bool:
 	var st:Dictionary = iter[0]
-	var i:int = int( st[&"i"] ) + 1
+	var i:int = st[&"i"] + 1
 	st[&"i"] = i
 	var keys:Array = st[&"keys"]
 	return i < keys.size()
@@ -68,7 +68,7 @@ func _iter_next( iter:Array ) -> bool:
 func _iter_get( iter:Variant ) -> Variant:
 	var st:Dictionary = iter
 	var keys:Array = st[&"keys"]
-	return keys[int( st[&"i"] )]
+	return keys[ st[&"i"] ]
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -360,11 +360,10 @@ static func create_from_config( path:String ) -> CustomInputMap:
 					% [key, type_string( typeof( value ) )] )
 			continue
 		var action_dict:Dictionary = value
-		var deadzone:float = float(
-				action_dict.get( "deadzone", DEFAULT_DEADZONE ) )
+		var deadzone:float = action_dict.get( "deadzone", DEFAULT_DEADZONE )
 		var events:Array[InputEvent] = _events_from_project_variant(
 				action_dict.get( "events", [] ) )
-		map.add_action( StringName( key ), deadzone, events )
+		var _ia:InputAction = map.add_action( key, deadzone, events )
 	return map
 
 

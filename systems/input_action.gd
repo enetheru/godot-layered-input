@@ -48,16 +48,18 @@ func _init(
 ## [code]for event in action:[/code] — valid events only; state lives in [param iter].
 func _iter_init( iter:Array ) -> bool:
 	iter[0] = _next_valid_event_index( -1 )
-	return int( iter[0] ) >= 0
+	return iter[0] >= 0
 
 
 func _iter_next( iter:Array ) -> bool:
-	iter[0] = _next_valid_event_index( int( iter[0] ) )
-	return int( iter[0] ) >= 0
+	var after:int = iter[0]
+	iter[0] = _next_valid_event_index( after )
+	return iter[0] >= 0
 
 
 func _iter_get( iter:Variant ) -> Variant:
-	return events[int( iter )]
+	var ia:InputEvent = iter
+	return events[ia]
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #

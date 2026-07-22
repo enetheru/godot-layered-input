@@ -252,7 +252,7 @@ func _on_action_edited() -> void:
 		var name_check:Dictionary = _check_new_action_name( new_name )
 		if name_check[&"code"] != ActionNameError.OK:
 			ti.set_text( Column.ACTION, old_name )
-			show_message( name_check[&"message"] )
+			show_message( str(name_check[&"message"]) )
 			return
 		action_renamed.emit( old_name, new_name )
 	elif col == Column.DEADZONE:
@@ -523,6 +523,7 @@ func _ready() -> void:
 	_connect_sig( filter_name_line_edit.text_changed, _on_search_bar_value_changed.unbind( 1 ) )
 	if is_instance_valid( event_listener_line_edit ) \
 	and event_listener_line_edit.has_signal( &"event_changed" ):
+		# FIXME This is broken, there is no event changed.
 		_connect_sig( event_listener_line_edit.event_changed, _on_search_event_changed )
 	_connect_sig( clear_all_button.pressed, _on_clear_all_search )
 	_connect_sig( line_edit.text_changed, _on_add_edit_text_changed )
@@ -1454,7 +1455,7 @@ func _submit_new_action( action_name:String ) -> void:
 	_apply_action_name_feedback( result )
 	if result[&"code"] != ActionNameError.OK:
 		if result[&"code"] != ActionNameError.EMPTY:
-			show_message( result[&"message"] )
+			show_message( str(result[&"message"]) )
 		return
 	# Emit first so host can read the name; clear after so text_changed
 	# does not race a second submit with an empty string.
@@ -1532,7 +1533,7 @@ static func _invalid_action_name_chars( action_name:String ) -> String:
 
 # Connect and report failures (Signal.connect returns Error).
 func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:
-	var err:Error = sig.connect( callable, flags )
+	var err:Error = sig.connect( callable, flags ) as Error
 	if err != OK:
 		push_error( "InputMapEditor._connect_sig: %s" % error_string( err ) )
 
