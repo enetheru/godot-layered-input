@@ -19,7 +19,9 @@ extends Node
 ##[br][br]
 ## Merge order is tree order (depth-first, children first-to-last) so later
 ## siblings both receive input first and win action-name conflicts.
-##[br][color=goldenrod]TODO[/color]:Decide whether undo_stack belongs here long-term.
+## [br]Responder-tree undo lives here ([member undo_stack], [method push_state],
+## [method pop_state]) because this node owns [member responder_root] — not a
+## separate UndoRedo service or per-map editor history.
 
 
 const INPUT_MAP:CustomInputMap = preload( "default_input_map.tres" )
@@ -37,7 +39,8 @@ var responder_root:Responder
 ## Last effective map pushed to the engine (for inspection and snapshots).
 var effective_map:CustomInputMap
 
-## Responder-tree snapshots for push/pop (duplicates of [member responder_root]).
+## Mementos of [member responder_root] for [method push_state] / [method pop_state].
+## Each entry is a deep [method Node.duplicate] of the root branch.
 var undo_stack:Array[Responder] = []
 
 var _want_rebuild:bool = false
@@ -109,12 +112,20 @@ func _enter_tree() -> void:
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
+## Push a deep copy of [member responder_root] onto [member undo_stack].
+## [br][method Responder.add_responder], [method Responder.remove_responder], and
+## [method Responder.pop_responder] call this before mutating the tree so
+## [method pop_state] can restore the prior branch.
 func push_state() -> void:
+	assert( is_instance_valid( responder_root ),
+			"InputManager.push_state: responder_root missing" )
 	var copy:Responder = responder_root.duplicate() as Responder
 	assert( is_instance_valid( copy ), "InputManager.push_state: duplicate failed" )
 	undo_stack.push_back( copy )
 
 
+## Pop [member undo_stack] and replace [member responder_root] with that snapshot,
+## then [method request_rebuild]. No-op (warning) if the stack is empty.
 func pop_state() -> void:
 	if undo_stack.is_empty():
 		push_warning( "InputManager.pop_state: undo stack empty" )
