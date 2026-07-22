@@ -4,8 +4,8 @@ extends EditorPlugin
 ## Editor plugin for [CustomInputMap] resources.
 ##
 ## [b]Host mode[/b] ([code]input_map_editor/host_mode[/code] in Project Settings):
-## [br] • [b]Bottom panel[/b] — default ([method add_control_to_bottom_panel])
-## [br] • [b]Main screen[/b] — tab next to 2D/3D/Script (main-screen plugin API)
+## [br] • [b]Dock[/b] — [EditorDock] via [method add_dock] (any slot + floating)
+## [br] • [b]Main screen[/b] — tab next to 2D/3D/Script
 ## [br] • [b]Inspector[/b] — [EditorInspectorPlugin] for [CustomInputMap]
 ## [br]Changing host mode requires disable/enable of this plugin.
 
@@ -25,7 +25,8 @@ const MAIN_SCREEN_NAME:String = "Input Map"
 func                        ________PROPERTIES_______              ()->void:pass
 
 var _panel:InputMapEditor
-var _panel_button:Button
+## Universal dock host (Godot 4.7+ [EditorDock]); null in other modes.
+var _dock:EditorDock
 var _opts:InputMapEditorSettings
 var _inspector_plugin:EditorInspectorPlugin
 var _inspector_editor:InputMapEditor
@@ -139,12 +140,11 @@ func _exit_tree() -> void:
 	if is_instance_valid( _panel ):
 		if _panel.resource_modified.is_connected( _on_resource_modified ):
 			_panel.resource_modified.disconnect( _on_resource_modified )
-		# Detach first so free does not free a still-docked control.
 		if _panel.get_parent() != null:
 			_panel.get_parent().remove_child( _panel )
 		_panel.queue_free()
 		_panel = null
-	_panel_button = null
+	_dock = null
 	_inspector_editor = null
 	_opts = null
 	_dirty_maps.clear()
@@ -241,25 +241,39 @@ func _use_auto_raise() -> bool:
 func _attach_host() -> void:
 	match _host_mode():
 		InputMapEditorSettings.HostMode.MAIN_SCREEN:
-			# Official main-screen plugin pattern:
 			# https://docs.godotengine.org/en/stable/tutorials/plugins/editor/making_main_screen_plugins.html
 			var main_screen:VBoxContainer = EditorInterface.get_editor_main_screen()
 			main_screen.add_child( _panel )
 			_panel.set_anchors_and_offsets_preset( Control.PRESET_FULL_RECT )
 			_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			# Required: hide until the tab is selected.
 			_make_visible( false )
 		InputMapEditorSettings.HostMode.INSPECTOR:
 			_inspector_plugin = InspectorPluginScript.new()
 			if _inspector_plugin.has_method( &"setup" ):
 				_inspector_plugin.call( &"setup", self )
 			add_inspector_plugin( _inspector_plugin )
-			# Keep a hidden stash so the primary instance is not freed.
 			add_child( _panel )
 			_panel.visible = false
 		_:
-			_panel_button = add_control_to_bottom_panel( _panel, MAIN_SCREEN_NAME )
+			# Universal dock (not add_control_to_bottom_panel — that is bottom-only).
+			# https://docs.godotengine.org/en/stable/classes/class_editordock.html
+			_dock = EditorDock.new()
+			_dock.title = MAIN_SCREEN_NAME
+			_dock.layout_key = "enetheru_input_map_editor"
+			_dock.default_slot = EditorDock.DOCK_SLOT_BOTTOM
+			# Vertical (side) + horizontal (bottom) + floating.
+			_dock.available_layouts = (
+					EditorDock.DOCK_LAYOUT_VERTICAL
+					| EditorDock.DOCK_LAYOUT_HORIZONTAL
+					| EditorDock.DOCK_LAYOUT_FLOATING
+			)
+			_dock.global = true
+			_dock.icon_name = &"InputEventAction"
+			_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			_dock.add_child( _panel )
+			add_dock( _dock )
 			_panel.visible = true
 
 
@@ -267,10 +281,13 @@ func _detach_host() -> void:
 	if _inspector_plugin != null:
 		remove_inspector_plugin( _inspector_plugin )
 		_inspector_plugin = null
-	if _panel_button != null and is_instance_valid( _panel ):
-		remove_control_from_bottom_panel( _panel )
-		_panel_button = null
-	# Main-screen / stash: remove_child happens in _exit_tree free path.
+	if is_instance_valid( _dock ):
+		remove_dock( _dock )
+		# Panel is child of dock; reparent out before freeing dock.
+		if is_instance_valid( _panel ) and _panel.get_parent() == _dock:
+			_dock.remove_child( _panel )
+		_dock.queue_free()
+		_dock = null
 
 
 func _raise_editor_if_needed() -> void:
@@ -283,8 +300,8 @@ func _raise_editor_if_needed() -> void:
 	if _is_host_main_screen():
 		EditorInterface.set_main_screen_editor( MAIN_SCREEN_NAME )
 		return
-	if _panel_button != null:
-		make_bottom_panel_item_visible( _panel )
+	if is_instance_valid( _dock ):
+		_dock.make_visible()
 
 
 func _notify_reload_plugin( message:String ) -> void:

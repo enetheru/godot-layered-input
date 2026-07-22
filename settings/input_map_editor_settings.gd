@@ -23,8 +23,11 @@ const LEGACY_BROKEN_LAYOUT_KEY:String = "input_map_editor/Layout/"
 
 
 enum HostMode {
-	BOTTOM_PANEL = 0,
+	## Universal [EditorDock] (move to any slot, float). Default slot: bottom.
+	DOCK = 0,
+	## Main-screen plugin tab next to 2D / 3D / Script.
 	MAIN_SCREEN = 1,
+	## [EditorInspectorPlugin] for [CustomInputMap].
 	INSPECTOR = 2,
 }
 
@@ -97,7 +100,7 @@ static func read_host_mode() -> int:
 		return HostMode.MAIN_SCREEN
 	if ProjectSettings.get_setting( "input_map_editor/replace_inspector", false ):
 		return HostMode.INSPECTOR
-	return HostMode.BOTTOM_PANEL
+	return HostMode.DOCK
 
 
 static func read_auto_raise() -> bool:
@@ -120,7 +123,7 @@ static func read_default_deadzone() -> float:
 
 func _register_all() -> void:
 	# First-time default for host_mode may come from legacy bools.
-	var default_mode:int = HostMode.BOTTOM_PANEL
+	var default_mode:int = HostMode.DOCK
 	if not ProjectSettings.has_setting( KEY_HOST_MODE ):
 		default_mode = _legacy_bools_to_host_mode()
 	_register_setting(
@@ -128,7 +131,7 @@ func _register_all() -> void:
 			default_mode,
 			TYPE_INT,
 			PROPERTY_HINT_ENUM,
-			"Bottom panel,Main screen,Inspector" )
+			"Dock,Main screen,Inspector" )
 	_register_setting(
 			KEY_AUTO_RAISE,
 			true,
@@ -196,7 +199,7 @@ func _legacy_bools_to_host_mode() -> int:
 		return HostMode.MAIN_SCREEN
 	if ProjectSettings.get_setting( "input_map_editor/replace_inspector", false ):
 		return HostMode.INSPECTOR
-	return HostMode.BOTTOM_PANEL
+	return HostMode.DOCK
 
 
 ## Drop mis-named key [code]input_map_editor/Layout/[/code] (old helper bug).
