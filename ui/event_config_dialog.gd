@@ -124,23 +124,14 @@ func _on_listen_input_changed( event:InputEvent ) -> void:
 	or not event.is_pressed():
 		return
 
-	#FIXME, this function is whak, we're testing the event twice.
+	#FIXME: this function is whak, we're testing the event twice.
 	# doing abunch of weird re-writing I'm not a fan.
 
 	var received:InputEvent = event
 	var received_original:InputEvent = received.duplicate()
 
-	var type:int = 0
-	if received is InputEventKey:
-		type = EventListenerLineEdit.InputType.KEY
-	elif received is InputEventJoypadButton:
-		type = EventListenerLineEdit.InputType.JOY_BUTTON
-	elif received is InputEventJoypadMotion:
-		type = EventListenerLineEdit.InputType.JOY_MOTION
-	elif received is InputEventMouseButton:
-		type = EventListenerLineEdit.InputType.MOUSE_BUTTON
-
-	if (_allowed_input_types & type) == 0:
+	var type:int = _input_type_for_event( received )
+	if type == 0 or ( _allowed_input_types & type ) == 0:
 		return
 
 	if received is InputEventJoypadMotion:
@@ -620,23 +611,15 @@ func _update_input_list() -> void:
 		kb_root.set_icon( Column.LABEL, IconCache.get_icon( &"KEYBOARD" ) )
 		kb_root.set_collapsed( collapse )
 		kb_root.set_meta( &"__type", EventListenerLineEdit.InputType.KEY )
-		# FIXME A filter well named function might be preferrable to the if
-		# statements below
-		for keycode:int in _keyboard_keycodes():
-			var key_name:String = OS.get_keycode_string( keycode )
-			if key_name.is_empty():
-				continue
-			# Fix this if statement to make clear sense.
-			if not search_term.is_empty() \
-			and not key_name.containsn( search_term ):
-				continue
+		# filter() is fine here: short list, editor-only rebuilds.
+		for keycode:int in _keyboard_keycodes().filter(
+				_keycode_matches_search.bind( search_term ) ):
 			var item:TreeItem = input_list_tree.create_item( kb_root )
-			item.set_text( Column.LABEL, key_name )
+			item.set_text( Column.LABEL, OS.get_keycode_string( keycode ) )
 			item.set_meta( &"__keycode", keycode )
 
 	if (_allowed_input_types & EventListenerLineEdit.InputType.MOUSE_BUTTON):
 		var mouse_root:TreeItem = input_list_tree.create_item( root )
-		# Column 0 - Name / Icon
 		mouse_root.set_text( Column.LABEL, "Mouse Buttons" )
 		mouse_root.set_icon( Column.LABEL, IconCache.get_icon( &"MOUSE" ) )
 		mouse_root.set_collapsed( collapse )
@@ -648,11 +631,10 @@ func _update_input_list() -> void:
 			MOUSE_BUTTON_XBUTTON1, MOUSE_BUTTON_XBUTTON2,
 		]
 		for btn:int in mouse_buttons:
-			var mb := InputEventMouseButton.new()
+			var mb:InputEventMouseButton = InputEventMouseButton.new()
 			mb.button_index = btn as MouseButton
 			var desc:String = EventListenerLineEdit.get_event_text( mb, false )
-			if not search_term.is_empty() \
-			and not desc.containsn( search_term ):
+			if not _matches_search( desc, search_term ):
 				continue
 			var item:TreeItem = input_list_tree.create_item( mouse_root )
 			item.set_text( Column.LABEL, desc )
@@ -660,17 +642,15 @@ func _update_input_list() -> void:
 
 	if (_allowed_input_types & EventListenerLineEdit.InputType.JOY_BUTTON):
 		var joyb_root:TreeItem = input_list_tree.create_item( root )
-		# Column 0 - Name / Icon
 		joyb_root.set_text( Column.LABEL, "Joypad Buttons" )
 		joyb_root.set_icon( Column.LABEL, IconCache.get_icon( &"JOY_BUTTON" ) )
 		joyb_root.set_collapsed( collapse )
 		joyb_root.set_meta( &"__type", EventListenerLineEdit.InputType.JOY_BUTTON )
 		for i:int in range( JoyButton.JOY_BUTTON_MAX ):
-			var joyb := InputEventJoypadButton.new()
+			var joyb:InputEventJoypadButton = InputEventJoypadButton.new()
 			joyb.button_index = i as JoyButton
 			var desc:String = EventListenerLineEdit.get_event_text( joyb, false )
-			if not search_term.is_empty() \
-			and not desc.containsn( search_term ):
+			if not _matches_search( desc, search_term ):
 				continue
 			var item:TreeItem = input_list_tree.create_item( joyb_root )
 			item.set_text( Column.LABEL, desc )
@@ -678,20 +658,18 @@ func _update_input_list() -> void:
 
 	if (_allowed_input_types & EventListenerLineEdit.InputType.JOY_MOTION):
 		var joya_root:TreeItem = input_list_tree.create_item( root )
-		# Column 0 - Name / Icon
 		joya_root.set_text( Column.LABEL, "Joypad Axes" )
 		joya_root.set_icon( Column.LABEL, IconCache.get_icon( &"JOY_AXIS" ) )
 		joya_root.set_collapsed( collapse )
 		joya_root.set_meta( &"__type", EventListenerLineEdit.InputType.JOY_MOTION )
 		for i:int in range( JoyAxis.JOY_AXIS_MAX * 2 ):
 			var axis:int = i >> 1
-			var direction:int = 1 if (i & 1) else -1
-			var joym := InputEventJoypadMotion.new()
+			var direction:int = 1 if ( i & 1 ) else -1
+			var joym:InputEventJoypadMotion = InputEventJoypadMotion.new()
 			joym.axis = axis as JoyAxis
 			joym.axis_value = float( direction )
 			var desc:String = EventListenerLineEdit.get_event_text( joym, false )
-			if not search_term.is_empty() \
-			and not desc.containsn( search_term ):
+			if not _matches_search( desc, search_term ):
 				continue
 			var item:TreeItem = input_list_tree.create_item( joya_root )
 			item.set_text( Column.LABEL, desc )
@@ -716,34 +694,11 @@ func _select_matching_input_list_item( event:InputEvent ) -> void:
 	var category:TreeItem = input_list_tree.get_root().get_first_child()
 	while category:
 		var input_item:TreeItem = category.get_first_child()
-		if is_instance_valid(input_item):
-			# FIXME This type_match test looks like it should be a function.
-			var input_type:int = category.get_meta(&"__type", 0)
-			var type_match:bool = (
-					(event is InputEventKey and input_type == EventListenerLineEdit.InputType.KEY)
-					or (event is InputEventJoypadButton and input_type == EventListenerLineEdit.InputType.JOY_BUTTON)
-					or (event is InputEventJoypadMotion and input_type == EventListenerLineEdit.InputType.JOY_MOTION)
-					or (event is InputEventMouseButton and input_type == EventListenerLineEdit.InputType.MOUSE_BUTTON)
-			)
-			if type_match:
+		if is_instance_valid( input_item ):
+			var input_type:int = category.get_meta( &"__type", 0 )
+			if _event_matches_list_type( event, input_type ):
 				while input_item:
-					var matched:bool = false
-					if event is InputEventKey:
-						var ev:InputEventKey = event
-						var code:int = input_item.get_meta(&"__keycode")
-						matched = ev.keycode == code or ev.physical_keycode == code
-					elif event is InputEventJoypadButton:
-						var ev:InputEventJoypadButton = event
-						matched = ev.button_index == input_item.get_meta(&"__index")
-					elif event is InputEventJoypadMotion:
-						var ev:InputEventJoypadMotion = event
-						var axis:int = input_item.get_meta(&"__axis")
-						var value:float = input_item.get_meta(&"__value")
-						matched = ev.axis == axis and is_equal_approx(ev.axis_value, value)
-					elif event is InputEventMouseButton:
-						var ev:InputEventMouseButton = event
-						matched = ev.button_index == input_item.get_meta(&"__index")
-					if matched:
+					if _list_item_matches_event( input_item, event ):
 						category.collapsed = false
 						input_item.select( Column.LABEL )
 						input_list_tree.ensure_cursor_is_visible()
@@ -753,6 +708,53 @@ func _select_matching_input_list_item( event:InputEvent ) -> void:
 		category.collapsed = true
 		category = category.get_next()
 	_in_tree_update = false
+
+
+# True when [param text] should appear under the current search box filter.
+func _matches_search( text:String, search_term:String ) -> bool:
+	return search_term.is_empty() or text.containsn( search_term )
+
+
+# Predicate for [method Array.filter] over keycodes (empty names dropped).
+func _keycode_matches_search( keycode:int, search_term:String ) -> bool:
+	var key_name:String = OS.get_keycode_string( keycode )
+	return not key_name.is_empty() and _matches_search( key_name, search_term )
+
+
+# [EventListenerLineEdit.InputType] bit for [param event], or 0 if unsupported.
+func _input_type_for_event( event:InputEvent ) -> int:
+	if event is InputEventKey:
+		return EventListenerLineEdit.InputType.KEY
+	if event is InputEventJoypadButton:
+		return EventListenerLineEdit.InputType.JOY_BUTTON
+	if event is InputEventJoypadMotion:
+		return EventListenerLineEdit.InputType.JOY_MOTION
+	if event is InputEventMouseButton:
+		return EventListenerLineEdit.InputType.MOUSE_BUTTON
+	return 0
+
+
+func _event_matches_list_type( event:InputEvent, input_type:int ) -> bool:
+	return _input_type_for_event( event ) == input_type
+
+
+func _list_item_matches_event( item:TreeItem, event:InputEvent ) -> bool:
+	if event is InputEventKey:
+		var ev:InputEventKey = event
+		var code:int = item.get_meta( &"__keycode" )
+		return ev.keycode == code or ev.physical_keycode == code
+	if event is InputEventJoypadButton:
+		var jb:InputEventJoypadButton = event
+		return jb.button_index == item.get_meta( &"__index" )
+	if event is InputEventJoypadMotion:
+		var jm:InputEventJoypadMotion = event
+		var axis:int = item.get_meta( &"__axis" )
+		var value:float = item.get_meta( &"__value" )
+		return jm.axis == axis and is_equal_approx( jm.axis_value, value )
+	if event is InputEventMouseButton:
+		var mb:InputEventMouseButton = event
+		return mb.button_index == item.get_meta( &"__index" )
+	return false
 
 
 func _set_current_device( device:int ) -> void:
