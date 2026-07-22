@@ -143,6 +143,7 @@ func remove_responder( node:Responder ) -> void:
 
 
 ## Coalesce rebuilds onto the next idle frame.
+## FIXME: rename this to something like request rebuilt, or flag rebuild.S
 func rebuild_input_map() -> void:
 	if _want_rebuild == false:
 		_want_rebuild = true

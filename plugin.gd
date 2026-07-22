@@ -33,9 +33,10 @@ func                        __________EVENTS_________              ()->void:pass
 func _on_edited_object_changed() -> void:
 	if _suppress_edited_object_signal:
 		return
-	var obj:Object = get_editor_interface().get_inspector().get_edited_object()
+	var obj:Object = EditorInterface.get_inspector().get_edited_object()
 	if obj is CustomInputMap:
-		_edit_map( obj )
+		var cim:CustomInputMap = obj
+		_edit_map( cim )
 
 
 func _on_resource_modified( map:CustomInputMap ) -> void:
@@ -67,16 +68,20 @@ func _enter_tree() -> void:
 
 	_panel_button = add_control_to_bottom_panel( _panel, "Input Map" )
 
-	var inspector:EditorInspector = get_editor_interface().get_inspector()
+	var inspector:EditorInspector = EditorInterface.get_inspector()
 	if not inspector.edited_object_changed.is_connected( _on_edited_object_changed ):
 		@warning_ignore( "return_value_discarded" )
 		inspector.edited_object_changed.connect( _on_edited_object_changed )
 
 	_on_edited_object_changed()
 
+	# FIXME at some point during the enabling of the plugin this is triggered:
+	#   ERROR: scene\gui\tree.cpp:1576 - Index p_column = 1 is out of bounds (cells.size() = 1).
+	# Since the error does not show the gdscript, I cannot be sure exactly where it comes from.
+
 
 func _exit_tree() -> void:
-	var inspector:EditorInspector = get_editor_interface().get_inspector()
+	var inspector:EditorInspector = EditorInterface.get_inspector()
 	if inspector \
 	and inspector.edited_object_changed.is_connected( _on_edited_object_changed ):
 		inspector.edited_object_changed.disconnect( _on_edited_object_changed )

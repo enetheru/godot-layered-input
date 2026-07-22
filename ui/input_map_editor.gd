@@ -377,7 +377,7 @@ func _on_host_action_added( action_name:String ) -> void:
 	var map:CustomInputMap = _get_mutation_map()
 	if map == null:
 		return
-	map.ensure_action( StringName( action_name ) )
+	var _ia:InputAction = map.ensure_action( action_name )
 	_host_refresh( map )
 
 
@@ -390,7 +390,6 @@ func _on_host_action_edited( action_name:String, new_action:Dictionary ) -> void
 	var key:StringName = StringName( action_name )
 	var deadzone:float = new_action.get( "deadzone", CustomInputMap.DEFAULT_DEADZONE )
 	# Materialize null placeholders; asserts used to fire when key existed with null def.
-	map.ensure_action( key, deadzone )
 	map.set_action_deadzone( key, deadzone )
 	map.clear_action_events( key )
 	for v:Variant in new_action.get( "events", [] ):
@@ -428,7 +427,6 @@ func _on_host_action_renamed( old_name:String, new_name:String ) -> void:
 			var dup:InputEvent = ev.duplicate()
 			events.append( dup )
 	map.erase_action( old_key )
-	map.ensure_action( new_key, deadzone )
 	map.set_action_deadzone( new_key, deadzone )
 	for ev:InputEvent in events:
 		map.add_action_event( new_key, ev )
@@ -473,12 +471,12 @@ func _on_host_action_reordered(
 	for k:StringName in keys:
 		var data:Dictionary = snapshot[k]
 		var deadzone:float = data[&"deadzone"]
-		map.add_action( k, deadzone )
+		var ia:InputAction = map.add_action( k, deadzone )
 		for v:Variant in data[&"events"]:
 			var ev:InputEvent = v
 			if is_instance_valid( ev ):
 				var dup:InputEvent = ev.duplicate()
-				map.add_action_event( k, dup )
+				ia.add_event( dup )
 	_host_refresh( map )
 
 #endregion Host Actions
@@ -627,7 +625,7 @@ func _refresh_tree() -> void:
 		var target := _get_target_map()
 		# Path header for the file being edited (actions nest under it).
 		if target != null:
-			parent = _make_map_root_item(parent, target, collapsed, selected_key, selected_col)
+			parent = _make_map_root_item(parent, target, collapsed, selected_key)
 		_populate_map_actions(
 				parent,
 				target,
@@ -692,7 +690,7 @@ func _populate_open_map_roots(
 	for map: CustomInputMap in maps:
 		if map == null:
 			continue
-		var map_item := _make_map_root_item(root, map, collapsed, selected_key, selected_col)
+		var map_item := _make_map_root_item(root, map, collapsed, selected_key)
 		var key_prefix := str(map_item.get_meta(&"__select_key"))
 		_populate_map_actions(
 				map_item,
@@ -906,7 +904,7 @@ func _listener_get_event(listener: Object) -> InputEvent:
 		return null
 	if not listener.has_method(&"get_event"):
 		return null
-	return listener.call(&"get_event") as InputEvent
+	return listener.call(&"get_event")
 
 
 func _listener_clear_event(listener: Object) -> void:
@@ -947,12 +945,10 @@ func _make_section_item(parent: TreeItem, title: String, key: StringName) -> Tre
 
 
 func _make_map_root_item(
-		parent: TreeItem,
-		map: CustomInputMap,
-		_collapsed: Dictionary,
-		selected_key: String,
-		selected_col: int
-) -> TreeItem:
+			parent: TreeItem,
+			map: CustomInputMap,
+			_collapsed: Dictionary,
+			selected_key: String ) -> TreeItem:
 	var item: TreeItem = tree.create_item(parent)
 	var path := _map_display_path(map)
 	# Prefer stable path key over instance id (ids change across reloads).
@@ -978,7 +974,7 @@ func _apply_map_root_collapsed(map_item: TreeItem, collapsed: Dictionary) -> voi
 		return
 	var select_key := str(map_item.get_meta(&"__select_key", ""))
 	# File roots default to expanded so nested actions are never hidden on first open.
-	map_item.collapsed = bool(collapsed.get(select_key, false))
+	map_item.collapsed = collapsed.get(select_key, false)
 
 
 func _map_display_path(map: CustomInputMap) -> String:
@@ -1340,7 +1336,7 @@ func _map_from_item(item: TreeItem) -> CustomInputMap:
 		if walk.has_meta(&"__map"):
 			var m: Variant = walk.get_meta(&"__map")
 			if m is CustomInputMap:
-				return m as CustomInputMap
+				return m
 		walk = walk.get_parent()
 	return null
 
