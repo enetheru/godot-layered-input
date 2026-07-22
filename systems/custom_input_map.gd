@@ -110,7 +110,7 @@ func has_action( action_name:StringName ) -> bool:
 
 ## True if the action name exists and has a non-null [InputAction] definition.
 func has_action_def( action_name:StringName ) -> bool:
-	return is_instance_valid( _actions.get( action_name ) )
+	return _actions.get( action_name ) != null
 
 
 ## equivalent to Dictionary.keys()
@@ -127,12 +127,19 @@ func get_actions() -> Array[InputAction]:
 ## Null definitions are intentional placeholders — same as a default-constructed def.
 func get_action_deadzone( action_name:StringName ) -> float:
 	var ia:InputAction = _actions.get( action_name )
-	return ia.deadzone if is_instance_valid( ia ) else DEFAULT_DEADZONE
+	# Resources: prefer null-check over [method @GlobalScope.is_instance_valid]
+	# (editor proxies can lie; see InputMapEditor open_maps notes).
+	return ia.deadzone if ia != null else DEFAULT_DEADZONE
 
 
+## Copy of stored events (never aliases the live [member InputAction.events] array).
 func get_action_events( action_name:StringName ) -> Array[InputEvent]:
 	var ia:InputAction = _actions.get( action_name )
-	return ia.events if is_instance_valid( ia ) else []
+	var out:Array[InputEvent] = []
+	if ia == null:
+		return out
+	out.assign( ia.events )
+	return out
 
 #endregion Query
 
@@ -154,7 +161,7 @@ func ensure_action(
 	assert( not String( action_name ).is_empty(),
 			"CustomInputMap.ensure_action: empty action_name" )
 	var ia:InputAction = _actions.get( action_name )
-	if is_instance_valid( ia ):
+	if ia != null:
 		return ia
 	ia = InputAction.new( deadzone )
 	_actions[action_name] = ia
@@ -168,7 +175,7 @@ func add_action(
 	assert( not String( action_name ).is_empty(),
 			"CustomInputMap.add_action: empty action_name" )
 	var ia:InputAction = _actions.get( action_name )
-	if is_instance_valid( ia ):
+	if ia != null:
 		push_warning( "CustomInputMap.add_action:",
 				"action '%s' already exists (deadzone %s)" % [action_name, ia.deadzone] )
 	# Key may exist with null value — materialize instead of no-op.
@@ -207,7 +214,7 @@ func erase_action_event( action_name:StringName, event:InputEvent ) -> void:
 	assert( is_instance_valid( event ),
 			"CustomInputMap.erase_action_event: invalid event" )
 	var ia:InputAction = _actions.get( action_name )
-	if not is_instance_valid( ia ):
+	if ia == null:
 		push_warning(
 				"CustomInputMap.erase_action_event: no InputAction for '%s'"
 				% action_name )
@@ -219,7 +226,7 @@ func clear_action_events( action_name:StringName ) -> void:
 	assert( not String( action_name ).is_empty(),
 			"CustomInputMap.clear_action_events: empty action_name" )
 	var ia:InputAction = _actions.get( action_name )
-	if not is_instance_valid( ia ):
+	if ia == null:
 		push_warning(
 				"CustomInputMap.clear_action_events: no InputAction for '%s'"
 				% action_name )

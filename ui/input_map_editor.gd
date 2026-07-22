@@ -272,23 +272,28 @@ func _on_tree_item_selected() -> void:
 
 
 func _on_event_config_confirmed( event:InputEvent ) -> void:
-	if not is_instance_valid( event ):
+	# Prefer the signal payload; fall back like the engine (confirmed → get_event).
+	if event == null and is_instance_valid( event_config_dlg ):
+		event = event_config_dlg.get_event()
+	if event == null:
 		show_message( "No input event was configured." )
 		return
 	if _current_action_name.is_empty():
 		show_message( "No action selected for this event." )
 		return
-	var new_action:Dictionary = _current_action.duplicate( true )
-	var action_events:Array = new_action.get( "events", [] )
-	var events:Array = action_events.duplicate()
-	# Store a duplicate so the dialog can clear its state without affecting the map.
+	var map:CustomInputMap = _get_mutation_map()
+	if map == null:
+		show_message( "No CustomInputMap is open to receive this event." )
+		return
+	# Apply on the map directly (same end state as action_edited host path).
+	# Avoids dictionary key / meta aliasing issues between the tree and the resource.
+	var key:StringName = StringName( _current_action_name )
 	var stored:InputEvent = event.duplicate()
-	if _current_action_event_index == -1:
-		events.append( stored )
+	if _current_action_event_index < 0:
+		map.add_action_event( key, stored )
 	else:
-		events[_current_action_event_index] = stored
-	new_action["events"] = events
-	action_edited.emit( _current_action_name, new_action )
+		_replace_action_event_at( map, key, _current_action_event_index, stored )
+	_host_refresh( map )
 
 
 #region Tree Item Events
@@ -398,15 +403,16 @@ func _on_host_action_edited( action_name:String, new_action:Dictionary ) -> void
 	if map == null:
 		return
 	var key:StringName = StringName( action_name )
-	var deadzone:float = new_action.get( "deadzone", CustomInputMap.DEFAULT_DEADZONE )
+	var deadzone:float = float( new_action.get( &"deadzone",
+			new_action.get( "deadzone", CustomInputMap.DEFAULT_DEADZONE ) ) )
 	# Materialize null placeholders; asserts used to fire when key existed with null def.
 	map.set_action_deadzone( key, deadzone )
 	map.clear_action_events( key )
-	for v:Variant in new_action.get( "events", [] ):
-		var ev:InputEvent = v
-		if is_instance_valid( ev ):
-			var dup:InputEvent = ev.duplicate()
-			map.add_action_event( key, dup )
+	var event_list:Variant = new_action.get( &"events", new_action.get( "events", [] ) )
+	for v:Variant in event_list:
+		var ev:InputEvent = v as InputEvent
+		if ev != null:
+			map.add_action_event( key, ev.duplicate() )
 	_host_refresh( map )
 
 
@@ -543,8 +549,8 @@ func _ready() -> void:
 	_connect_sig( action_tree.button_clicked, _on_tree_button_pressed )
 	action_tree.set_drag_forwarding( _get_drag_data_fw, _can_drop_data_fw, _drop_data_fw )
 
-	if event_config_dlg.has_signal( &"confirmed" ):
-		_connect_sig( event_config_dlg.confirmed, _on_event_config_confirmed )
+	# Custom EventConfigDialog.confirmed(event) — not ConfirmationDialog.confirmed.
+	_connect_sig( event_config_dlg.confirmed, _on_event_config_confirmed )
 
 	_connect_sig( action_added, _on_host_action_added )
 	_connect_sig( action_edited, _on_host_action_edited )
@@ -1356,6 +1362,30 @@ func _get_mutation_map() -> CustomInputMap:
 	if _current_map != null:
 		return _current_map
 	return _get_target_map()
+
+
+## Replace the event at [param index] on [param action_name] (used by event dialog edit).
+func _replace_action_event_at(
+			map:CustomInputMap,
+			action_name:StringName,
+			index:int,
+			event:InputEvent ) -> void:
+	if map == null or event == null:
+		return
+	var rebuilt:Array[InputEvent] = []
+	var i:int = 0
+	for existing:InputEvent in map.get_action_events( action_name ):
+		if i == index:
+			rebuilt.append( event )
+		elif existing != null:
+			rebuilt.append( existing.duplicate() )
+		i += 1
+	# Dialog edit can target a missing index after a concurrent refresh — append.
+	if index >= i:
+		rebuilt.append( event )
+	map.clear_action_events( action_name )
+	for ie:InputEvent in rebuilt:
+		map.add_action_event( action_name, ie )
 
 
 func _get_target_map() -> CustomInputMap:
