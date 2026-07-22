@@ -123,38 +123,38 @@ signal canceled
 func                        __________EVENTS_________              ()->void:pass
 
 func _on_listen_input_changed( event:InputEvent ) -> void:
+	# Listener already filters press/echo/allowed; re-check for clear_event(null)
+	# and so this handler does not depend on that path alone (engine does the same).
 	if not is_instance_valid( event ) \
 	or event.is_echo() \
 	or not event.is_pressed():
 		return
 
-	#FIXME: this function is whak, we're testing the event twice.
-	# doing abunch of weird re-writing I'm not a fan.
-
-	var received:InputEvent = event
-	var received_original:InputEvent = received.duplicate()
-
-	var type:int = _input_type_for_event( received )
+	var type:int = _input_type_for_event( event )
 	if type == 0 or ( _allowed_input_types & type ) == 0:
 		return
 
-	if received is InputEventJoypadMotion:
-		var jm:InputEventJoypadMotion = received
-		jm.axis_value = signf( jm.axis_value )
+	# Snapshot full capture for key-mode switching; then normalize the live event
+	# in place (same Ref the listener holds — engine port does this too).
+	var original:InputEvent = event.duplicate()
+	match type:
+		EventListenerLineEdit.InputType.JOY_MOTION:
+			var jm:InputEventJoypadMotion = event
+			jm.axis_value = signf( jm.axis_value )
+		EventListenerLineEdit.InputType.KEY:
+			var k:InputEventKey = event
+			# Avoid serializing pressed; actions ignore it.
+			k.pressed = false
+			_apply_selected_key_mode( k )
+			if location_option_button.get_selected_id() == KEY_LOCATION_UNSPECIFIED:
+				k.location = KEY_LOCATION_UNSPECIFIED
 
-	if received is InputEventKey:
-		var k:InputEventKey = received
-		k.pressed = false
-		_apply_selected_key_mode( k )
-		if location_option_button.get_selected_id() == KEY_LOCATION_UNSPECIFIED:
-			k.location = KEY_LOCATION_UNSPECIFIED
-
-	if received is InputEventWithModifiers:
-		var mod:InputEventWithModifiers = received
+	if event is InputEventWithModifiers:
+		var mod:InputEventWithModifiers = event
 		mod.window_id = 0
 
-	received.device = _get_current_device()
-	_set_event( received, received_original )
+	event.device = _get_current_device()
+	_set_event( event, original )
 
 
 func _on_search_term_updated( _term:String = "" ) -> void:
