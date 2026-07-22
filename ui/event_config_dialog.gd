@@ -136,28 +136,19 @@ func _on_listen_input_changed( event:InputEvent ) -> void:
 		return
 
 	if received is InputEventJoypadMotion:
-		var ie:InputEventJoypadMotion = received
-		ie.axis_value = signf( ie.axis_value )
+		var jm:InputEventJoypadMotion = received
+		jm.axis_value = signf( jm.axis_value )
 
 	if received is InputEventKey:
-		var ie:InputEventKey = received
-		ie.pressed = false
-		match key_mode.get_selected_id():
-			KeyMode.KEYCODE:
-				ie.physical_keycode = KEY_NONE
-				ie.key_label = KEY_NONE
-			KeyMode.PHY_KEYCODE:
-				ie.keycode = KEY_NONE
-				ie.key_label = KEY_NONE
-			KeyMode.UNICODE:
-				ie.physical_keycode = KEY_NONE
-				ie.keycode = KEY_NONE
+		var k:InputEventKey = received
+		k.pressed = false
+		_apply_selected_key_mode( k )
 		if location_option_button.get_selected_id() == KEY_LOCATION_UNSPECIFIED:
-			ie.location = KEY_LOCATION_UNSPECIFIED
+			k.location = KEY_LOCATION_UNSPECIFIED
 
 	if received is InputEventWithModifiers:
-		var ie:InputEventWithModifiers = received
-		ie.window_id = 0
+		var mod:InputEventWithModifiers = received
+		mod.window_id = 0
 
 	received.device = _get_current_device()
 	_set_event( received, received_original )
@@ -192,27 +183,17 @@ func _on_input_list_item_selected() -> void:
 	var input_type:int = selected.get_parent().get_meta(&"__type")
 	match input_type:
 		EventListenerLineEdit.InputType.KEY:
-			var keycode:int = selected.get_meta(&"__keycode")
-			var ie := InputEventKey.new()
-			ie.physical_keycode = keycode as Key
-			ie.keycode = keycode as Key
-			ie.key_label = keycode as Key
+			var keycode:Key = selected.get_meta( &"__keycode" ) as Key
+			var ie:InputEventKey = InputEventKey.new()
+			ie.physical_keycode = keycode
+			ie.keycode = keycode
+			ie.key_label = keycode
 			_apply_mod_checkboxes( ie )
-
-			# TODO, I see code duplication here and above in _on_listen_input_changed
-			# evaluate whether ab abstraction is appropraite.
-			var dup:InputEventKey = ie.duplicate()
+			# Manual pick: UNICODE mode needs a key_label-only event; default to physical.
 			if key_mode.get_selected_id() == KeyMode.UNICODE:
 				key_mode.select( KeyMode.PHY_KEYCODE )
-			match key_mode.get_selected_id():
-				KeyMode.KEYCODE:
-					ie.physical_keycode = KEY_NONE
-					ie.keycode = keycode as Key
-					ie.key_label = KEY_NONE
-				KeyMode.PHY_KEYCODE:
-					ie.physical_keycode = keycode as Key
-					ie.keycode = KEY_NONE
-					ie.key_label = KEY_NONE
+			var dup:InputEventKey = ie.duplicate()
+			_apply_selected_key_mode( ie )
 			_set_event( ie, dup, false )
 
 		EventListenerLineEdit.InputType.MOUSE_BUTTON:
@@ -479,109 +460,133 @@ func _focus_listener_next_frame() -> void:
 		event_listener.grab_focus()
 
 
-# FIXME: This method is too large, It should be split into appropriate chunks
 func _set_event(
 			event:InputEvent,
 			original_event:InputEvent,
 			update_input_list_selection:bool = true ) -> void:
-	if is_instance_valid( event ):
-		# Enter / Escape confirm or cancel when a binding is already set.
-		if is_instance_valid( _configured_event ) \
-		and visible \
-		and event_listener.has_focus():
-			if event is InputEventKey:
-				var ie:InputEventKey = event
-				# Bare Enter/Escape confirm or cancel (no modifier chords).
-				if ie.get_modifiers_mask() == 0:
-					if ie.physical_keycode == KEY_ENTER \
-					or ie.keycode == KEY_ENTER:
-						_on_ok_pressed()
-						return
-					if ie.physical_keycode == KEY_ESCAPE \
-					or ie.keycode == KEY_ESCAPE:
-						_on_cancel_pressed()
-						return
+	if not is_instance_valid( event ):
+		_clear_configured_event_ui()
+		return
+	if _try_confirm_or_cancel_shortcut( event ):
+		return
 
-		var listener_event:InputEvent = event_listener.get_event()
-		if is_instance_valid( listener_event ) \
-		and not listener_event.is_match( event ):
-			event_listener.clear_event()
-
-		_configured_event = event
-		_original_event = original_event
-		event_label.text = EventListenerLineEdit.get_event_text( _configured_event, true )
-
-		_sync_ok_enabled()
-
-		var show_mods:bool = false
-		var show_device:bool = false
-		var show_key:bool = false
-		var show_location:bool = false
-
-		if event is InputEventWithModifiers:
-			show_mods = true
-			var ie:InputEventWithModifiers = event
-			alt.set_pressed_no_signal( ie.alt_pressed )
-			shift.set_pressed_no_signal( ie.shift_pressed )
-			ctrl.set_pressed_no_signal( ie.ctrl_pressed )
-			windows.set_pressed_no_signal( ie.meta_pressed )
-			command_control.set_pressed_no_signal( ie.command_or_control_autoremap )
-
-		if event is InputEventKey:
-			show_key = true
-			var ie:InputEventKey = event
-			var phys_key:Key = ie.physical_keycode
-			if ie.keycode == KEY_NONE \
-			and phys_key == KEY_NONE \
-			and ie.key_label != KEY_NONE:
-				key_mode.select( KeyMode.UNICODE )
-			elif ie.keycode != KEY_NONE:
-				key_mode.select( KeyMode.KEYCODE )
-			elif phys_key != KEY_NONE:
-				key_mode.select( KeyMode.PHY_KEYCODE )
-				if phys_key in [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META]:
-					location_option_button.select( ie.location )
-					show_location = true
-			else:
-				_configured_event = null
-				_original_event = null
-				event_listener.clear_event()
-				event_label.text = "No Event Configured"
-				additional_options.hide()
-				input_list_tree.deselect_all()
-				_update_input_list()
-				return
-		elif event is InputEventJoypadButton \
-		or event is InputEventJoypadMotion \
-		or event is InputEventMouseButton:
-			show_device = true
-			_set_current_device( event.device )
-
-		mod_container.visible = show_mods
-		device_container.visible = show_device
-		key_mode.visible = show_key
-		location_container.visible = show_location
-		additional_options.show()
-
-		# Disable key-mode options the original event cannot supply.
-		if original_event is InputEventKey:
-			var ie:InputEventKey = original_event
-			key_mode.set_item_disabled( KeyMode.KEYCODE, ie.keycode == KEY_NONE )
-			key_mode.set_item_disabled( KeyMode.PHY_KEYCODE, ie.physical_keycode == KEY_NONE )
-			key_mode.set_item_disabled( KeyMode.UNICODE, ie.key_label == KEY_NONE )
-
-		if update_input_list_selection:
-			_select_matching_input_list_item( event )
-
-	else:
-		_configured_event = null
-		_original_event = null
+	var listener_event:InputEvent = event_listener.get_event()
+	if is_instance_valid( listener_event ) \
+	and not listener_event.is_match( event ):
 		event_listener.clear_event()
-		event_label.text = "No Event Configured"
-		additional_options.hide()
-		input_list_tree.deselect_all()
-		_update_input_list()
-		_sync_ok_enabled()
+
+	_configured_event = event
+	_original_event = original_event
+	event_label.text = EventListenerLineEdit.get_event_text( _configured_event, true )
+	_sync_ok_enabled()
+
+	if not _sync_options_from_event( event, original_event ):
+		_clear_configured_event_ui()
+		return
+
+	if update_input_list_selection:
+		_select_matching_input_list_item( event )
+
+
+## Bare Enter confirms / Escape cancels while listening with a binding set.
+func _try_confirm_or_cancel_shortcut( event:InputEvent ) -> bool:
+	if not is_instance_valid( _configured_event ) \
+	or not visible \
+	or not event_listener.has_focus():
+		return false
+	if not ( event is InputEventKey ):
+		return false
+	var ie:InputEventKey = event
+	if ie.get_modifiers_mask() != 0:
+		return false
+	if ie.physical_keycode == KEY_ENTER or ie.keycode == KEY_ENTER:
+		_on_ok_pressed()
+		return true
+	if ie.physical_keycode == KEY_ESCAPE or ie.keycode == KEY_ESCAPE:
+		_on_cancel_pressed()
+		return true
+	return false
+
+
+## Update additional-options UI from [param event]. Returns false if the event
+## is an empty/invalid key binding and the UI was cleared.
+func _sync_options_from_event(
+			event:InputEvent,
+			original_event:InputEvent ) -> bool:
+	var show_mods:bool = false
+	var show_device:bool = false
+	var show_key:bool = false
+	var show_location:bool = false
+
+	if event is InputEventWithModifiers:
+		show_mods = true
+		var mod:InputEventWithModifiers = event
+		alt.set_pressed_no_signal( mod.alt_pressed )
+		shift.set_pressed_no_signal( mod.shift_pressed )
+		ctrl.set_pressed_no_signal( mod.ctrl_pressed )
+		windows.set_pressed_no_signal( mod.meta_pressed )
+		command_control.set_pressed_no_signal( mod.command_or_control_autoremap )
+
+	if event is InputEventKey:
+		show_key = true
+		var k:InputEventKey = event
+		var phys_key:Key = k.physical_keycode
+		if k.keycode == KEY_NONE \
+		and phys_key == KEY_NONE \
+		and k.key_label != KEY_NONE:
+			key_mode.select( KeyMode.UNICODE )
+		elif k.keycode != KEY_NONE:
+			key_mode.select( KeyMode.KEYCODE )
+		elif phys_key != KEY_NONE:
+			key_mode.select( KeyMode.PHY_KEYCODE )
+			if phys_key in [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META]:
+				location_option_button.select( k.location )
+				show_location = true
+		else:
+			return false
+	elif event is InputEventJoypadButton \
+	or event is InputEventJoypadMotion \
+	or event is InputEventMouseButton:
+		show_device = true
+		_set_current_device( event.device )
+
+	mod_container.visible = show_mods
+	device_container.visible = show_device
+	key_mode.visible = show_key
+	location_container.visible = show_location
+	additional_options.show()
+
+	if original_event is InputEventKey:
+		var orig:InputEventKey = original_event
+		key_mode.set_item_disabled( KeyMode.KEYCODE, orig.keycode == KEY_NONE )
+		key_mode.set_item_disabled( KeyMode.PHY_KEYCODE, orig.physical_keycode == KEY_NONE )
+		key_mode.set_item_disabled( KeyMode.UNICODE, orig.key_label == KEY_NONE )
+	return true
+
+
+func _clear_configured_event_ui() -> void:
+	_configured_event = null
+	_original_event = null
+	event_listener.clear_event()
+	event_label.text = "No Event Configured"
+	additional_options.hide()
+	input_list_tree.deselect_all()
+	_update_input_list()
+	_sync_ok_enabled()
+
+
+## Zero unused keycode fields according to the key-mode option button.
+func _apply_selected_key_mode( ie:InputEventKey ) -> void:
+	match key_mode.get_selected_id():
+		KeyMode.KEYCODE:
+			ie.physical_keycode = KEY_NONE
+			ie.key_label = KEY_NONE
+		KeyMode.PHY_KEYCODE:
+			ie.keycode = KEY_NONE
+			ie.key_label = KEY_NONE
+		KeyMode.UNICODE:
+			ie.physical_keycode = KEY_NONE
+			ie.keycode = KEY_NONE
 
 
 ## Flag a manual-picker rebuild; coalesced onto the next idle frame.
