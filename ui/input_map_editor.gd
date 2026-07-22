@@ -520,32 +520,31 @@ func _ready() -> void:
 	# ~3×16px icons + margins (engine packs all buttons in this column)
 	tree.set_column_custom_minimum_width( Column.BUTTONS, 72 )
 
-	@warning_ignore_start("return_value_discarded")
-	filter_name_line_edit.text_changed.connect(_on_search_bar_value_changed.unbind(1))
-	if is_instance_valid(event_listener_line_edit) and event_listener_line_edit.has_signal(&"event_changed"):
-		event_listener_line_edit.connect(&"event_changed", _on_search_event_changed)
-	clear_all_button.pressed.connect(_on_clear_all_search)
-	line_edit.text_changed.connect(_on_add_edit_text_changed)
-	line_edit.text_submitted.connect(_on_add_action_submitted)
-	add_button.pressed.connect(_on_add_action_pressed)
-	root_check_button.toggled.connect(_on_view_toggles_changed.unbind(1))
-	effective_check_button.toggled.connect(_on_view_toggles_changed.unbind(1))
-	loaded_check_button.toggled.connect(_on_view_toggles_changed.unbind(1))
-	tree.item_edited.connect(_on_action_edited, CONNECT_DEFERRED)
-	tree.item_activated.connect(_on_tree_item_activated)
-	tree.item_selected.connect(_on_tree_item_selected)
-	tree.button_clicked.connect(_on_tree_button_pressed)
-	tree.set_drag_forwarding(_get_drag_data_fw, _can_drop_data_fw, _drop_data_fw)
+	_connect_sig( filter_name_line_edit.text_changed, _on_search_bar_value_changed.unbind( 1 ) )
+	if is_instance_valid( event_listener_line_edit ) \
+	and event_listener_line_edit.has_signal( &"event_changed" ):
+		_connect_sig( event_listener_line_edit.event_changed, _on_search_event_changed )
+	_connect_sig( clear_all_button.pressed, _on_clear_all_search )
+	_connect_sig( line_edit.text_changed, _on_add_edit_text_changed )
+	_connect_sig( line_edit.text_submitted, _on_add_action_submitted )
+	_connect_sig( add_button.pressed, _on_add_action_pressed )
+	_connect_sig( root_check_button.toggled, _on_view_toggles_changed.unbind( 1 ) )
+	_connect_sig( effective_check_button.toggled, _on_view_toggles_changed.unbind( 1 ) )
+	_connect_sig( loaded_check_button.toggled, _on_view_toggles_changed.unbind( 1 ) )
+	_connect_sig( tree.item_edited, _on_action_edited, CONNECT_DEFERRED )
+	_connect_sig( tree.item_activated, _on_tree_item_activated )
+	_connect_sig( tree.item_selected, _on_tree_item_selected )
+	_connect_sig( tree.button_clicked, _on_tree_button_pressed )
+	tree.set_drag_forwarding( _get_drag_data_fw, _can_drop_data_fw, _drop_data_fw )
 
-	if event_config_dialog.has_signal(&"confirmed"):
-		event_config_dialog.confirmed.connect(_on_event_config_confirmed)
+	if event_config_dialog.has_signal( &"confirmed" ):
+		_connect_sig( event_config_dialog.confirmed, _on_event_config_confirmed )
 
-	action_added.connect(_on_host_action_added)
-	action_edited.connect(_on_host_action_edited)
-	action_removed.connect(_on_host_action_removed)
-	action_renamed.connect(_on_host_action_renamed)
-	action_reordered.connect(_on_host_action_reordered)
-	@warning_ignore_restore("return_value_discarded")
+	_connect_sig( action_added, _on_host_action_added )
+	_connect_sig( action_edited, _on_host_action_edited )
+	_connect_sig( action_removed, _on_host_action_removed )
+	_connect_sig( action_renamed, _on_host_action_renamed )
+	_connect_sig( action_reordered, _on_host_action_reordered )
 
 	_show_root = root_check_button.button_pressed
 	_show_effective = effective_check_button.button_pressed
@@ -561,10 +560,9 @@ func _ready() -> void:
 	# editor — on plugin disable it can still pass is_instance_valid as a proxy
 	# without the real script/signals, which errors on .input_map_changed.
 	if not Engine.is_editor_hint() and not resource_edit_mode:
-		if is_instance_valid(InputManager):
-			if not InputManager.input_map_changed.is_connected(_on_input_map_changed):
-				@warning_ignore("return_value_discarded")
-				InputManager.input_map_changed.connect(_on_input_map_changed)
+		if is_instance_valid( InputManager ):
+			if not InputManager.input_map_changed.is_connected( _on_input_map_changed ):
+				_connect_sig( InputManager.input_map_changed, _on_input_map_changed )
 
 	refresh()
 
@@ -1486,16 +1484,23 @@ static func _is_action_name_valid(action_name: String) -> bool:
 	return true
 
 
-static func _event_arrays_equal(a: Array, b: Array) -> bool:
+# Connect and report failures (Signal.connect returns Error).
+func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:
+	var err:Error = sig.connect( callable, flags )
+	if err != OK:
+		push_error( "InputMapEditor._connect_sig: %s" % error_string( err ) )
+
+
+static func _event_arrays_equal( a:Array, b:Array ) -> bool:
 	if a.size() != b.size():
 		return false
-	for i: int in range(a.size()):
-		var ea: InputEvent = a[i]
-		var eb: InputEvent = b[i]
+	for i:int in range( a.size() ):
+		var ea:InputEvent = a[i]
+		var eb:InputEvent = b[i]
 		if ea == null and eb == null:
 			continue
 		if ea == null or eb == null:
 			return false
-		if not ea.is_match(eb, true):
+		if not ea.is_match( eb, true ):
 			return false
 	return true

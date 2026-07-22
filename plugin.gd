@@ -63,15 +63,13 @@ func _enter_tree() -> void:
 	_panel.apply_edit_map_to_engine = false
 	_panel.custom_minimum_size = Vector2( 0.0, _panel.panel_min_height )
 
-	@warning_ignore( "return_value_discarded" )
-	_panel.resource_modified.connect( _on_resource_modified )
+	_connect_sig( _panel.resource_modified, _on_resource_modified )
 
 	_panel_button = add_control_to_bottom_panel( _panel, "Input Map" )
 
 	var inspector:EditorInspector = EditorInterface.get_inspector()
 	if not inspector.edited_object_changed.is_connected( _on_edited_object_changed ):
-		@warning_ignore( "return_value_discarded" )
-		inspector.edited_object_changed.connect( _on_edited_object_changed )
+		_connect_sig( inspector.edited_object_changed, _on_edited_object_changed )
 
 	_on_edited_object_changed()
 
@@ -117,3 +115,10 @@ func _edit_map( map:CustomInputMap ) -> void:
 
 func _clear_suppress() -> void:
 	_suppress_edited_object_signal = false
+
+
+# Connect and report failures (Signal.connect returns Error).
+func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:
+	var err:Error = sig.connect( callable, flags )
+	if err != OK:
+		push_error( "InputMapEditorPlugin._connect_sig: %s" % error_string( err ) )

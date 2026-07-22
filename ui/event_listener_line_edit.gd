@@ -128,10 +128,8 @@ func _ready() -> void:
 	focus_mode = Control.FOCUS_ALL
 	if placeholder_text.is_empty():
 		placeholder_text = "Filter by Event"
-	@warning_ignore_start("return_value_discarded")
-	text_changed.connect(_on_text_changed)
-	focus_entered.connect(_on_focus_entered)
-	@warning_ignore_restore("return_value_discarded")
+	_connect_sig( text_changed, _on_text_changed )
+	_connect_sig( focus_entered, _on_focus_entered )
 
 
 ## Code-driven focus must accept the next bind immediately (engine EventListenerLineEdit).
@@ -313,13 +311,20 @@ static func _modifiers_text(key: InputEventWithModifiers) -> String:
 	return "+".join(parts)
 
 
-func _is_event_allowed(event: InputEvent) -> bool:
+func _is_event_allowed( event:InputEvent ) -> bool:
 	if event is InputEventMouseButton:
-		return (allowed_input_types & InputType.MOUSE_BUTTON) != 0
+		return ( allowed_input_types & InputType.MOUSE_BUTTON ) != 0
 	if event is InputEventKey:
-		return (allowed_input_types & InputType.KEY) != 0
+		return ( allowed_input_types & InputType.KEY ) != 0
 	if event is InputEventJoypadButton:
-		return (allowed_input_types & InputType.JOY_BUTTON) != 0
+		return ( allowed_input_types & InputType.JOY_BUTTON ) != 0
 	if event is InputEventJoypadMotion:
-		return (allowed_input_types & InputType.JOY_MOTION) != 0
+		return ( allowed_input_types & InputType.JOY_MOTION ) != 0
 	return false
+
+
+# Connect and report failures (Signal.connect returns Error).
+func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:
+	var err:Error = sig.connect( callable, flags )
+	if err != OK:
+		push_error( "EventListenerLineEdit._connect_sig: %s" % error_string( err ) )

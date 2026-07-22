@@ -15,8 +15,6 @@ extends PopupPanel
 ## Scene nodes mirror the editor layout; OK/Cancel replace ConfirmationDialog.
 ##[br][br]
 ##[b]TODO[/b]:
-##[br][color=goldenrod]TODO[/color]:Create a helper method for signal connection
-## to avoid having to ignore the output.
 ##[br][color=goldenrod]TODO[/color]:The focus listener code could use some work
 ## having to resort to multiple functions like focus next frame is a code smell to me.
 ## better to create some timer, or await a signal.
@@ -334,30 +332,21 @@ func _ready() -> void:
 
 	_mod_checkboxes = [alt, shift, ctrl, windows]
 
-	@warning_ignore_start("return_value_discarded")
-	event_listener.event_changed.connect( _on_listen_input_changed )
-
-	filter_input_line_edit.text_changed.connect( _on_search_term_updated )
-
-	input_list_tree.item_activated.connect( _on_input_list_item_activated )
-	input_list_tree.item_selected.connect(_on_input_list_item_selected )
-
-	device_option_button.item_selected.connect( _on_device_selection_changed )
-
-	alt.toggled.connect( _on_mod_toggled.bind( ModCheckbox.ALT ) )
-	shift.toggled.connect( _on_mod_toggled.bind(ModCheckbox.SHIFT ) )
-	ctrl.toggled.connect( _on_mod_toggled.bind(ModCheckbox.CTRL ) )
-	windows.toggled.connect( _on_mod_toggled.bind(ModCheckbox.META ) )
-	command_control.toggled.connect( _on_autoremap_command_or_control_toggled )
-
-	key_mode.item_selected.connect( _on_key_mode_selected )
-
-	location_option_button.item_selected.connect( _on_key_location_selected )
-
-	ok.pressed.connect( _on_ok_pressed )
-	cancel.pressed.connect( _on_cancel_pressed )
-	close_requested.connect( _on_cancel_pressed )
-	@warning_ignore_restore("return_value_discarded")
+	_connect_sig( event_listener.event_changed, _on_listen_input_changed )
+	_connect_sig( filter_input_line_edit.text_changed, _on_search_term_updated )
+	_connect_sig( input_list_tree.item_activated, _on_input_list_item_activated )
+	_connect_sig( input_list_tree.item_selected, _on_input_list_item_selected )
+	_connect_sig( device_option_button.item_selected, _on_device_selection_changed )
+	_connect_sig( alt.toggled, _on_mod_toggled.bind( ModCheckbox.ALT ) )
+	_connect_sig( shift.toggled, _on_mod_toggled.bind( ModCheckbox.SHIFT ) )
+	_connect_sig( ctrl.toggled, _on_mod_toggled.bind( ModCheckbox.CTRL ) )
+	_connect_sig( windows.toggled, _on_mod_toggled.bind( ModCheckbox.META ) )
+	_connect_sig( command_control.toggled, _on_autoremap_command_or_control_toggled )
+	_connect_sig( key_mode.item_selected, _on_key_mode_selected )
+	_connect_sig( location_option_button.item_selected, _on_key_location_selected )
+	_connect_sig( ok.pressed, _on_ok_pressed )
+	_connect_sig( cancel.pressed, _on_cancel_pressed )
+	_connect_sig( close_requested, _on_cancel_pressed )
 
 	# Device list: index 0 = All Devices (-1), then 0..7
 	device_option_button.clear()
@@ -776,20 +765,27 @@ func _get_current_device() -> int:
 
 
 func _sync_ok_enabled() -> void:
-	# TODO Under what circumstances would OK not exist?
-	if not is_instance_valid(ok):
+	# Scene nodes exist after _ready; guard only for early @tool calls.
+	if not is_instance_valid( ok ):
 		return
 	# Allow OK only when a real event is configured and not a duplicate.
 	var do_dup:bool = false
-	if is_instance_valid(_configured_event):
+	if is_instance_valid( _configured_event ):
 		for v:Variant in _action_events:
 			var ie:InputEvent = v
-			if _InputManager.compare_event(ie, _configured_event):
+			if _InputManager.compare_event( ie, _configured_event ):
 				do_dup = true
 				break
-	if is_instance_valid(error):
+	if is_instance_valid( error ):
 		error.visible = do_dup
 	ok.disabled = _configured_event == null or do_dup
+
+
+# Connect and report failures (Signal.connect returns Error).
+func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:
+	var err:Error = sig.connect( callable, flags )
+	if err != OK:
+		push_error( "EventConfigDialog._connect_sig: %s" % error_string( err ) )
 
 
 ## Practical key set for the manual picker (engine uses keycode_get_count() C++).
