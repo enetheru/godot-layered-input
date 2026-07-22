@@ -13,17 +13,11 @@ extends PopupPanel
 ## Port of Godot's `InputEventConfigurationDialog`
 ## (editor/settings/input_event_configuration_dialog.*).
 ## Scene nodes mirror the editor layout; OK/Cancel replace ConfirmationDialog.
-##[br][br]
-##[b]TODO[/b]:
-##[br][color=goldenrod]TODO[/color]:The focus listener code could use some work
-## (double call_deferred is same idle cycle, not a real next frame). Prefer
-## await process_frame / a short timer once the dialog API is solid.
 ##[br][color=goldenrod]TODO[/color]:public methods all need documentation.
 ##[br][color=goldenrod]TODO[/color]:private/internal methods need documentation
 ## using regular comments.
 
-## Post Popup Notification is not publicy defined.
-##[br][color=goldenrod]TODO[/color]:validate that the notification is fired.
+# Window fires this after popup (window.cpp); not BIND_CONSTANT'd for GDScript.
 const NOTIFICATION_POST_POPUP:int = 31
 
 ## Manual selection [Tree] columns (single label column today).
@@ -98,6 +92,10 @@ var _want_input_list_update:bool = false
 ## [member _pending_list_item] is the intent; cleared to cancel (e.g. highlight-from-match).
 var _want_list_selection:bool = false
 var _pending_list_item:TreeItem = null
+
+# Coalesce focus-to-listener requests; async sequence may span a process frame.
+var _want_focus_listener:bool = false
+var _focus_listener_running:bool = false
 
 var _mod_checkboxes:Array[CheckBox] = []
 
@@ -395,34 +393,35 @@ func _reset_configure_ui() -> void:
 #       ██ ██   ████    ██    ███████ ██   ██ ██   ████ ██   ██ ███████        #
 func                        ________INTERNAL_________              ()->void:pass
 
+# Request focus on the listen field. Coalesced; runs an idle grab then one
+# process-frame retry (editor popups often are not focus-ready mid-notification).
 func _focus_listener() -> void:
 	if not is_instance_valid( event_listener ):
 		return
-	# Window must finish showing / take OS focus before a child can hold focus.
-	# call_deferred runs at idle time (not “next frame”); under bottom panels even
-	# that can be early, so queue a second attempt in the same idle cycle after the
-	# first (order preserved). True next-frame needs process_frame / timer — TODO above.
-	# manual_grab_focus: LineEdit.grab_focus cannot be overridden.
-	if event_listener.has_method( &"manual_grab_focus" ):
+	_want_focus_listener = true
+	if _focus_listener_running:
+		return
+	_focus_listener_running = true
+	_run_focus_listener()
+
+
+func _run_focus_listener() -> void:
+	while _want_focus_listener:
+		_want_focus_listener = false
+		if not visible \
+		or not is_instance_valid( event_listener ):
+			break
+		# Idle-time first attempt (manual_grab_focus: LineEdit.grab_focus is final).
 		event_listener.call_deferred( &"manual_grab_focus" )
-	else:
-		event_listener.call_deferred( &"grab_focus" )
-	if is_inside_tree():
-		_focus_listener_retry.call_deferred()
-
-
-## Second grab attempt queued after the first deferred grab (same idle cycle if both
-## were deferred together; not a process/physics frame boundary).
-func _focus_listener_retry() -> void:
-	if not visible \
-	or not is_instance_valid( event_listener ):
-		return
-	if event_listener.has_focus():
-		return
-	if event_listener.has_method( &"manual_grab_focus" ):
-		event_listener.call( &"manual_grab_focus" )
-	else:
-		event_listener.grab_focus()
+		if not is_inside_tree():
+			break
+		await get_tree().process_frame
+		if not visible \
+		or not is_instance_valid( event_listener ):
+			break
+		if not event_listener.has_focus():
+			event_listener.manual_grab_focus()
+	_focus_listener_running = false
 
 
 func _set_event(

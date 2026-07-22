@@ -132,10 +132,9 @@ func _ready() -> void:
 	_connect_sig( focus_entered, _on_focus_entered )
 
 
-## Code-driven focus must accept the next bind immediately (engine EventListenerLineEdit).
-## [br]FIXME: The grab_focus function cannot be overridden, if the override
-## behavior was being relied upon, we need to figure out a different mechanism
-## to trigger this.
+## Code-driven focus for binding capture. [method Control.grab_focus] is not
+## virtual, so callers that need “listen immediately” use this entry point:
+## clears residual-click ignore and then [method grab_focus].
 func manual_grab_focus() -> void:
 	# Opening the config dialog via a tree button leaves a mouse-up in the queue.
 	# Accept the next non-key residual (mouse) once, then take real binds.
