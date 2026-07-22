@@ -8,12 +8,27 @@ extends PopupPanel
 ##│| _|\ V / -_) ' \  _| | (__/ _ \ ' \|  _| / _` | | |) | / _` | / _ \/ _` |
 ##│|___|\_/\___|_||_\__|  \___\___/_||_|_| |_\__, | |___/|_\__,_|_\___/\__, |
 ##╰──────────────────────────────────────────|___/─────────────────────|___/───
-##[/codeblock]By-Line
-## Configure a single [InputEvent] for an action binding.
+##[/codeblock]Configure a single [InputEvent] for an action binding.
 ##
 ## Port of Godot's `InputEventConfigurationDialog`
 ## (editor/settings/input_event_configuration_dialog.*).
 ## Scene nodes mirror the editor layout; OK/Cancel replace ConfirmationDialog.
+##[br][br]
+##[b]TODO[/b]:
+##[br][color=goldenrod]TODO[/color]:Create a helper method for signal connection
+## to avoid having to ignore the output.
+##[br][color=goldenrod]TODO[/color]:The focus listener code could use some work
+## having to resort to multiple functions like focus next frame is a code smell to me.
+## better to create some timer, or await a signal.
+##[br][color=goldenrod]TODO[/color]:public methods all need documentation.
+##[br][color=goldenrod]TODO[/color]:private/internal methods need documentation
+## using regular comments.
+##[br][color=goldenrod]TODO[/color]:define column numbers as an enum and use
+## them instead of the raw values.
+
+## Post Popup Notification is not publicy defined.
+##[br][color=goldenrod]TODO[/color]:validate that the notification is fired.
+const NOTIFICATION_POST_POPUP:int = 31
 
 enum KeyMode {
 	KEYCODE = 0,
@@ -29,6 +44,7 @@ enum ModCheckbox {
 	MAX = 4,
 }
 
+
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
 # ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
 # ██████  ██████  ██    ██ ██████  █████   ██████     ██    ██ █████   ███████ #
@@ -36,37 +52,45 @@ enum ModCheckbox {
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-@onready var event_label: Label = $VBoxContainer/VBoxContainer/EventLabel
-@onready var event_listener: EventListenerLineEdit = $VBoxContainer/VBoxContainer/EventListenerLineEdit
+# FIXME: rename these nodes with short suffixes for their type, eg. lbl, vbox, btn.
+@onready var event_label:Label = $VBoxContainer/VBoxContainer/EventLabel
+@onready var event_listener:EventListenerLineEdit = $VBoxContainer/VBoxContainer/EventListenerLineEdit
 
-@onready var filter_input_line_edit: LineEdit = $VBoxContainer/VBoxContainer/ManualSelection/FilterInputLineEdit
-@onready var input_list_tree: Tree = $VBoxContainer/VBoxContainer/ManualSelection/MarginContainer/Tree
+@onready var filter_input_line_edit:LineEdit = $VBoxContainer/VBoxContainer/ManualSelection/FilterInputLineEdit
+@onready var input_list_tree:Tree = $VBoxContainer/VBoxContainer/ManualSelection/MarginContainer/Tree
 
-@onready var additional_options: VBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions
-@onready var device_container: HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/DeviceHBox
-@onready var device_option_button: OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/DeviceHBox/OptionButton
+@onready var additional_options:VBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions
+@onready var device_container:HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/DeviceHBox
+@onready var device_option_button:OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/DeviceHBox/OptionButton
 
-@onready var mod_container: HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer
-@onready var alt: CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Alt
-@onready var shift: CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Shift
-@onready var ctrl: CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Ctrl
-@onready var windows: CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Windows
-@onready var command_control: CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/CommandControl
+@onready var mod_container:HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer
+@onready var alt:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Alt
+@onready var shift:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Shift
+@onready var ctrl:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Ctrl
+@onready var windows:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/Windows
+@onready var command_control:CheckBox = $VBoxContainer/VBoxContainer/AdditionalOptions/HBoxContainer/CommandControl
 
-@onready var key_mode: OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/OptionButton
-@onready var location_container: HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/PhysicalLocation
-@onready var location_option_button: OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/PhysicalLocation/OptionButton
+@onready var key_mode:OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/OptionButton
+@onready var location_container:HBoxContainer = $VBoxContainer/VBoxContainer/AdditionalOptions/PhysicalLocation
+@onready var location_option_button:OptionButton = $VBoxContainer/VBoxContainer/AdditionalOptions/PhysicalLocation/OptionButton
 
-@onready var error: Label = $VBoxContainer/VBoxContainer/Error
-@onready var ok: Button = $VBoxContainer/OKCancel/OK
-@onready var cancel: Button = $VBoxContainer/OKCancel/Cancel
+@onready var error:Label = $VBoxContainer/VBoxContainer/Error
+@onready var ok:Button = $VBoxContainer/OKCancel/OK
+@onready var cancel:Button = $VBoxContainer/OKCancel/Cancel
 
-var _event: InputEvent
-var _original_event: InputEvent
-var _action_events: Array = []
-var _allowed_input_types: int = EventListenerLineEdit.ALL_INPUT_TYPES
-var _in_tree_update: bool = false
-var _mod_checkboxes: Array[CheckBox] = []
+# FIXME This appears to be the event that is picked up by the listener, but its not
+# obvious by the name
+var _event:InputEvent
+
+var _original_event:InputEvent
+
+var _action_events:Array = []
+
+var _allowed_input_types:int = EventListenerLineEdit.ALL_INPUT_TYPES
+
+var _in_tree_update:bool = false
+
+var _mod_checkboxes:Array[CheckBox] = []
 
 
 #            ███████ ██  ██████  ███    ██  █████  ██      ███████             #
@@ -77,6 +101,7 @@ var _mod_checkboxes: Array[CheckBox] = []
 func                        _________SIGNALS_________              ()->void:pass
 
 signal confirmed
+
 signal canceled
 
 
@@ -87,14 +112,19 @@ signal canceled
 #             ███████   ████   ███████ ██   ████    ██    ███████              #
 func                        __________EVENTS_________              ()->void:pass
 
-func _on_listen_input_changed(event: InputEvent) -> void:
-	if event == null or event.is_echo() or not event.is_pressed():
+func _on_listen_input_changed( event:InputEvent ) -> void:
+	if not is_instance_valid( event ) \
+	or event.is_echo() \
+	or not event.is_pressed():
 		return
 
-	var received: InputEvent = event
-	var received_original: InputEvent = received.duplicate()
+	#FIXME, this function is whak, we're testing the event twice.
+	# doing abunch of weird re-writing I'm not a fan.
 
-	var type := 0
+	var received:InputEvent = event
+	var received_original:InputEvent = received.duplicate()
+
+	var type:int = 0
 	if received is InputEventKey:
 		type = EventListenerLineEdit.InputType.KEY
 	elif received is InputEventJoypadButton:
@@ -108,97 +138,113 @@ func _on_listen_input_changed(event: InputEvent) -> void:
 		return
 
 	if received is InputEventJoypadMotion:
-		var jm := received as InputEventJoypadMotion
-		jm.axis_value = signf(jm.axis_value)
+		var ie:InputEventJoypadMotion = received
+		ie.axis_value = signf( ie.axis_value )
 
 	if received is InputEventKey:
-		var k := received as InputEventKey
-		k.pressed = false
+		var ie:InputEventKey = received
+		ie.pressed = false
 		match key_mode.get_selected_id():
 			KeyMode.KEYCODE:
-				k.physical_keycode = KEY_NONE
-				k.key_label = KEY_NONE
+				ie.physical_keycode = KEY_NONE
+				ie.key_label = KEY_NONE
 			KeyMode.PHY_KEYCODE:
-				k.keycode = KEY_NONE
-				k.key_label = KEY_NONE
+				ie.keycode = KEY_NONE
+				ie.key_label = KEY_NONE
 			KeyMode.UNICODE:
-				k.physical_keycode = KEY_NONE
-				k.keycode = KEY_NONE
-		if location_option_button.get_selected_id() == int(KEY_LOCATION_UNSPECIFIED):
-			k.location = KEY_LOCATION_UNSPECIFIED
+				ie.physical_keycode = KEY_NONE
+				ie.keycode = KEY_NONE
+		if location_option_button.get_selected_id() == KEY_LOCATION_UNSPECIFIED:
+			ie.location = KEY_LOCATION_UNSPECIFIED
 
 	if received is InputEventWithModifiers:
-		(received as InputEventWithModifiers).window_id = 0
+		var ie:InputEventWithModifiers = received
+		ie.window_id = 0
 
 	received.device = _get_current_device()
-	_set_event(received, received_original)
+	_set_event( received, received_original )
 
 
-func _on_search_term_updated(_term: String = "") -> void:
+func _on_search_term_updated( _term:String = "" ) -> void:
+	# FIXME This calls the update input list directly, It should set a flag
+	# the list should update in a deferred way, so that we arent doing
+	# extra work unnecessarily.
 	_update_input_list()
 
 
 func _on_input_list_item_activated() -> void:
-	var selected := input_list_tree.get_selected()
+	var selected:TreeItem = input_list_tree.get_selected()
 	if selected:
 		selected.collapsed = not selected.collapsed
 
 
 func _on_input_list_item_selected() -> void:
+	# FIXME this guard indicates to me that we should be deferring
+	# the processing of the selection, and setting a variable that will be
+	# used as the selection.
 	if _in_tree_update:
 		return
-	var selected := input_list_tree.get_selected()
-	if selected == null or selected.has_meta(&"__type"):
+
+	var selected:TreeItem = input_list_tree.get_selected()
+
+	if not is_instance_valid( selected ) \
+	or selected.has_meta(&"__type"):
 		return
 
-	var input_type: int = selected.get_parent().get_meta(&"__type")
+	# TODO, looks like here is where we would set the flag, and tree_item
+	# to change selection
+
+	var input_type:int = selected.get_parent().get_meta(&"__type")
 	match input_type:
 		EventListenerLineEdit.InputType.KEY:
-			var keycode: int = selected.get_meta(&"__keycode")
-			var k := InputEventKey.new()
-			k.physical_keycode = keycode as Key
-			k.keycode = keycode as Key
-			k.key_label = keycode as Key
-			_apply_mod_checkboxes(k)
-			var ko: InputEventKey = k.duplicate() as InputEventKey
+			var keycode:int = selected.get_meta(&"__keycode")
+			var ie := InputEventKey.new()
+			ie.physical_keycode = keycode as Key
+			ie.keycode = keycode as Key
+			ie.key_label = keycode as Key
+			_apply_mod_checkboxes( ie )
+
+			# TODO, I see code duplication here and above in _on_listen_input_changed
+			# evaluate whether ab abstraction is appropraite.
+			var dup:InputEventKey = ie.duplicate()
 			if key_mode.get_selected_id() == KeyMode.UNICODE:
-				key_mode.select(KeyMode.PHY_KEYCODE)
+				key_mode.select( KeyMode.PHY_KEYCODE )
 			match key_mode.get_selected_id():
 				KeyMode.KEYCODE:
-					k.physical_keycode = KEY_NONE
-					k.keycode = keycode as Key
-					k.key_label = KEY_NONE
+					ie.physical_keycode = KEY_NONE
+					ie.keycode = keycode as Key
+					ie.key_label = KEY_NONE
 				KeyMode.PHY_KEYCODE:
-					k.physical_keycode = keycode as Key
-					k.keycode = KEY_NONE
-					k.key_label = KEY_NONE
-			_set_event(k, ko, false)
+					ie.physical_keycode = keycode as Key
+					ie.keycode = KEY_NONE
+					ie.key_label = KEY_NONE
+			_set_event( ie, dup, false )
 
 		EventListenerLineEdit.InputType.MOUSE_BUTTON:
-			var mb := InputEventMouseButton.new()
-			mb.button_index = selected.get_meta(&"__index")
-			_apply_mod_checkboxes(mb)
-			mb.device = _get_current_device()
-			_set_event(mb, mb, false)
+			var ie := InputEventMouseButton.new()
+			ie.button_index = selected.get_meta(&"__index")
+			_apply_mod_checkboxes( ie )
+			ie.device = _get_current_device()
+			_set_event( ie, ie, false )
 
 		EventListenerLineEdit.InputType.JOY_BUTTON:
-			var jb := InputEventJoypadButton.new()
-			jb.button_index = selected.get_meta(&"__index")
-			jb.device = _get_current_device()
-			_set_event(jb, jb, false)
+			var ie := InputEventJoypadButton.new()
+			ie.button_index = selected.get_meta(&"__index")
+			ie.device = _get_current_device()
+			_set_event( ie, ie, false )
 
 		EventListenerLineEdit.InputType.JOY_MOTION:
-			var jm := InputEventJoypadMotion.new()
-			jm.axis = selected.get_meta(&"__axis")
-			jm.axis_value = selected.get_meta(&"__value")
-			jm.device = _get_current_device()
-			_set_event(jm, jm, false)
+			var ie := InputEventJoypadMotion.new()
+			ie.axis = selected.get_meta(&"__axis")
+			ie.axis_value = selected.get_meta(&"__value")
+			ie.device = _get_current_device()
+			_set_event( ie, ie, false )
 
 
-func _on_mod_toggled(pressed: bool, index: int) -> void:
+func _on_mod_toggled( pressed:bool, index:int ) -> void:
 	if not (_event is InputEventWithModifiers):
 		return
-	var ie := _event as InputEventWithModifiers
+	var ie:InputEventWithModifiers = _event
 	match index:
 		ModCheckbox.ALT:
 			ie.alt_pressed = pressed
@@ -210,62 +256,67 @@ func _on_mod_toggled(pressed: bool, index: int) -> void:
 		ModCheckbox.META:
 			if not command_control.button_pressed:
 				ie.meta_pressed = pressed
-	_set_event(ie, _original_event)
+	_set_event( ie, _original_event )
 
 
-func _on_autoremap_command_or_control_toggled(pressed: bool) -> void:
+func _on_autoremap_command_or_control_toggled( pressed:bool ) -> void:
 	if _event is InputEventWithModifiers:
-		(_event as InputEventWithModifiers).command_or_control_autoremap = pressed
-		_set_event(_event, _original_event)
+		var ie:InputEventWithModifiers = _event
+		ie.command_or_control_autoremap = pressed
+		_set_event( _event, _original_event )
 	ctrl.visible = not pressed
 	windows.visible = not pressed
 
 
-func _on_key_mode_selected(_idx: int) -> void:
-	if not (_event is InputEventKey) or not (_original_event is InputEventKey):
+func _on_key_mode_selected( _idx:int ) -> void:
+	if not (_event is InputEventKey) \
+	or not (_original_event is InputEventKey):
 		return
-	var k := _event as InputEventKey
-	var ko := _original_event as InputEventKey
+
+	var ie :InputEventKey = _event
+	var oie :InputEventKey = _original_event
 	match key_mode.get_selected_id():
 		KeyMode.KEYCODE:
-			k.keycode = ko.keycode
-			k.physical_keycode = KEY_NONE
-			k.key_label = KEY_NONE
+			ie.keycode = oie.keycode
+			ie.physical_keycode = KEY_NONE
+			ie.key_label = KEY_NONE
 		KeyMode.PHY_KEYCODE:
-			k.keycode = KEY_NONE
-			k.physical_keycode = ko.physical_keycode
-			k.key_label = KEY_NONE
+			ie.keycode = KEY_NONE
+			ie.physical_keycode = oie.physical_keycode
+			ie.key_label = KEY_NONE
 		KeyMode.UNICODE:
-			k.physical_keycode = KEY_NONE
-			k.keycode = KEY_NONE
-			k.key_label = ko.key_label
-	_set_event(k, _original_event)
+			ie.physical_keycode = KEY_NONE
+			ie.keycode = KEY_NONE
+			ie.key_label = oie.key_label
+	_set_event( ie, _original_event )
 
 
-func _on_key_location_selected(_idx: int) -> void:
+func _on_key_location_selected( _idx:int ) -> void:
 	if not (_event is InputEventKey):
 		return
-	var k := _event as InputEventKey
-	k.location = location_option_button.get_selected_id() as KeyLocation
-	_set_event(k, _original_event)
+	var ie:InputEventKey = _event
+	ie.location = location_option_button.get_selected_id() as KeyLocation
+	_set_event( ie, _original_event )
 
 
-func _on_device_selection_changed(option_index: int) -> void:
-	if _event == null:
-		return
-	_event.device = option_index - 1
-	event_label.text = EventListenerLineEdit.get_event_text(_event, true)
+func _on_device_selection_changed( option_index:int ) -> void:
+	if is_instance_valid( _event ):
+		_event.device = option_index - 1
+		event_label.text = EventListenerLineEdit.get_event_text( _event, true )
+
 
 func _on_ok_pressed() -> void:
 	_sync_ok_enabled()
-	if _event == null:
-		if is_instance_valid(error):
+	if not is_instance_valid( _event ):
+		if is_instance_valid( error ):
 			error.text = "No event configured. Listen for input or pick one from the list."
 			error.show()
 		return
 	if ok.disabled:
 		return
 	# Emit while still visible so listeners can read get_event() reliably.
+	# FIXME: if listeners need the results of get_event on closure, then it should
+	# be added to the signal as an argument.
 	confirmed.emit()
 	hide()
 
@@ -289,47 +340,55 @@ func _ready() -> void:
 	_mod_checkboxes = [alt, shift, ctrl, windows]
 
 	@warning_ignore_start("return_value_discarded")
-	event_listener.event_changed.connect(_on_listen_input_changed)
-	filter_input_line_edit.text_changed.connect(_on_search_term_updated)
-	input_list_tree.item_activated.connect(_on_input_list_item_activated)
-	input_list_tree.item_selected.connect(_on_input_list_item_selected)
-	device_option_button.item_selected.connect(_on_device_selection_changed)
-	alt.toggled.connect(_on_mod_toggled.bind(ModCheckbox.ALT))
-	shift.toggled.connect(_on_mod_toggled.bind(ModCheckbox.SHIFT))
-	ctrl.toggled.connect(_on_mod_toggled.bind(ModCheckbox.CTRL))
-	windows.toggled.connect(_on_mod_toggled.bind(ModCheckbox.META))
-	command_control.toggled.connect(_on_autoremap_command_or_control_toggled)
-	key_mode.item_selected.connect(_on_key_mode_selected)
-	location_option_button.item_selected.connect(_on_key_location_selected)
-	ok.pressed.connect(_on_ok_pressed)
-	cancel.pressed.connect(_on_cancel_pressed)
-	close_requested.connect(_on_cancel_pressed)
+	event_listener.event_changed.connect( _on_listen_input_changed )
+
+	filter_input_line_edit.text_changed.connect( _on_search_term_updated )
+
+	input_list_tree.item_activated.connect( _on_input_list_item_activated )
+	input_list_tree.item_selected.connect(_on_input_list_item_selected )
+
+	device_option_button.item_selected.connect( _on_device_selection_changed )
+
+	alt.toggled.connect( _on_mod_toggled.bind( ModCheckbox.ALT ) )
+	shift.toggled.connect( _on_mod_toggled.bind(ModCheckbox.SHIFT ) )
+	ctrl.toggled.connect( _on_mod_toggled.bind(ModCheckbox.CTRL ) )
+	windows.toggled.connect( _on_mod_toggled.bind(ModCheckbox.META ) )
+	command_control.toggled.connect( _on_autoremap_command_or_control_toggled )
+
+	key_mode.item_selected.connect( _on_key_mode_selected )
+
+	location_option_button.item_selected.connect( _on_key_location_selected )
+
+	ok.pressed.connect( _on_ok_pressed )
+	cancel.pressed.connect( _on_cancel_pressed )
+	close_requested.connect( _on_cancel_pressed )
 	@warning_ignore_restore("return_value_discarded")
 
 	# Device list: index 0 = All Devices (-1), then 0..7
 	device_option_button.clear()
-	for i: int in range(-1, 8):
-		device_option_button.add_item(EventListenerLineEdit.get_device_string(i))
+	for i:int in range(-1, 8):
+		device_option_button.add_item(
+				EventListenerLineEdit.get_device_string( i ) )
 
 	# Key-mode icons (engine sets these from EditorIcons).
 	if key_mode.item_count >= 3:
-		key_mode.set_item_icon(KeyMode.KEYCODE, IconCache.get_icon(&"KEYBOARD"))
-		key_mode.set_item_icon(KeyMode.PHY_KEYCODE, IconCache.get_icon(&"KEYBOARD_PHYSICAL"))
-		key_mode.set_item_icon(KeyMode.UNICODE, IconCache.get_icon(&"KEYBOARD_LABEL"))
+		key_mode.set_item_icon( KeyMode.KEYCODE, IconCache.get_icon(&"KEYBOARD") )
+		key_mode.set_item_icon( KeyMode.PHY_KEYCODE, IconCache.get_icon(&"KEYBOARD_PHYSICAL") )
+		key_mode.set_item_icon( KeyMode.UNICODE, IconCache.get_icon(&"KEYBOARD_LABEL") )
 
 	_update_input_list()
 	additional_options.hide()
 	error.hide()
 
 
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_VISIBILITY_CHANGED and visible:
-		_focus_listener()
-	elif what == NOTIFICATION_POST_POPUP:
-		_focus_listener()
-	elif what == NOTIFICATION_WM_WINDOW_FOCUS_IN:
-		# Editor may hand window focus to the popup without focusing a child control.
-		if visible:
+func _notification(what:int) -> void:
+	match what:
+		NOTIFICATION_VISIBILITY_CHANGED when visible:
+			_focus_listener()
+		NOTIFICATION_POST_POPUP:
+			_focus_listener()
+		NOTIFICATION_WM_WINDOW_FOCUS_IN when visible:
+			# Editor may hand window focus to the popup without focusing a child control.
 			_focus_listener()
 
 
@@ -344,62 +403,48 @@ func get_event() -> InputEvent:
 	return _event
 
 
-func _focus_listener() -> void:
-	if not is_instance_valid(event_listener):
-		return
-	# Window must finish showing / take OS focus before a child can hold focus.
-	# One deferred call is often too early under EditorPlugin bottom panels.
-	event_listener.call_deferred(&"grab_focus")
-	if is_inside_tree():
-		_focus_listener_next_frame.call_deferred()
-
-
-func _focus_listener_next_frame() -> void:
-	if not visible or not is_instance_valid(event_listener):
-		return
-	if not event_listener.has_focus():
-		event_listener.grab_focus()
-
-
-func set_allowed_input_types(type_masks: int) -> void:
+func set_allowed_input_types( type_masks:int ) -> void:
 	_allowed_input_types = type_masks
-	if is_instance_valid(event_listener):
-		event_listener.set_allowed_input_types(type_masks)
+	if is_instance_valid( event_listener ):
+		event_listener.set_allowed_input_types( type_masks )
 
 
 ## Open dialog to edit [param event] (or blank). [param current_action] expects
 ## [code]{"events": Array, "deadzone": float}[/code] for duplicate detection.
 func popup_and_configure(
-		event: InputEvent = null,
-		current_action_name: String = "",
-		current_action: Dictionary = {}
-) -> void:
-	var events: Array = current_action.get("events", [])
+			event:InputEvent = null,
+			current_action_name:String = "",
+			current_action:Dictionary = {} ) -> void:
+	var events:Array = current_action.get("events", [])
 	_action_events = events.duplicate()
 
-	if event != null:
-		# Drop one matching instance so the event being edited is not flagged duplicate.
-		for i: int in range(_action_events.size()):
-			var ie: InputEvent = _action_events[i]
-			if ie != null and ie.is_match(event):
-				_action_events.remove_at(i)
-				break
-		var a: InputEvent = event.duplicate()
-		var b: InputEvent = event.duplicate()
-		_set_event(a, b)
-	else:
-		_set_event(null, null)
-		for cb: CheckBox in _mod_checkboxes:
-			cb.set_pressed_no_signal(false)
-		key_mode.select(KeyMode.PHY_KEYCODE)
-		command_control.set_pressed_no_signal(false)
+	# This looks like its resetting the UI, should perhaps be separated into
+	# its own method,
+	if is_instance_valid( event ):
+		_set_event( null, null )
+		for cb:CheckBox in _mod_checkboxes:
+			cb.set_pressed_no_signal( false )
+		key_mode.select( KeyMode.PHY_KEYCODE )
+		command_control.set_pressed_no_signal( false )
 		device_option_button.select(0)
 		location_option_button.select(0)
-
-	if not current_action_name.is_empty():
-		title = 'Event Configuration for "%s"' % current_action_name
 	else:
+		# Drop one matching instance so the event being edited is not
+		# flagged duplicate.
+		for i:int in range( _action_events.size() ):
+			var ie:InputEvent = _action_events[i]
+			if is_instance_valid( ie ) \
+			and ie.is_match( event ):
+				_action_events.remove_at( i )
+				break
+		var a:InputEvent = event.duplicate()
+		var b:InputEvent = event.duplicate()
+		_set_event( a, b )
+
+	if current_action_name.is_empty():
 		title = "Event Configuration"
+	else:
+		title = 'Event Configuration for "%s"' % current_action_name
 
 	# Bottom-panel parents can clip / break Window popups in the editor.
 	# Transient + exclusive keeps the dialog on top of the editor chrome.
@@ -408,9 +453,10 @@ func popup_and_configure(
 		exclusive = true
 		unresizable = false
 	# Prefer the listener over any other focusable child when the window opens.
-	if is_instance_valid(event_listener):
+	if is_instance_valid( event_listener ):
 		event_listener.focus_mode = Control.FOCUS_ALL
-	popup_centered(Vector2i(661, 400))
+	# FIXME, magic value here should be moved to an export var
+	popup_centered( Vector2i(661, 400) )
 	# Ensure OK reflects current event (null → disabled).
 	_sync_ok_enabled()
 	_focus_listener()
@@ -423,62 +469,86 @@ func popup_and_configure(
 #       ██ ██   ████    ██    ███████ ██   ██ ██   ████ ██   ██ ███████        #
 func                        ________INTERNAL_________              ()->void:pass
 
+func _focus_listener() -> void:
+	if not is_instance_valid( event_listener ):
+		return
+	# Window must finish showing / take OS focus before a child can hold focus.
+	# One deferred call is often too early under EditorPlugin bottom panels.
+	event_listener.call_deferred(&"grab_focus")
+	if is_inside_tree():
+		_focus_listener_next_frame.call_deferred()
+
+
+func _focus_listener_next_frame() -> void:
+	if not visible \
+	or not is_instance_valid( event_listener ):
+		return
+	if not event_listener.has_focus():
+		event_listener.grab_focus()
+
+
+# FIXME: This method is too large, It should be split into appropriate chunks
 func _set_event(
-		event: InputEvent,
-		original_event: InputEvent,
-		update_input_list_selection: bool = true
-) -> void:
-	if event != null:
+			event:InputEvent,
+			original_event:InputEvent,
+			update_input_list_selection:bool = true ) -> void:
+	if is_instance_valid( event ):
 		# Enter / Escape confirm or cancel when a binding is already set.
-		if _event != null and visible and event_listener.has_focus():
+		if is_instance_valid( _event ) \
+		and visible \
+		and event_listener.has_focus():
 			if event is InputEventKey:
-				var current_key := event as InputEventKey
-				var mods := event as InputEventWithModifiers
+				var ie:InputEventKey = event
 				# Bare Enter/Escape confirm or cancel (no modifier chords).
-				if mods != null and int(mods.get_modifiers_mask()) == 0:
-					if current_key.physical_keycode == KEY_ENTER or current_key.keycode == KEY_ENTER:
+				if ie.get_modifiers_mask() == 0:
+					if ie.physical_keycode == KEY_ENTER \
+					or ie.keycode == KEY_ENTER:
 						_on_ok_pressed()
 						return
-					if current_key.physical_keycode == KEY_ESCAPE or current_key.keycode == KEY_ESCAPE:
+					if ie.physical_keycode == KEY_ESCAPE \
+					or ie.keycode == KEY_ESCAPE:
 						_on_cancel_pressed()
 						return
 
-		var listener_event := event_listener.get_event()
-		if listener_event != null and not listener_event.is_match(event):
+		var listener_event:InputEvent = event_listener.get_event()
+		if is_instance_valid( listener_event ) \
+		and not listener_event.is_match( event ):
 			event_listener.clear_event()
 
 		_event = event
 		_original_event = original_event
-		event_label.text = EventListenerLineEdit.get_event_text(_event, true)
+		event_label.text = EventListenerLineEdit.get_event_text( _event, true )
 
 		_sync_ok_enabled()
 
-		var show_mods := false
-		var show_device := false
-		var show_key := false
-		var show_location := false
+		var show_mods:bool = false
+		var show_device:bool = false
+		var show_key:bool = false
+		var show_location:bool = false
 
 		if event is InputEventWithModifiers:
 			show_mods = true
-			var mod := event as InputEventWithModifiers
-			alt.set_pressed_no_signal(mod.alt_pressed)
-			shift.set_pressed_no_signal(mod.shift_pressed)
-			ctrl.set_pressed_no_signal(mod.ctrl_pressed)
-			windows.set_pressed_no_signal(mod.meta_pressed)
-			command_control.set_pressed_no_signal(mod.command_or_control_autoremap)
+			var ie:InputEventWithModifiers = event
+			alt.set_pressed_no_signal( ie.alt_pressed )
+			shift.set_pressed_no_signal( ie.shift_pressed )
+			ctrl.set_pressed_no_signal( ie.ctrl_pressed )
+			windows.set_pressed_no_signal( ie.meta_pressed )
+			command_control.set_pressed_no_signal( ie.command_or_control_autoremap )
 
 		if event is InputEventKey:
 			show_key = true
-			var k := event as InputEventKey
-			var phys_key := k.physical_keycode
-			if k.keycode == KEY_NONE and phys_key == KEY_NONE and k.key_label != KEY_NONE:
-				key_mode.select(KeyMode.UNICODE)
-			elif k.keycode != KEY_NONE:
-				key_mode.select(KeyMode.KEYCODE)
+			var ie:InputEventKey = event
+			var phys_key:Key = ie.physical_keycode
+			if ie.keycode == KEY_NONE \
+			and phys_key == KEY_NONE \
+			and ie.key_label != KEY_NONE:
+				key_mode.select( KeyMode.UNICODE )
+			elif ie.keycode != KEY_NONE:
+				key_mode.select( KeyMode.KEYCODE )
 			elif phys_key != KEY_NONE:
-				key_mode.select(KeyMode.PHY_KEYCODE)
+				key_mode.select( KeyMode.PHY_KEYCODE )
 				if phys_key in [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META]:
-					location_option_button.select(int(k.location))
+					location_option_button.select( ie.location )
 					show_location = true
 			else:
 				_event = null
@@ -489,13 +559,11 @@ func _set_event(
 				input_list_tree.deselect_all()
 				_update_input_list()
 				return
-		elif (
-				event is InputEventJoypadButton
-				or event is InputEventJoypadMotion
-				or event is InputEventMouseButton
-		):
+		elif event is InputEventJoypadButton \
+		or event is InputEventJoypadMotion \
+		or event is InputEventMouseButton:
 			show_device = true
-			_set_current_device(event.device)
+			_set_current_device( event.device )
 
 		mod_container.visible = show_mods
 		device_container.visible = show_device
@@ -505,13 +573,14 @@ func _set_event(
 
 		# Disable key-mode options the original event cannot supply.
 		if original_event is InputEventKey:
-			var ko := original_event as InputEventKey
-			key_mode.set_item_disabled(KeyMode.KEYCODE, ko.keycode == KEY_NONE)
-			key_mode.set_item_disabled(KeyMode.PHY_KEYCODE, ko.physical_keycode == KEY_NONE)
-			key_mode.set_item_disabled(KeyMode.UNICODE, ko.key_label == KEY_NONE)
+			var ie:InputEventKey = original_event
+			key_mode.set_item_disabled( KeyMode.KEYCODE, ie.keycode == KEY_NONE )
+			key_mode.set_item_disabled( KeyMode.PHY_KEYCODE, ie.physical_keycode == KEY_NONE )
+			key_mode.set_item_disabled( KeyMode.UNICODE, ie.key_label == KEY_NONE )
 
 		if update_input_list_selection:
-			_select_matching_input_list_item(event)
+			_select_matching_input_list_item( event )
+
 	else:
 		_event = null
 		_original_event = null
@@ -523,88 +592,105 @@ func _set_event(
 		_sync_ok_enabled()
 
 
+# I dont like how much repetition this function looks like, but it might be
+# necessary
 func _update_input_list() -> void:
 	input_list_tree.clear()
-	var root := input_list_tree.create_item()
-	var search_term := filter_input_line_edit.text
-	var collapse := search_term.is_empty()
+	var root:TreeItem = input_list_tree.create_item()
+	var search_term:String = filter_input_line_edit.text
+	var collapse:bool = search_term.is_empty()
 
-	if (_allowed_input_types & EventListenerLineEdit.InputType.KEY) != 0:
-		var kb_root := input_list_tree.create_item(root)
-		kb_root.set_text(0, "Keyboard Keys")
-		kb_root.set_icon(0, IconCache.get_icon(&"KEYBOARD"))
-		kb_root.set_collapsed(collapse)
-		kb_root.set_meta(&"__type", EventListenerLineEdit.InputType.KEY)
+	if (_allowed_input_types & EventListenerLineEdit.InputType.KEY):
+		var kb_root:TreeItem = input_list_tree.create_item( root )
+		# Column 0 - Name + Icon
+		kb_root.set_text( 0, "Keyboard Keys" )
+		kb_root.set_icon( 0, IconCache.get_icon(&"KEYBOARD") )
+		kb_root.set_collapsed( collapse )
+		kb_root.set_meta( &"__type", EventListenerLineEdit.InputType.KEY )
+		# FIXME A filter well named function might be preferrable to the if
+		# statements below
 		for keycode:int in _keyboard_keycodes():
-			var key_name:String = OS.get_keycode_string(keycode)
+			var key_name:String = OS.get_keycode_string( keycode )
 			if key_name.is_empty():
 				continue
-			if not search_term.is_empty() and not key_name.containsn(search_term):
+			# Fix this if statement to make clear sense.
+			if not search_term.is_empty() \
+			and not key_name.containsn( search_term ):
 				continue
-			var item := input_list_tree.create_item(kb_root)
-			item.set_text(0, key_name)
-			item.set_meta(&"__keycode", keycode)
+			var item:TreeItem = input_list_tree.create_item( kb_root )
+			# Column 0 - Name
+			item.set_text( 0, key_name )
+			item.set_meta( &"__keycode", keycode )
 
-	if (_allowed_input_types & EventListenerLineEdit.InputType.MOUSE_BUTTON) != 0:
-		var mouse_root := input_list_tree.create_item(root)
-		mouse_root.set_text(0, "Mouse Buttons")
-		mouse_root.set_icon(0, IconCache.get_icon(&"MOUSE"))
-		mouse_root.set_collapsed(collapse)
-		mouse_root.set_meta(&"__type", EventListenerLineEdit.InputType.MOUSE_BUTTON)
-		var mouse_buttons: Array[int] = [
+	if (_allowed_input_types & EventListenerLineEdit.InputType.MOUSE_BUTTON):
+		var mouse_root:TreeItem = input_list_tree.create_item( root )
+		# Column 0 - Name / Icon
+		mouse_root.set_text( 0, "Mouse Buttons" )
+		mouse_root.set_icon( 0, IconCache.get_icon(&"MOUSE") )
+		mouse_root.set_collapsed( collapse )
+		mouse_root.set_meta( &"__type", EventListenerLineEdit.InputType.MOUSE_BUTTON )
+		var mouse_buttons:Array[int] = [
 			MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE,
 			MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN,
 			MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT,
 			MOUSE_BUTTON_XBUTTON1, MOUSE_BUTTON_XBUTTON2,
 		]
-		for btn: int in mouse_buttons:
+		for btn:int in mouse_buttons:
 			var mb := InputEventMouseButton.new()
 			mb.button_index = btn as MouseButton
-			var desc := EventListenerLineEdit.get_event_text(mb, false)
-			if not search_term.is_empty() and not desc.containsn(search_term):
+			var desc:String = EventListenerLineEdit.get_event_text( mb, false )
+			if not search_term.is_empty() \
+			and not desc.containsn( search_term ):
 				continue
-			var item := input_list_tree.create_item(mouse_root)
-			item.set_text(0, desc)
-			item.set_meta(&"__index", btn)
+			var item:TreeItem = input_list_tree.create_item( mouse_root )
+			# Column 0 - Name / Icon
+			item.set_text( 0, desc )
+			item.set_meta( &"__index", btn )
 
-	if (_allowed_input_types & EventListenerLineEdit.InputType.JOY_BUTTON) != 0:
-		var joyb_root := input_list_tree.create_item(root)
-		joyb_root.set_text(0, "Joypad Buttons")
-		joyb_root.set_icon(0, IconCache.get_icon(&"JOY_BUTTON"))
-		joyb_root.set_collapsed(collapse)
-		joyb_root.set_meta(&"__type", EventListenerLineEdit.InputType.JOY_BUTTON)
-		for i: int in range(int(JoyButton.JOY_BUTTON_MAX)):
+	if (_allowed_input_types & EventListenerLineEdit.InputType.JOY_BUTTON):
+		var joyb_root:TreeItem = input_list_tree.create_item( root )
+		# Column 0 - Name / Icon
+		joyb_root.set_text( 0, "Joypad Buttons" )
+		joyb_root.set_icon( 0, IconCache.get_icon(&"JOY_BUTTON") )
+		joyb_root.set_collapsed( collapse )
+		joyb_root.set_meta( &"__type", EventListenerLineEdit.InputType.JOY_BUTTON )
+		for i:int in range( JoyButton.JOY_BUTTON_MAX ):
 			var joyb := InputEventJoypadButton.new()
 			joyb.button_index = i as JoyButton
-			var desc := EventListenerLineEdit.get_event_text(joyb, false)
-			if not search_term.is_empty() and not desc.containsn(search_term):
+			var desc:String = EventListenerLineEdit.get_event_text( joyb, false )
+			if not search_term.is_empty() \
+			and not desc.containsn( search_term ):
 				continue
-			var item := input_list_tree.create_item(joyb_root)
-			item.set_text(0, desc)
-			item.set_meta(&"__index", i)
+			var item:TreeItem = input_list_tree.create_item( joyb_root )
+			# Column 0 - Name / Icon
+			item.set_text( 0, desc )
+			item.set_meta( &"__index", i )
 
-	if (_allowed_input_types & EventListenerLineEdit.InputType.JOY_MOTION) != 0:
-		var joya_root := input_list_tree.create_item(root)
-		joya_root.set_text(0, "Joypad Axes")
-		joya_root.set_icon(0, IconCache.get_icon(&"JOY_AXIS"))
-		joya_root.set_collapsed(collapse)
-		joya_root.set_meta(&"__type", EventListenerLineEdit.InputType.JOY_MOTION)
-		for i: int in range(int(JoyAxis.JOY_AXIS_MAX) * 2):
-			var axis := i >> 1
-			var direction := 1 if (i & 1) else -1
+	if (_allowed_input_types & EventListenerLineEdit.InputType.JOY_MOTION):
+		var joya_root:TreeItem = input_list_tree.create_item( root )
+		# Column 0 - Name / Icon
+		joya_root.set_text( 0, "Joypad Axes" )
+		joya_root.set_icon( 0, IconCache.get_icon(&"JOY_AXIS") )
+		joya_root.set_collapsed( collapse )
+		joya_root.set_meta( &"__type", EventListenerLineEdit.InputType.JOY_MOTION )
+		for i:int in range( JoyAxis.JOY_AXIS_MAX * 2 ):
+			var axis:int = i >> 1
+			var direction:int = 1 if (i & 1) else -1
 			var joym := InputEventJoypadMotion.new()
 			joym.axis = axis as JoyAxis
-			joym.axis_value = float(direction)
-			var desc := EventListenerLineEdit.get_event_text(joym, false)
-			if not search_term.is_empty() and not desc.containsn(search_term):
+			joym.axis_value = float( direction )
+			var desc:String = EventListenerLineEdit.get_event_text( joym, false )
+			if not search_term.is_empty() \
+			and not desc.containsn( search_term ):
 				continue
-			var item := input_list_tree.create_item(joya_root)
-			item.set_text(0, desc)
-			item.set_meta(&"__axis", axis)
-			item.set_meta(&"__value", direction)
+			var item:TreeItem = input_list_tree.create_item( joya_root )
+			# Column 0 - Name / Icon
+			item.set_text( 0, desc )
+			item.set_meta( &"__axis", axis )
+			item.set_meta( &"__value", direction )
 
 
-func _apply_mod_checkboxes(mod: InputEventWithModifiers) -> void:
+func _apply_mod_checkboxes( mod:InputEventWithModifiers ) -> void:
 	mod.alt_pressed = alt.button_pressed
 	mod.shift_pressed = shift.button_pressed
 	if command_control.button_pressed:
@@ -614,16 +700,17 @@ func _apply_mod_checkboxes(mod: InputEventWithModifiers) -> void:
 		mod.meta_pressed = windows.button_pressed
 
 
-func _select_matching_input_list_item(event: InputEvent) -> void:
+func _select_matching_input_list_item( event:InputEvent ) -> void:
 	if input_list_tree.get_root() == null:
 		return
 	_in_tree_update = true
-	var category := input_list_tree.get_root().get_first_child()
+	var category:TreeItem = input_list_tree.get_root().get_first_child()
 	while category:
-		var input_item := category.get_first_child()
-		if input_item != null:
-			var input_type: int = category.get_meta(&"__type", 0)
-			var type_match := (
+		var input_item:TreeItem = category.get_first_child()
+		if is_instance_valid(input_item):
+			# FIXME This type_match test looks like it should be a function.
+			var input_type:int = category.get_meta(&"__type", 0)
+			var type_match:bool = (
 					(event is InputEventKey and input_type == EventListenerLineEdit.InputType.KEY)
 					or (event is InputEventJoypadButton and input_type == EventListenerLineEdit.InputType.JOY_BUTTON)
 					or (event is InputEventJoypadMotion and input_type == EventListenerLineEdit.InputType.JOY_MOTION)
@@ -634,7 +721,7 @@ func _select_matching_input_list_item(event: InputEvent) -> void:
 					var matched:bool = false
 					if event is InputEventKey:
 						var ev:InputEventKey = event
-						var code: int = input_item.get_meta(&"__keycode")
+						var code:int = input_item.get_meta(&"__keycode")
 						matched = ev.keycode == code or ev.physical_keycode == code
 					elif event is InputEventJoypadButton:
 						var ev:InputEventJoypadButton = event
@@ -659,8 +746,8 @@ func _select_matching_input_list_item(event: InputEvent) -> void:
 	_in_tree_update = false
 
 
-func _set_current_device(device: int) -> void:
-	device_option_button.select(device + 1)
+func _set_current_device( device:int ) -> void:
+	device_option_button.select( device + 1 )
 
 
 func _get_current_device() -> int:
@@ -668,28 +755,29 @@ func _get_current_device() -> int:
 
 
 func _sync_ok_enabled() -> void:
+	# TODO Under what circumstances would OK not exist?
 	if not is_instance_valid(ok):
 		return
 	# Allow OK only when a real event is configured and not a duplicate.
-	var duplicate: bool = false
-	if _event != null:
-		for v: Variant in _action_events:
-			var ie: InputEvent = v
-			if ie != null and ie.is_match(_event):
-				duplicate = true
+	var do_dup:bool = false
+	if is_instance_valid(_event):
+		for v:Variant in _action_events:
+			var ie:InputEvent = v
+			if _InputManager.compare_event(ie, _event):
+				do_dup = true
 				break
 	if is_instance_valid(error):
-		error.visible = duplicate
-	ok.disabled = _event == null or duplicate
+		error.visible = do_dup
+	ok.disabled = _event == null or do_dup
 
 
 ## Practical key set for the manual picker (engine uses keycode_get_count() C++).
 static func _keyboard_keycodes() -> Array[int]:
-	var keys: Array[int] = []
+	var keys:Array[int] = []
 	# Printable ASCII range used by KEY_* where applicable (SPACE..~).
-	for c: int in range(KEY_SPACE, 0x007E + 1):
+	for c:int in range(KEY_SPACE, 0x007E + 1):
 		keys.append(c)
-	var specials: Array[int] = [
+	var specials:Array[int] = [
 		KEY_ESCAPE, KEY_TAB, KEY_BACKTAB, KEY_BACKSPACE, KEY_ENTER, KEY_KP_ENTER,
 		KEY_INSERT, KEY_DELETE, KEY_PAUSE, KEY_PRINT, KEY_SYSREQ, KEY_CLEAR,
 		KEY_HOME, KEY_END, KEY_LEFT, KEY_UP, KEY_RIGHT, KEY_DOWN,
@@ -719,7 +807,7 @@ static func _keyboard_keycodes() -> Array[int]:
 		KEY_LAUNCHC, KEY_LAUNCHD, KEY_LAUNCHE, KEY_LAUNCHF,
 	]
 
-	for k: int in specials:
+	for k:int in specials:
 		if k not in keys:
 			keys.append(k)
 	return keys

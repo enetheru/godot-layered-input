@@ -138,6 +138,14 @@ func rebuild_input_map() -> void:
 		_rebuild_input_map.call_deferred()
 
 
+static func compare_event(
+			a:InputEvent,
+			b:InputEvent,
+			exact_match:bool = true ) -> bool:
+	assert( a and b, "compare_event, a or b is invalid")
+	return a == b or a.is_match(b, exact_match)
+
+
 #       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #
 #       ██ ████   ██    ██    ██      ██   ██ ████   ██ ██   ██ ██             #
 #       ██ ██ ██  ██    ██    █████   ██████  ██ ██  ██ ███████ ██             #

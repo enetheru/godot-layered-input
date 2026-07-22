@@ -16,11 +16,12 @@ extends LineEdit
 ## While focused, key / mouse-button / joy events are consumed and exposed via
 ## [signal event_changed]. Hold [code]ui_cancel[/code] briefly to release focus.
 
+##TODO: Write documenation, indicate its a bitmask
 enum InputType {
-	KEY = 1,
-	MOUSE_BUTTON = 2,
-	JOY_BUTTON = 4,
-	JOY_MOTION = 8,
+	KEY          = 0x1,
+	MOUSE_BUTTON = 0x2,
+	JOY_BUTTON   = 0x4,
+	JOY_MOTION   = 0x8,
 }
 
 const ALL_INPUT_TYPES: int = (
@@ -113,7 +114,7 @@ func _notification(what: int) -> void:
 			if window is AcceptDialog:
 				(window as AcceptDialog).dialog_close_on_escape = true
 			# Only ignore the focusing click when the user focuses by mouse.
-			# Programmatic grab_focus() clears this again before the next event.
+			# Programmatic manual_grab_focus() clears this again before the next event.
 			_ignore_next_event = true
 			placeholder_text = "Filter by Event"
 
@@ -124,17 +125,21 @@ func _ready() -> void:
 	focus_mode = Control.FOCUS_ALL
 	if placeholder_text.is_empty():
 		placeholder_text = "Filter by Event"
-	@warning_ignore("return_value_discarded")
+	@warning_ignore_start("return_value_discarded")
 	text_changed.connect(_on_text_changed)
 	focus_entered.connect(_on_focus_entered)
+	@warning_ignore_restore("return_value_discarded")
 
 
 ## Code-driven focus must accept the next bind immediately (engine EventListenerLineEdit).
-func grab_focus() -> void:
+## [br]FIXME: The grab_focus function cannot be overridden, if the override
+## behavior was being relied upon, we need to figure out a different mechanism
+## to trigger this.
+func manual_grab_focus() -> void:
 	# Opening the config dialog via a tree button leaves a mouse-up in the queue.
 	# Accept the next non-key residual (mouse) once, then take real binds.
 	_ignore_next_event = false
-	super.grab_focus()
+	grab_focus()
 
 
 func _gui_input(event: InputEvent) -> void:
