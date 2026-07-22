@@ -40,9 +40,9 @@ func                        ________PROPERTIES_______              ()->void:pass
 		deadzone = value
 		emit_changed()
 
-## Binding list for this action. Setter covers wholesale Inspector replace;
-## [method add_event] / [method erase_event] / [method clear_events] emit on
-## in-place mutation.
+## Binding list for this action. Setter covers wholesale Inspector replace.
+## In-place [method add_event] / [method erase_event] / [method clear_events]
+## call [method refresh_events_inspector] so the array editor sees a write.
 @export var events:Array[InputEvent] = []:
 	set( value ):
 		events = value
@@ -133,14 +133,22 @@ func has_event( event:InputEvent ) -> bool:
 	return false
 
 
+## Force the Inspector array editor to refresh after in-place [member events]
+## edits (append/remove are invisible without a property write).
+func refresh_events_inspector() -> void:
+	var copy:Array[InputEvent] = []
+	copy.assign( events )
+	events = copy
+	notify_property_list_changed()
+
+
 func add_event( event:InputEvent ) -> void:
 	assert( event, "InputAction.add_event: invalid event" )
 	if has_event( event ):
 		push_warning( "InputAction.add_event: event already exists" )
 		return
-	# Append without reassigning [member events] (avoids setter replace).
 	events.append( event )
-	emit_changed()
+	refresh_events_inspector()
 
 
 func erase_event( event:InputEvent ) -> void:
@@ -157,14 +165,14 @@ func erase_event( event:InputEvent ) -> void:
 			events.remove_at( i )
 			removed = true
 	if removed:
-		emit_changed()
+		refresh_events_inspector()
 
 
 func clear_events() -> void:
 	if events.is_empty():
 		return
 	events.clear()
-	emit_changed()
+	refresh_events_inspector()
 
 
 ## True when [param a] and [param b] are the same event or match under

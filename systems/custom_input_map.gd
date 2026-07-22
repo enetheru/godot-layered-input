@@ -304,7 +304,6 @@ func set_action_deadzone( action_name:StringName, deadzone:float ) -> void:
 	# ensure_action asserts non-empty name.
 	var ia:InputAction = ensure_action( action_name, deadzone )
 	ia.deadzone = deadzone
-	dematerialize_if_trivial( action_name )
 
 
 func add_action_event( action_name:StringName, event:InputEvent ) -> void:
@@ -328,7 +327,6 @@ func erase_action_event( action_name:StringName, event:InputEvent ) -> void:
 				% action_name )
 		return
 	ia.erase_event( event )
-	dematerialize_if_trivial( action_name )
 
 
 func clear_action_events( action_name:StringName ) -> void:
@@ -341,11 +339,12 @@ func clear_action_events( action_name:StringName ) -> void:
 				% action_name )
 		return
 	ia.clear_events()
-	dematerialize_if_trivial( action_name )
 
 
 ## Keep the action name but drop the [InputAction] resource ([code]null[/code]
 ## placeholder). No-op if the name is missing.
+## [br]Used by the Input Map panel when the [b]last[/b] event is removed and
+## deadzone is default — not when the Inspector authors an empty [InputAction].
 func clear_action_def( action_name:StringName ) -> void:
 	assert( not String( action_name ).is_empty(),
 			"CustomInputMap.clear_action_def: empty action_name" )
@@ -360,8 +359,10 @@ func clear_action_def( action_name:StringName ) -> void:
 	refresh_actions_inspector()
 
 
-## If [param action_name] has a trivial def (no events, default deadzone),
-## store [code]null[/code] and keep the name. Returns true when dematerialized.
+## Panel helper: if [param action_name] has no events and default deadzone,
+## store [code]null[/code] (keep the name). Returns true when dematerialized.
+## Do [b]not[/b] call from generic mutate paths — empty Inspector-authored
+## actions must remain legal.
 func dematerialize_if_trivial( action_name:StringName ) -> bool:
 	if not _actions.has( action_name ):
 		return false
@@ -372,23 +373,6 @@ func dematerialize_if_trivial( action_name:StringName ) -> bool:
 		return false
 	clear_action_def( action_name )
 	return true
-
-
-## Dematerialize every trivial def. Returns how many entries became null.
-func prune_trivial_defs() -> int:
-	var count:int = 0
-	var names:Array[StringName] = get_action_names()
-	for action_name:StringName in names:
-		var ia:InputAction = _actions.get( action_name )
-		if ia == null:
-			continue
-		if not is_trivial_action_def( ia ):
-			continue
-		_actions[action_name] = null
-		count += 1
-	if count > 0:
-		refresh_actions_inspector()
-	return count
 
 
 ## Drop every action and its events so [InputEvent] / [InputAction] refcounts

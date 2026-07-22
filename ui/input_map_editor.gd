@@ -266,10 +266,10 @@ func _on_action_edited() -> void:
 		if map == null:
 			return
 		_host_mutating = true
-		var key:StringName = StringName( action_name )
-		map.set_action_deadzone( key, ti.get_range( Column.DEADZONE ) )
-		var dematerialized:bool = map.get_action( key ) == null
-		_host_refresh( map, dematerialized )
+		map.set_action_deadzone(
+				StringName( action_name ),
+				ti.get_range( Column.DEADZONE ) )
+		_host_refresh( map, false )
 
 
 func _on_tree_item_selected() -> void:
@@ -424,27 +424,23 @@ func _on_host_action_edited( action_name:String, new_action:Dictionary ) -> void
 		if ev != null:
 			wanted.append( ev )
 	_host_mutating = true
-	# Fully trivial → null placeholder (keep the name only).
-	if wanted.is_empty() and is_equal_approx( deadzone, CustomInputMap.DEFAULT_DEADZONE ):
-		if map.has_action( key ):
-			map.clear_action_def( key )
-		else:
-			map.ensure_action_name( key )
-		_host_refresh( map, true )
-		return
+	var current:Array[InputEvent] = map.get_action_events( key )
+	var had_events:bool = not current.is_empty()
 	# Keep the same InputAction instance so the Inspector does not collapse.
 	var ia:InputAction = map.ensure_action( key, deadzone )
 	if not is_equal_approx( ia.deadzone, deadzone ):
 		ia.deadzone = deadzone
-	var current:Array[InputEvent] = map.get_action_events( key )
 	if not _event_arrays_equal( current, wanted ):
-		# Avoid dematerialize mid-rebuild: clear events without prune, then re-add.
 		ia.clear_events()
 		for v2:Variant in wanted:
 			var src:InputEvent = v2 as InputEvent
 			if src != null:
 				ia.add_event( src.duplicate() )
-	var dematerialized:bool = map.dematerialize_if_trivial( key )
+	# Only the panel dropping the *last* event (at default deadzone) clears the
+	# def. Empty InputActions authored in the Inspector stay as resources.
+	var dematerialized:bool = false
+	if had_events and wanted.is_empty():
+		dematerialized = map.dematerialize_if_trivial( key )
 	_host_refresh( map, dematerialized )
 
 
@@ -511,12 +507,6 @@ func _on_input_map_changed(_effective: CustomInputMap) -> void:
 func _on_open_map_changed() -> void:
 	if _host_mutating or _refreshing:
 		return
-	# Inspector may leave empty+default InputAction resources — collapse to null.
-	_host_mutating = true
-	for m:CustomInputMap in _get_open_maps():
-		if m != null and m.prune_trivial_defs() > 0:
-			resource_modified.emit( m )
-	_host_mutating = false
 	refresh()
 	# Dictionary add/remove may introduce new InputAction instances — re-bind
 	# after this signal returns (do not disconnect mid-emit).
