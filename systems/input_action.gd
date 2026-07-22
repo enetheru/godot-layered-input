@@ -1,3 +1,4 @@
+@tool
 class_name InputAction
 extends Resource
 
@@ -12,6 +13,10 @@ extends Resource
 ## Hand-author as a sub-resource inside a [CustomInputMap] `.tres`, or build
 ## in code via [method CustomInputMap.add_action] /
 ## [method CustomInputMap.add_action_event].
+## [br]Intended as an **embedded** sub-resource of a map (not a standalone
+## `.tres`). Nested under an external map on a scene, the inspector shows
+## “linked”; make the [CustomInputMap] unique/local, not only this action —
+## Dictionary value overrides often fail to stick on save.
 ## [br]Supports [code]for event in action:[/code] — each element is a valid
 ## [InputEvent] in storage order (empty/null slots are not visited).
 
@@ -41,8 +46,28 @@ func                        ________OVERRIDES________              ()->void:pass
 func _init(
 			new_deadzone:float = DEFAULT_DEADZONE,
 			new_events:Array[InputEvent] = [] ) -> void:
+	# Owned by the parent [CustomInputMap]; duplicate with the map when a scene
+	# makes the map local (avoids accidental cross-scene sharing of one action).
+	resource_local_to_scene = true
 	deadzone = new_deadzone
-	events = new_events
+	# Copy into this instance's typed array (do not alias the caller / default arg).
+	events.assign( new_events )
+
+
+## Hide inspector revert where the export default is not a useful “previous
+## state” ([member events] would otherwise revert to an empty list).
+func _property_can_revert( property:StringName ) -> bool:
+	if property == &"events":
+		return false
+	if property == &"deadzone":
+		return not is_equal_approx( deadzone, DEFAULT_DEADZONE )
+	return false
+
+
+func _property_get_revert( property:StringName ) -> Variant:
+	if property == &"deadzone":
+		return DEFAULT_DEADZONE
+	return null
 
 
 # for-in: Object._iter_* — Godot gives a one-slot Array (state) so the loop can

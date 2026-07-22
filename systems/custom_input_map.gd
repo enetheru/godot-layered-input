@@ -46,6 +46,17 @@ func                        ________PROPERTIES_______              ()->void:pass
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
+## No useful factory default for [member _actions] (empty dict would wipe the
+## map). Disable inspector revert for that property.
+func _property_can_revert( property:StringName ) -> bool:
+	if property == &"_actions":
+		return false
+	return false
+
+
+func _property_get_revert( _property:StringName ) -> Variant:
+	return null
+
 # for-in: Object._iter_* — Godot gives a one-slot Array (state) so the loop can
 # update the cursor by reference. Nested loops each get their own Array.
 #   _iter_init → write state[0], return true if a first element exists
