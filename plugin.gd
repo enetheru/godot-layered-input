@@ -146,7 +146,11 @@ func _exit_tree() -> void:
 		_panel = null
 	_dock = null
 	_inspector_editor = null
+	# Explicit RefCounted teardown before drop (do not rely on PREDELETE).
+	var opts:InputMapEditorSettings = _opts
 	_opts = null
+	if opts != null:
+		opts.shutdown()
 	_dirty_maps.clear()
 	# Intentionally leave ProjectSettings keys intact.
 

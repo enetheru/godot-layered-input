@@ -42,10 +42,15 @@ signal settings_changed( setting_name:StringName, value:Variant )
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-var host_mode:HostMode = HostMode.BOTTOM_PANEL
+var host_mode:HostMode = HostMode.DOCK
 var auto_raise:bool = true
 var default_deadzone:float = 0.2
 var panel_min_height:float = 280.0
+
+var _on_settings_changed_cb:Callable = Callable()
+var _shut_down:bool = false
+## After init settles; avoids treating register/load noise as a user change.
+var _emit_live:bool = false
 
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
@@ -56,21 +61,44 @@ var panel_min_height:float = 280.0
 func                        ________OVERRIDES________              ()->void:pass
 
 func _init() -> void:
+	_emit_live = false
 	_purge_broken_layout_key()
 	_register_all()
 	_purge_legacy_bool_keys()
 	_load_from_project()
-	if not ProjectSettings.settings_changed.is_connected( _on_project_settings_changed ):
+	_on_settings_changed_cb = Callable( self, &"_on_project_settings_changed" )
+	if not ProjectSettings.settings_changed.is_connected( _on_settings_changed_cb ):
 		@warning_ignore( "return_value_discarded" )
-		ProjectSettings.settings_changed.connect( _on_project_settings_changed )
+		ProjectSettings.settings_changed.connect( _on_settings_changed_cb )
+	_enable_live_emits.call_deferred()
 
 
+## Audit only — cleanup is [method shutdown] (RefCounted PREDELETE is unreliable).
 func _notification( what:int ) -> void:
 	if what != NOTIFICATION_PREDELETE:
 		return
-	if ProjectSettings.settings_changed.is_connected( _on_project_settings_changed ):
-		ProjectSettings.settings_changed.disconnect( _on_project_settings_changed )
-	# Do NOT erase ProjectSettings — they must survive plugin disable.
+	if not _shut_down:
+		push_warning(
+				"InputMapEditorSettings: freed without shutdown()" )
+
+
+## Call from the plugin before dropping the last ref. Idempotent.
+func shutdown() -> void:
+	if _shut_down:
+		return
+	_emit_live = false
+	if _on_settings_changed_cb.is_valid() \
+	and ProjectSettings.settings_changed.is_connected( _on_settings_changed_cb ):
+		ProjectSettings.settings_changed.disconnect( _on_settings_changed_cb )
+	_on_settings_changed_cb = Callable()
+	_shut_down = true
+
+
+func _enable_live_emits() -> void:
+	if _shut_down:
+		return
+	_load_from_project()
+	_emit_live = true
 
 
 #             ███████ ██    ██ ███████ ███    ██ ████████ ███████              #
@@ -81,6 +109,8 @@ func _notification( what:int ) -> void:
 func                        __________EVENTS_________              ()->void:pass
 
 func _on_project_settings_changed() -> void:
+	if _shut_down or not _emit_live:
+		return
 	_sync_from_project.call_deferred()
 
 
@@ -179,11 +209,15 @@ func _load_from_project() -> void:
 
 
 func _sync_from_project() -> void:
+	if _shut_down:
+		return
 	var prev_mode:HostMode = host_mode
 	var prev_raise:bool = auto_raise
 	var prev_dz:float = default_deadzone
 	var prev_h:float = panel_min_height
 	_load_from_project()
+	if not _emit_live:
+		return
 	if host_mode != prev_mode:
 		settings_changed.emit( &"host_mode", host_mode )
 	if auto_raise != prev_raise:
