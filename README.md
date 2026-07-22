@@ -52,9 +52,16 @@ add_child(editor)
 
 ```
 addons/enetheru.input_map_editor/
-  plugin.cfg / plugin.gd / inspector_plugin.gd
-  systems/   # CustomInputMap, InputMapAction, InputManager, Responder
+  plugin.cfg / plugin.gd / export_plugin.gd / .exportignore
+  systems/   # CustomInputMap, InputAction, InputManager, Responder
   ui/        # InputMapEditor scene + event config dialog + icons
+  test/      # Headless smoke (excluded from export)
 ```
 
 No dependency on project-specific bases (`ENode`, `ERes`, `Core`, `EneLog`).
+
+## Export
+
+`export_plugin.gd` reads `.exportignore` and calls `skip()` so editor-only
+files (plugin entry, smoke tests, README) are not packed into exports.
+Runtime `systems/` and in-game `ui/` remain available in the pck.

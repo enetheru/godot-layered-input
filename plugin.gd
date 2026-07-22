@@ -25,6 +25,9 @@ var _suppress_edited_object_signal:bool = false
 ## Standalone disk maps the bottom panel has mutated (need Save / _save_external_data).
 var _dirty_maps:Array[CustomInputMap] = []
 
+## Strips editor-only / test paths via [code].exportignore[/code] (see export_plugin.gd).
+var _export_plugin:EditorExportPlugin
+
 
 #             ███████ ██    ██ ███████ ███    ██ ████████ ███████              #
 #             ██      ██    ██ ██      ████   ██    ██    ██                   #
@@ -63,6 +66,9 @@ func _on_resource_modified( map:CustomInputMap ) -> void:
 func                        ________OVERRIDES________              ()->void:pass
 
 func _enter_tree() -> void:
+	_export_plugin = preload( "export_plugin.gd" ).new()
+	add_export_plugin( _export_plugin )
+
 	_panel = EditorScene.instantiate()
 	_panel.resource_edit_mode = true
 	_panel.apply_edit_map_to_engine = false
@@ -84,6 +90,10 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if _export_plugin:
+		remove_export_plugin( _export_plugin )
+		_export_plugin = null
+
 	var inspector:EditorInspector = EditorInterface.get_inspector()
 	if inspector \
 	and inspector.edited_object_changed.is_connected( _on_edited_object_changed ):

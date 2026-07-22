@@ -1,0 +1,15 @@
+# Paths relative to this addon root (res://addons/enetheru.input_map_editor/).
+# Matched by EditorExportPlugin.skip() — see export_plugin.gd.
+
+# EditorPlugin entry (not used in exported games)
+plugin.gd
+plugin.cfg
+plugin.gd.uid
+export_plugin.gd
+export_plugin.gd.uid
+
+# Headless smoke / tests
+test/
+
+# Docs
+README.md
