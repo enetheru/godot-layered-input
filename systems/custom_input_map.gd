@@ -283,61 +283,86 @@ static func from_project_settings() -> CustomInputMap:
 	return from_engine()
 
 
-## Saves map to .cfg file in project.godot [input] compatible style.
-##[color=yellow_green]NOTE[/color]:Some advanced InputEvent properties may be lossy.
+## Save to a ConfigFile at [param path] using project.godot [input] shape:
+## each action is one key whose value is
+## [code]{ "deadzone": float, "events": Array[InputEvent] }[/code].
+## [br][param path] is used as given (extension is the caller's choice).
+## [br][color=yellow_green]NOTE[/color]:ConfigFile encoding of InputEvents can
+## drop uncommon properties; prefer [code].tres[/code] for lossless authoring.
 func save_to_config( path:String ) -> Error:
-	#FIXME: dont make decisions for the user.
-	if not path.ends_with(".cfg"):
-		path += ".cfg"
-
-	#FIXME: Replicate the project config format exactly, each action looks
-	# like a dictionary
-	var cfg := ConfigFile.new()
+	assert( not path.is_empty(), "CustomInputMap.save_to_config: empty path" )
+	var cfg:ConfigFile = ConfigFile.new()
 	for action_name:StringName in get_action_names():
-		var ia:InputAction = _actions[action_name]
-		if not is_instance_valid( ia ):
-			cfg.set_value( "input", action_name, {} )
-			continue
-
-		cfg.set_value( "input", action_name + "/deadzone", ia.deadzone )
-
-		var event_list := PackedStringArray()
-		for ie:InputEvent in ia.events:
-			if is_instance_valid( ie ):
-				# ConfigFile can serialize basic InputEvents; for exact match use to_json or custom
-				if not event_list.append(str(ie)):  # simplistic; improve as needed
-					push_error('CustomInputMap: failed to append event %s' % str(ie))
-		cfg.set_value( "input", action_name + "/events", event_list )
-	# TODO more robust error checking and user reporting.
-	var err := cfg.save( path )
+		cfg.set_value(
+				"input",
+				String( action_name ),
+				_action_to_project_dict( _actions[action_name] ) )
+	var err:Error = cfg.save( path )
 	if err != OK:
-		push_error("CustomInputMap: save_to_config failed: %s" % error_string(err))
+		push_error(
+				"CustomInputMap.save_to_config: failed for '%s': %s"
+				% [path, error_string( err )] )
 	return err
 
 
-## Loads from .cfg and returns new map (or populates this one).
+## Load a ConfigFile written by [method save_to_config] (or an [code][input][/code]
+## section in the same dictionary shape as project.godot). Returns null on load error.
 static func create_from_config( path:String ) -> CustomInputMap:
-	var cfg := ConfigFile.new()
+	assert( not path.is_empty(), "CustomInputMap.create_from_config: empty path" )
+	var cfg:ConfigFile = ConfigFile.new()
 	var err:Error = cfg.load( path )
 	if err != OK:
-		push_error("CustomInputMap: load config failed: '%s' with:" % path, error_string(err))
+		push_error(
+				"CustomInputMap.create_from_config: failed for '%s': %s"
+				% [path, error_string( err )] )
 		return null
-	var map := CustomInputMap.new()
-	# Parse [input] section
-	var section_keys:PackedStringArray = cfg.get_section_keys( "input" )
-	for key:String in section_keys:
-		# FIXME, this parsing section is broken, surely there are builtin tools
-		# to better parse the structures. Either way, the saving will change
-		# so much this to match.
-		var action_name:StringName = key.get_slice( "/", 0 )
-		var im:InputAction = map.add_action(action_name)
-		if key.ends_with( "/deadzone" ):
-			im.deadzone = cfg.get_value( "input", key, 0.5 )
-		elif key.ends_with( "/events" ):
-			pass
-			# TODO events handling would go here - more complex
-		# TODO, what if the format is a dictionary like the project file?
+
+	var map:CustomInputMap = CustomInputMap.new()
+	if not cfg.has_section( "input" ):
+		return map
+
+	for key:String in cfg.get_section_keys( "input" ):
+		var value:Variant = cfg.get_value( "input", key )
+		if not ( value is Dictionary ):
+			push_warning(
+					"CustomInputMap.create_from_config: skip key '%s' (expected Dictionary, got %s)"
+					% [key, type_string( typeof( value ) )] )
+			continue
+		var action_dict:Dictionary = value
+		var deadzone:float = float(
+				action_dict.get( "deadzone", DEFAULT_DEADZONE ) )
+		var events:Array[InputEvent] = _events_from_project_variant(
+				action_dict.get( "events", [] ) )
+		map.add_action( StringName( key ), deadzone, events )
 	return map
+
+
+## project.godot-shaped dictionary for one action (null → empty defaults).
+static func _action_to_project_dict( ia:InputAction ) -> Dictionary:
+	var events:Array = []
+	var deadzone:float = DEFAULT_DEADZONE
+	if is_instance_valid( ia ):
+		deadzone = ia.deadzone
+		for ie:InputEvent in ia.events:
+			if is_instance_valid( ie ):
+				events.append( ie )
+	return {
+		"deadzone": deadzone,
+		"events": events,
+	}
+
+
+## Coerce ConfigFile / project [code]events[/code] value into typed InputEvents.
+static func _events_from_project_variant( raw:Variant ) -> Array[InputEvent]:
+	var out:Array[InputEvent] = []
+	if not ( raw is Array ):
+		return out
+	for item:Variant in raw:
+		if item is InputEvent:
+			var ie:InputEvent = item
+			if is_instance_valid( ie ):
+				out.append( ie )
+	return out
 
 #endregion Project / config
 
