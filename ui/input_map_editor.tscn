@@ -1,13 +1,13 @@
 [gd_scene format=3 uid="uid://cye1pwo2sfteo"]
 
-[ext_resource type="StyleBox" uid="uid://81wsa7gfwig6" path="res://addons/enetheru.input_map_editor/ui/res/sbf_input_map_editor.tres" id="1_j5pep"]
-[ext_resource type="Script" uid="uid://bd6londkafuml" path="res://addons/enetheru.input_map_editor/ui/input_map_editor.gd" id="1_qki46"]
-[ext_resource type="PackedScene" uid="uid://qx0n6lg5xgvm" path="res://addons/enetheru.input_map_editor/ui/event_config_dialog.tscn" id="2_a5nkh"]
-[ext_resource type="StyleBox" uid="uid://p58kkrovb2as" path="res://addons/enetheru.input_map_editor/ui/res/sbf_column_title.tres" id="3_7axco"]
-[ext_resource type="StyleBox" uid="uid://dday50u2lkyaj" path="res://addons/enetheru.input_map_editor/ui/res/sbf_line_edit.tres" id="3_cvjgg"]
-[ext_resource type="Script" uid="uid://25t6g8jhvn8c" path="res://addons/enetheru.input_map_editor/ui/event_listener_line_edit.gd" id="3_listener"]
-[ext_resource type="StyleBox" uid="uid://dre0pyckcv5dw" path="res://addons/enetheru.input_map_editor/ui/res/sbf_button_disabled.tres" id="5_5xaem"]
-[ext_resource type="StyleBox" uid="uid://ct5ertvlsd4bs" path="res://addons/enetheru.input_map_editor/ui/res/sbf_button_hover.tres" id="6_5xaem"]
+[ext_resource type="StyleBox" uid="uid://81wsa7gfwig6" path="res://addons/enetheru.layered-input/ui/res/sbf_input_map_editor.tres" id="1_j5pep"]
+[ext_resource type="Script" uid="uid://bd6londkafuml" path="res://addons/enetheru.layered-input/ui/input_map_editor.gd" id="1_qki46"]
+[ext_resource type="PackedScene" uid="uid://qx0n6lg5xgvm" path="res://addons/enetheru.layered-input/ui/event_config_dialog.tscn" id="2_a5nkh"]
+[ext_resource type="StyleBox" uid="uid://p58kkrovb2as" path="res://addons/enetheru.layered-input/ui/res/sbf_column_title.tres" id="3_7axco"]
+[ext_resource type="StyleBox" uid="uid://dday50u2lkyaj" path="res://addons/enetheru.layered-input/ui/res/sbf_line_edit.tres" id="3_cvjgg"]
+[ext_resource type="Script" uid="uid://25t6g8jhvn8c" path="res://addons/enetheru.layered-input/ui/event_listener_line_edit.gd" id="3_listener"]
+[ext_resource type="StyleBox" uid="uid://dre0pyckcv5dw" path="res://addons/enetheru.layered-input/ui/res/sbf_button_disabled.tres" id="5_5xaem"]
+[ext_resource type="StyleBox" uid="uid://ct5ertvlsd4bs" path="res://addons/enetheru.layered-input/ui/res/sbf_button_hover.tres" id="6_5xaem"]
 
 [sub_resource type="DPITexture" id="DPITexture_iu2iu"]
 _source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M10.168 8.754a5 5 0 1 0-1.414 1.414l4.316 4.316 1.414-1.414zM6 3a3 3 0 0 1 0 6 3 3 0 0 1 0-6z\"/></svg>

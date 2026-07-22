@@ -1,11 +1,11 @@
 extends Node
 
-## Headless smoke for enetheru.input_map_editor systems + scene load.
+## Headless smoke for enetheru.layered-input systems + scene load.
 ##
 ## Prefer the scene entry (autoload names resolve after full project boot):
 ## [codeblock]
 ## godot.windows.editor.x86_64.console.exe --headless --path . \
-##   res://addons/enetheru.input_map_editor/test/smoke_input_map_editor.tscn
+##   res://addons/enetheru.layered-input/test/smoke_input_map_editor.tscn
 ## [/codeblock]
 
 
@@ -69,12 +69,12 @@ func _ready() -> void:
 			is_instance_valid( from_engine ) and from_engine.has_action( &"smoke_jump" ) )
 
 	var default_map:Resource = load(
-			"res://addons/enetheru.input_map_editor/systems/default_input_map.tres" )
+			"res://addons/enetheru.layered-input/systems/default_input_map.tres" )
 	failed += _check( "load default_input_map.tres",
 			is_instance_valid( default_map ) and default_map is CustomInputMap )
 
 	var editor_scene:PackedScene = load(
-			"res://addons/enetheru.input_map_editor/ui/input_map_editor.tscn" ) as PackedScene
+			"res://addons/enetheru.layered-input/ui/input_map_editor.tscn" ) as PackedScene
 	failed += _check( "load input_map_editor.tscn", is_instance_valid( editor_scene ) )
 	if is_instance_valid( editor_scene ):
 		var editor_node:Node = editor_scene.instantiate()
@@ -86,7 +86,7 @@ func _ready() -> void:
 			editor_node.queue_free()
 
 	var dialog_scene:PackedScene = load(
-			"res://addons/enetheru.input_map_editor/ui/event_config_dialog.tscn" ) as PackedScene
+			"res://addons/enetheru.layered-input/ui/event_config_dialog.tscn" ) as PackedScene
 	failed += _check( "load event_config_dialog.tscn", is_instance_valid( dialog_scene ) )
 	if is_instance_valid( dialog_scene ):
 		var dialog_node:Node = dialog_scene.instantiate()
@@ -95,7 +95,7 @@ func _ready() -> void:
 			dialog_node.free()
 
 	var plugin_script:Script = load(
-			"res://addons/enetheru.input_map_editor/plugin.gd" ) as Script
+			"res://addons/enetheru.layered-input/plugin.gd" ) as Script
 	failed += _check( "load plugin.gd", is_instance_valid( plugin_script ) )
 
 	var key_a:InputEventKey = InputEventKey.new()
@@ -144,7 +144,7 @@ func _ready() -> void:
 		im.call( &"shutdown" )
 
 	if failed == 0:
-		print( "SMOKE OK: enetheru.input_map_editor" )
+		print( "SMOKE OK: enetheru.layered-input" )
 		get_tree().quit( 0 )
 	else:
 		push_error( "SMOKE FAIL: %d check(s) failed" % failed )

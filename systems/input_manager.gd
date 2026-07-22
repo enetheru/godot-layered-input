@@ -31,7 +31,7 @@ extends Node
 
 ## Path to the stock root layer; loaded only via [method get_default_input_map].
 const DEFAULT_INPUT_MAP_PATH:String = (
-		"res://addons/enetheru.input_map_editor/systems/default_input_map.tres" )
+		"res://addons/enetheru.layered-input/systems/default_input_map.tres" )
 
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #

@@ -1,13 +1,14 @@
 [gd_resource type="Resource" script_class="CustomInputMap" format=3 uid="uid://6hh6cxvfe0kf"]
 
-[ext_resource type="Script" uid="uid://bkqnc854wksva" path="res://addons/enetheru.input_map_editor/systems/input_action.gd" id="1_pc2b8"]
-[ext_resource type="Script" uid="uid://dnx2qot3j0di6" path="res://addons/enetheru.input_map_editor/systems/custom_input_map.gd" id="2_rrq4e"]
+[ext_resource type="Script" uid="uid://bkqnc854wksva" path="res://addons/enetheru.layered-input/systems/input_action.gd" id="1_pc2b8"]
+[ext_resource type="Script" uid="uid://dnx2qot3j0di6" path="res://addons/enetheru.layered-input/systems/custom_input_map.gd" id="2_rrq4e"]
 
 [sub_resource type="InputEventKey" id="InputEventKey_eokxa"]
 physical_keycode = 83
 unicode = 83
 
 [sub_resource type="Resource" id="Resource_bembj"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_eokxa")])
 
@@ -16,6 +17,7 @@ physical_keycode = 81
 unicode = 81
 
 [sub_resource type="Resource" id="Resource_a1fpq"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_gd6j6")])
 
@@ -24,6 +26,7 @@ physical_keycode = 87
 unicode = 87
 
 [sub_resource type="Resource" id="Resource_kv70u"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_1jxbj")])
 
@@ -32,6 +35,7 @@ physical_keycode = 65
 unicode = 65
 
 [sub_resource type="Resource" id="Resource_v0yg0"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_q43r4")])
 
@@ -40,6 +44,7 @@ physical_keycode = 68
 unicode = 68
 
 [sub_resource type="Resource" id="Resource_2biaq"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_sry38")])
 
@@ -47,6 +52,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_sry38")])
 keycode = 4194328
 
 [sub_resource type="Resource" id="Resource_04f36"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_l402h")])
 
@@ -54,6 +60,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_l402h")])
 keycode = 4194325
 
 [sub_resource type="Resource" id="Resource_lpswc"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_slkef")])
 
@@ -62,43 +69,52 @@ physical_keycode = 69
 unicode = 69
 
 [sub_resource type="Resource" id="Resource_bm5pu"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_xjybw")])
 
 [sub_resource type="Resource" id="Resource_lrvjs"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 
 [sub_resource type="Resource" id="Resource_orj67"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 
 [sub_resource type="InputEventKey" id="InputEventKey_oau72"]
 keycode = 4194328
 
 [sub_resource type="Resource" id="Resource_q47ko"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_oau72")])
 
 [sub_resource type="Resource" id="Resource_5tyhj"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 
 [sub_resource type="InputEventKey" id="InputEventKey_iv7wr"]
 keycode = 4194325
 
 [sub_resource type="Resource" id="Resource_gswd7"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_iv7wr")])
 
 [sub_resource type="Resource" id="Resource_l4hhl"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 
 [sub_resource type="InputEventKey" id="InputEventKey_vy051"]
 keycode = 4194326
 
 [sub_resource type="Resource" id="Resource_al043"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_vy051")])
 
 [sub_resource type="Resource" id="Resource_kvkt8"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 
 [sub_resource type="InputEventKey" id="InputEventKey_pc2b8"]
@@ -112,10 +128,12 @@ keycode = 32
 unicode = 32
 
 [sub_resource type="Resource" id="Resource_fxvnn"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_pc2b8"), SubResource("InputEventKey_rrq4e"), SubResource("InputEventKey_qj4ua")])
 
 [sub_resource type="Resource" id="Resource_cbr6v"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 
 [sub_resource type="InputEventKey" id="InputEventKey_fxvnn"]
@@ -123,6 +141,7 @@ device = -1
 keycode = 4194305
 
 [sub_resource type="Resource" id="Resource_fynsg"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_fxvnn")])
 metadata/_custom_type_script = "uid://bkqnc854wksva"
@@ -131,6 +150,7 @@ metadata/_custom_type_script = "uid://bkqnc854wksva"
 keycode = 4194305
 
 [sub_resource type="Resource" id="Resource_s64hi"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_56dbq")])
 
@@ -138,6 +158,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_56dbq")])
 keycode = 4194305
 
 [sub_resource type="Resource" id="Resource_487lv"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_b0g5v")])
 
@@ -145,6 +166,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_b0g5v")])
 keycode = 4194312
 
 [sub_resource type="Resource" id="Resource_aswfr"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_lvtbp")])
 
@@ -158,6 +180,7 @@ command_or_control_autoremap = true
 keycode = 4194311
 
 [sub_resource type="Resource" id="Resource_3bd30"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_ktmsw"), SubResource("InputEventKey_3jdea")])
 
@@ -171,6 +194,7 @@ shift_pressed = true
 keycode = 4194312
 
 [sub_resource type="Resource" id="Resource_e38ma"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_sip6a"), SubResource("InputEventKey_y22rs")])
 
@@ -178,6 +202,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_sip6a"), SubResource("Inp
 keycode = 4194322
 
 [sub_resource type="Resource" id="Resource_st6a7"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_rxilv")])
 
@@ -185,6 +210,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_rxilv")])
 keycode = 4194318
 
 [sub_resource type="Resource" id="Resource_r8oix"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_g31ei")])
 
@@ -192,6 +218,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_g31ei")])
 keycode = 4194312
 
 [sub_resource type="Resource" id="Resource_n2drc"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_kdux3")])
 
@@ -201,6 +228,7 @@ keycode = 70
 unicode = 70
 
 [sub_resource type="Resource" id="Resource_x62t0"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_f17go")])
 
@@ -210,6 +238,7 @@ keycode = 76
 unicode = 76
 
 [sub_resource type="Resource" id="Resource_gnlvq"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_hiakn")])
 
@@ -217,6 +246,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_hiakn")])
 keycode = 4194336
 
 [sub_resource type="Resource" id="Resource_tjr7a"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_0p02p")])
 
@@ -225,6 +255,7 @@ keycode = 72
 unicode = 72
 
 [sub_resource type="Resource" id="Resource_s35jx"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_r7uuq")])
 
@@ -232,6 +263,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_r7uuq")])
 keycode = 4194308
 
 [sub_resource type="Resource" id="Resource_jy5nf"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_0dy1g")])
 
@@ -241,6 +273,7 @@ keycode = 77
 unicode = 77
 
 [sub_resource type="Resource" id="Resource_brxul"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_jpkjq")])
 
@@ -248,6 +281,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_jpkjq")])
 keycode = 4194306
 
 [sub_resource type="Resource" id="Resource_4j7f8"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_813rs")])
 
@@ -256,6 +290,7 @@ shift_pressed = true
 keycode = 4194306
 
 [sub_resource type="Resource" id="Resource_qaaru"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_w7kld")])
 
@@ -263,6 +298,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_w7kld")])
 keycode = 4194312
 
 [sub_resource type="Resource" id="Resource_hyxyc"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_gu410")])
 
@@ -272,6 +308,7 @@ keycode = 68
 unicode = 68
 
 [sub_resource type="Resource" id="Resource_0y11k"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_8pyiv")])
 
@@ -280,6 +317,7 @@ command_or_control_autoremap = true
 keycode = 4194319
 
 [sub_resource type="Resource" id="Resource_qk7lj"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_mtgba")])
 
@@ -288,6 +326,7 @@ command_or_control_autoremap = true
 keycode = 4194321
 
 [sub_resource type="Resource" id="Resource_ysbfm"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_choc7")])
 
@@ -295,6 +334,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_choc7")])
 keycode = 4194317
 
 [sub_resource type="Resource" id="Resource_ix5aj"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_6n74p")])
 
@@ -302,6 +342,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_6n74p")])
 keycode = 4194319
 
 [sub_resource type="Resource" id="Resource_iqoeh"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_agtae")])
 
@@ -309,6 +350,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_agtae")])
 keycode = 4194370
 
 [sub_resource type="Resource" id="Resource_aau0x"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_3sjip")])
 
@@ -316,6 +358,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_3sjip")])
 keycode = 4194324
 
 [sub_resource type="Resource" id="Resource_gq1h8"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_dvbtf")])
 
@@ -323,6 +366,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_dvbtf")])
 keycode = 4194323
 
 [sub_resource type="Resource" id="Resource_c1fr6"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_361k0")])
 
@@ -336,6 +380,7 @@ shift_pressed = true
 keycode = 4194311
 
 [sub_resource type="Resource" id="Resource_bg2lm"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_obo4x"), SubResource("InputEventKey_juxco")])
 
@@ -351,6 +396,7 @@ keycode = 89
 unicode = 89
 
 [sub_resource type="Resource" id="Resource_ywewc"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_nvepw"), SubResource("InputEventKey_bo402")])
 
@@ -358,6 +404,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_nvepw"), SubResource("Inp
 keycode = 4194321
 
 [sub_resource type="Resource" id="Resource_r8um6"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_mvc4h")])
 
@@ -366,6 +413,7 @@ keycode = 32
 unicode = 32
 
 [sub_resource type="Resource" id="Resource_2adbl"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_gcka2")])
 
@@ -375,6 +423,7 @@ keycode = 96
 unicode = 96
 
 [sub_resource type="Resource" id="Resource_posoy"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_n6ra8")])
 
@@ -384,6 +433,7 @@ keycode = 68
 unicode = 68
 
 [sub_resource type="Resource" id="Resource_qhifu"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_yrr2v")])
 
@@ -395,10 +445,12 @@ shift_pressed = true
 keycode = 4194308
 
 [sub_resource type="Resource" id="Resource_u2jwx"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_2gpf6"), SubResource("InputEventKey_blcrx")])
 
 [sub_resource type="Resource" id="Resource_0y086"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 
 [sub_resource type="InputEventKey" id="InputEventKey_c2ehl"]
@@ -406,6 +458,7 @@ command_or_control_autoremap = true
 keycode = 4194308
 
 [sub_resource type="Resource" id="Resource_0wxlk"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_c2ehl")])
 
@@ -415,6 +468,7 @@ shift_pressed = true
 keycode = 4194320
 
 [sub_resource type="Resource" id="Resource_4svh4"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_l6rvy")])
 
@@ -424,6 +478,7 @@ shift_pressed = true
 keycode = 4194322
 
 [sub_resource type="Resource" id="Resource_bbo7r"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_ub8od")])
 
@@ -432,6 +487,7 @@ command_or_control_autoremap = true
 keycode = 4194318
 
 [sub_resource type="Resource" id="Resource_1b2cs"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_lp6lr")])
 
@@ -440,6 +496,7 @@ command_or_control_autoremap = true
 keycode = 4194317
 
 [sub_resource type="Resource" id="Resource_6evb6"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_yr6fo")])
 
@@ -447,6 +504,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_yr6fo")])
 keycode = 4194322
 
 [sub_resource type="Resource" id="Resource_lx5fr"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_tuqlk")])
 
@@ -454,6 +512,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_tuqlk")])
 keycode = 4194319
 
 [sub_resource type="Resource" id="Resource_2nq5s"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_ietc2")])
 
@@ -461,6 +520,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_ietc2")])
 keycode = 4194318
 
 [sub_resource type="Resource" id="Resource_cktu0"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_vpoc4")])
 
@@ -468,6 +528,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_vpoc4")])
 keycode = 4194317
 
 [sub_resource type="Resource" id="Resource_fduia"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_caxuo")])
 
@@ -475,6 +536,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_caxuo")])
 keycode = 4194324
 
 [sub_resource type="Resource" id="Resource_5mwrq"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_hea6u")])
 
@@ -482,6 +544,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_hea6u")])
 keycode = 4194323
 
 [sub_resource type="Resource" id="Resource_vxume"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_pm0xr")])
 
@@ -489,6 +552,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_pm0xr")])
 keycode = 4194321
 
 [sub_resource type="Resource" id="Resource_75paq"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_l1y4r")])
 
@@ -496,6 +560,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_l1y4r")])
 keycode = 4194320
 
 [sub_resource type="Resource" id="Resource_c1jed"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_vdxul")])
 
@@ -504,6 +569,7 @@ command_or_control_autoremap = true
 keycode = 4194319
 
 [sub_resource type="Resource" id="Resource_81mt0"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_b8bi2")])
 
@@ -512,6 +578,7 @@ command_or_control_autoremap = true
 keycode = 4194321
 
 [sub_resource type="Resource" id="Resource_o86ja"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_y73ep")])
 
@@ -519,6 +586,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_y73ep")])
 keycode = 4194305
 
 [sub_resource type="Resource" id="Resource_g3gtr"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_bkoqw")])
 
@@ -532,6 +600,7 @@ keycode = 4194309
 keycode = 4194310
 
 [sub_resource type="Resource" id="Resource_uc40h"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_7wj24"), SubResource("InputEventKey_twdlp"), SubResource("InputEventKey_cl0fn")])
 
@@ -541,6 +610,7 @@ keycode = 32
 unicode = 32
 
 [sub_resource type="Resource" id="Resource_vp5e4"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_uybtl")])
 
@@ -557,6 +627,7 @@ shift_pressed = true
 keycode = 4194310
 
 [sub_resource type="Resource" id="Resource_m3o6u"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_iq8wi"), SubResource("InputEventKey_vh7p4"), SubResource("InputEventKey_51nrb")])
 
@@ -565,6 +636,7 @@ shift_pressed = true
 keycode = 4194306
 
 [sub_resource type="Resource" id="Resource_tnm7c"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_5jvnu")])
 
@@ -572,10 +644,12 @@ events = Array[InputEvent]([SubResource("InputEventKey_5jvnu")])
 keycode = 4194312
 
 [sub_resource type="Resource" id="Resource_7ke0i"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_gosmv")])
 
 [sub_resource type="Resource" id="Resource_akmwn"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 
 [sub_resource type="InputEventKey" id="InputEventKey_3w44t"]
@@ -583,6 +657,7 @@ command_or_control_autoremap = true
 keycode = 4194312
 
 [sub_resource type="Resource" id="Resource_ya1ru"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_3w44t")])
 
@@ -590,6 +665,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_3w44t")])
 keycode = 4194306
 
 [sub_resource type="Resource" id="Resource_5pql6"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_l6l5m")])
 
@@ -608,6 +684,7 @@ shift_pressed = true
 keycode = 4194310
 
 [sub_resource type="Resource" id="Resource_iyuwi"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_4uehi"), SubResource("InputEventKey_kygb0"), SubResource("InputEventKey_fnkmf"), SubResource("InputEventKey_ygxko")])
 
@@ -622,6 +699,7 @@ shift_pressed = true
 keycode = 4194310
 
 [sub_resource type="Resource" id="Resource_xj4bu"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_30wd8"), SubResource("InputEventKey_jq1wt")])
 
@@ -634,6 +712,7 @@ command_or_control_autoremap = true
 keycode = 4194310
 
 [sub_resource type="Resource" id="Resource_e5eq8"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_6dsfc"), SubResource("InputEventKey_ipchi")])
 
@@ -642,6 +721,7 @@ command_or_control_autoremap = true
 keycode = 4194322
 
 [sub_resource type="Resource" id="Resource_qmbhm"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_6c1nu")])
 
@@ -650,6 +730,7 @@ command_or_control_autoremap = true
 keycode = 4194320
 
 [sub_resource type="Resource" id="Resource_3amib"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_7oxcl")])
 
@@ -659,6 +740,7 @@ keycode = 65
 unicode = 65
 
 [sub_resource type="Resource" id="Resource_utarn"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_ir2tv")])
 
@@ -668,6 +750,7 @@ keycode = 71
 unicode = 71
 
 [sub_resource type="Resource" id="Resource_gwafs"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_3d2jr")])
 
@@ -678,6 +761,7 @@ keycode = 68
 unicode = 68
 
 [sub_resource type="Resource" id="Resource_7mxx3"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_e2may")])
 
@@ -688,6 +772,7 @@ keycode = 4194309
 keycode = 4194310
 
 [sub_resource type="Resource" id="Resource_yuu6l"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_hcbg2"), SubResource("InputEventKey_5q6ri")])
 
@@ -695,6 +780,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_hcbg2"), SubResource("Inp
 keycode = 4194311
 
 [sub_resource type="Resource" id="Resource_0mg2c"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_71kg5")])
 
@@ -704,6 +790,7 @@ keycode = 90
 unicode = 90
 
 [sub_resource type="Resource" id="Resource_6x5y3"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_m8x5x")])
 
@@ -714,6 +801,7 @@ keycode = 85
 unicode = 85
 
 [sub_resource type="Resource" id="Resource_j4wrl"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_lyvoa")])
 
@@ -721,6 +809,7 @@ events = Array[InputEvent]([SubResource("InputEventKey_lyvoa")])
 keycode = 4194320
 
 [sub_resource type="Resource" id="Resource_p7qom"]
+resource_local_to_scene = true
 script = ExtResource("1_pc2b8")
 events = Array[InputEvent]([SubResource("InputEventKey_d74nd")])
 

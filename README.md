@@ -39,12 +39,12 @@ Settings use `set_initial_value` + `ProjectSettings.save()` so they survive plug
 
 ## Install
 
-1. Copy `addons/enetheru.input_map_editor` into your project.
+1. Copy `addons/enetheru.layered-input` into your project.
 2. Enable **Custom Input Map Editor** under Project → Project Settings → Plugins.
 3. (Optional) Autoload the manager:
 
    ```
-   InputManager = *res://addons/enetheru.input_map_editor/systems/input_manager.gd
+   InputManager = *res://addons/enetheru.layered-input/systems/input_manager.gd
    ```
 
 ## Usage
@@ -68,7 +68,7 @@ InputManager.add_responder(responder)
 ### Embed the UI in-game
 
 ```gdscript
-var editor := preload("res://addons/enetheru.input_map_editor/ui/input_map_editor.tscn").instantiate()
+var editor := preload("res://addons/enetheru.layered-input/ui/input_map_editor.tscn").instantiate()
 editor.edit_map = my_map
 add_child(editor)
 # or editor.configure_for_resource(my_map) for pure resource mode
@@ -77,7 +77,7 @@ add_child(editor)
 ## Layout
 
 ```
-addons/enetheru.input_map_editor/
+addons/enetheru.layered-input/
   plugin.cfg / plugin.gd / export_plugin.gd / .exportignore
   docs/      # Host session redesign plan (desired vs applied)
   systems/   # CustomInputMap, InputAction, InputManager, Responder
