@@ -265,10 +265,11 @@ func _on_action_edited() -> void:
 		var map:CustomInputMap = _get_mutation_map()
 		if map == null:
 			return
-		map.set_action_deadzone(
-				StringName( action_name ),
-				ti.get_range( Column.DEADZONE ) )
-		_host_refresh( map, false )
+		_host_mutating = true
+		var key:StringName = StringName( action_name )
+		map.set_action_deadzone( key, ti.get_range( Column.DEADZONE ) )
+		var dematerialized:bool = map.get_action( key ) == null
+		_host_refresh( map, dematerialized )
 
 
 func _on_tree_item_selected() -> void:
@@ -296,11 +297,12 @@ func _on_event_config_confirmed( event:InputEvent ) -> void:
 	# Avoids dictionary key / meta aliasing issues between the tree and the resource.
 	var key:StringName = StringName( _current_action_name )
 	var stored:InputEvent = event.duplicate()
+	_host_mutating = true
 	if _current_action_event_index < 0:
 		map.add_action_event( key, stored )
 	else:
 		_replace_action_event_at( map, key, _current_action_event_index, stored )
-	_host_refresh( map )
+	_host_refresh( map, false )
 
 
 #region Tree Item Events
@@ -399,7 +401,10 @@ func _on_host_action_added( action_name:String ) -> void:
 	var map:CustomInputMap = _get_mutation_map()
 	if map == null:
 		return
-	var _ia:InputAction = map.ensure_action( action_name )
+	# Suppress panel refresh while map methods emit_changed (Inspector still updates).
+	_host_mutating = true
+	# Name-only placeholder (null def) until events / non-default deadzone exist.
+	map.ensure_action_name( StringName( action_name ) )
 	_host_refresh( map, true )
 
 
@@ -412,24 +417,35 @@ func _on_host_action_edited( action_name:String, new_action:Dictionary ) -> void
 	var key:StringName = StringName( action_name )
 	var deadzone:float = float( new_action.get( &"deadzone",
 			new_action.get( "deadzone", CustomInputMap.DEFAULT_DEADZONE ) ) )
-	# Keep the same InputAction instance so the Inspector does not collapse.
-	var ia:InputAction = map.ensure_action( key, deadzone )
-	if not is_equal_approx( ia.deadzone, deadzone ):
-		ia.deadzone = deadzone
 	var event_list:Variant = new_action.get( &"events", new_action.get( "events", [] ) )
 	var wanted:Array = []
 	for v:Variant in event_list:
 		var ev:InputEvent = v as InputEvent
 		if ev != null:
 			wanted.append( ev )
+	_host_mutating = true
+	# Fully trivial → null placeholder (keep the name only).
+	if wanted.is_empty() and is_equal_approx( deadzone, CustomInputMap.DEFAULT_DEADZONE ):
+		if map.has_action( key ):
+			map.clear_action_def( key )
+		else:
+			map.ensure_action_name( key )
+		_host_refresh( map, true )
+		return
+	# Keep the same InputAction instance so the Inspector does not collapse.
+	var ia:InputAction = map.ensure_action( key, deadzone )
+	if not is_equal_approx( ia.deadzone, deadzone ):
+		ia.deadzone = deadzone
 	var current:Array[InputEvent] = map.get_action_events( key )
 	if not _event_arrays_equal( current, wanted ):
-		map.clear_action_events( key )
+		# Avoid dematerialize mid-rebuild: clear events without prune, then re-add.
+		ia.clear_events()
 		for v2:Variant in wanted:
 			var src:InputEvent = v2 as InputEvent
 			if src != null:
-				map.add_action_event( key, src.duplicate() )
-	_host_refresh( map, false )
+				ia.add_event( src.duplicate() )
+	var dematerialized:bool = map.dematerialize_if_trivial( key )
+	_host_refresh( map, dematerialized )
 
 
 func _on_host_action_removed( action_name:String ) -> void:
@@ -438,6 +454,7 @@ func _on_host_action_removed( action_name:String ) -> void:
 	var map:CustomInputMap = _get_mutation_map()
 	if map == null:
 		return
+	_host_mutating = true
 	map.erase_action( StringName( action_name ) )
 	_host_refresh( map, true )
 
@@ -448,6 +465,7 @@ func _on_host_action_renamed( old_name:String, new_name:String ) -> void:
 	var map:CustomInputMap = _get_mutation_map()
 	if map == null:
 		return
+	_host_mutating = true
 	map.rename_action( StringName( old_name ), StringName( new_name ) )
 	_host_refresh( map, true )
 
@@ -475,27 +493,9 @@ func _on_host_action_reordered(
 		to_i += 1
 	@warning_ignore( "return_value_discarded" )
 	keys.insert( to_i, moved )
-
-	var snapshot:Dictionary = {}
-	for k:StringName in map.get_action_names():
-		var ev_list:Array = map.get_action_events( k ).duplicate()
-		snapshot[k] = {
-			&"deadzone": map.get_action_deadzone( k ),
-			&"events": ev_list,
-		}
-	# Snapshot keys first — erase mutates the live dictionary.
-	var old_keys:Array[StringName] = map.get_action_names()
-	for k:StringName in old_keys:
-		map.erase_action( k )
-	for k:StringName in keys:
-		var data:Dictionary = snapshot[k]
-		var deadzone:float = data[&"deadzone"]
-		var ia:InputAction = map.add_action( k, deadzone )
-		for v:Variant in data[&"events"]:
-			var ev:InputEvent = v
-			if is_instance_valid( ev ):
-				var dup:InputEvent = ev.duplicate()
-				ia.add_event( dup )
+	_host_mutating = true
+	# Same InputAction instances — only key order changes.
+	map.reorder_actions( keys )
 	_host_refresh( map, true )
 
 #endregion Host Actions
@@ -511,6 +511,12 @@ func _on_input_map_changed(_effective: CustomInputMap) -> void:
 func _on_open_map_changed() -> void:
 	if _host_mutating or _refreshing:
 		return
+	# Inspector may leave empty+default InputAction resources — collapse to null.
+	_host_mutating = true
+	for m:CustomInputMap in _get_open_maps():
+		if m != null and m.prune_trivial_defs() > 0:
+			resource_modified.emit( m )
+	_host_mutating = false
 	refresh()
 	# Dictionary add/remove may introduce new InputAction instances — re-bind
 	# after this signal returns (do not disconnect mid-emit).
@@ -1368,6 +1374,7 @@ func _get_mutation_map() -> CustomInputMap:
 
 
 ## Replace the event at [param index] on [param action_name] (used by event dialog edit).
+## Mutates the live [InputAction] in place (no mid-rebuild dematerialize).
 func _replace_action_event_at(
 			map:CustomInputMap,
 			action_name:StringName,
@@ -1375,20 +1382,22 @@ func _replace_action_event_at(
 			event:InputEvent ) -> void:
 	if map == null or event == null:
 		return
+	var ia:InputAction = map.ensure_action( action_name )
 	var rebuilt:Array[InputEvent] = []
-	var i:int = 0
-	for existing:InputEvent in map.get_action_events( action_name ):
+	var n:int = ia.events.size()
+	for i:int in range( n ):
 		if i == index:
 			rebuilt.append( event )
-		elif existing != null:
+			continue
+		var existing:InputEvent = ia.events[i]
+		if existing != null:
 			rebuilt.append( existing.duplicate() )
-		i += 1
 	# Dialog edit can target a missing index after a concurrent refresh — append.
-	if index >= i:
+	if index >= n:
 		rebuilt.append( event )
-	map.clear_action_events( action_name )
+	ia.clear_events()
 	for ie:InputEvent in rebuilt:
-		map.add_action_event( action_name, ie )
+		ia.add_event( ie )
 
 
 func _get_target_map() -> CustomInputMap:
@@ -1507,11 +1516,11 @@ func _get_responder_root() -> Responder:
 	return InputManager.responder_root
 
 
-## After a panel mutation: refresh the tree and notify the editor save path.
-## [param structure_changed] true when action keys were added/removed/renamed/
-## reordered — calls [method Object.notify_property_list_changed] so the
-## Inspector rebuilds the `_actions` dictionary. Value-only edits (deadzone,
-## events) pass false so expanded Inspector rows do not collapse.
+## After a panel mutation: refresh the tree and mark the map dirty for save.
+## Map mutate APIs already call [method CustomInputMap.refresh_actions_inspector]
+## (or nested [signal Resource.changed]) so the Inspector stays in sync.
+## [param structure_changed] is kept for call-site intent / future use; a second
+## inspector refresh is only forced when the mutate path may have skipped it.
 func _host_refresh(
 			map:CustomInputMap = null,
 			structure_changed:bool = false ) -> void:
@@ -1527,11 +1536,15 @@ func _host_refresh(
 		if rr != null and is_instance_valid(InputManager):
 			if map == rr.input_map or edit_map == null:
 				InputManager.request_rebuild()
-	# Notify inspector + editor save pipeline (skip our own changed → refresh loop).
+	# Skip self-driven changed → refresh while we rebuild the tree + dirty list.
 	_host_mutating = true
-	map.emit_changed()
+	# Mutate methods already notified; re-emit so unsaved tracking and any
+	# non-panel listeners still see the edit. Structure paths that only mutated
+	# the dict in-place without refresh_actions_inspector get a forced refresh.
 	if structure_changed:
-		map.notify_property_list_changed()
+		map.refresh_actions_inspector()
+	else:
+		map.notify_actions_values_changed()
 	resource_modified.emit( map )
 	refresh()
 	# Re-bind nested InputAction listeners after add/remove/materialize.

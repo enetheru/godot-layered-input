@@ -33,11 +33,12 @@ const DEFAULT_TOGGLE_DEADZONE:float = 0.5
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-## Maps Action names [StringName] to thier [InputActionMap] definitions
-## [br] definition is allowed to be null and is treated equivalently to
-## a default constructed [InputActionMap]
-## [br]Inspector add/remove of dictionary keys goes through this setter; we
-## emit [signal Resource.changed] so [InputMapEditor] can rebuild the tree.
+## Maps action names to [InputAction] definitions (or [code]null[/code]).
+## [br][code]null[/code] is a name-only placeholder — same as a default-empty
+## def (default deadzone, no events). Prefer null over an empty resource.
+## [br][b]Editor note:[/b] in-place [code]dict[k]=…[/code] edits do [i]not[/i]
+## refresh the Inspector dictionary; mutate via the methods below (they call
+## [method refresh_actions_inspector] on structure changes).
 @export var _actions:Dictionary[StringName, InputAction] = {}:
 	set( value ):
 		_actions = value
@@ -163,6 +164,47 @@ func                        __Mutate_________________              ()->void:pass
 # │|_|  |_|\_,_|\__\__,_|\__\___|
 # ╰────────────────────────────────
 
+## True when [param ia] is null or empty at [constant InputAction.DEFAULT_DEADZONE]
+## (equivalent to a name-only placeholder).
+static func is_trivial_action_def( ia:InputAction ) -> bool:
+	if ia == null:
+		return true
+	if not is_equal_approx( ia.deadzone, InputAction.DEFAULT_DEADZONE ):
+		return false
+	for _ev:InputEvent in ia:
+		return false
+	return true
+
+
+## Force the Inspector to see `_actions` updates after in-place dict edits.
+## Shallow-copies the dictionary (same [InputAction] instances) so
+## [code]EditorPropertyDictionary[/code] receives a property write, then
+## [method Object.notify_property_list_changed].
+func refresh_actions_inspector() -> void:
+	var copy:Dictionary[StringName, InputAction] = {}
+	for k:StringName in _actions:
+		copy[k] = _actions[k]
+	_actions = copy
+	notify_property_list_changed()
+
+
+## [method Resource.emit_changed] only (value edits on nested actions; no
+## dictionary rebuild — keeps expanded Inspector rows open).
+func notify_actions_values_changed() -> void:
+	emit_changed()
+
+
+## Ensure the action [param action_name] key exists. New names are stored as
+## [code]null[/code] placeholders (no empty [InputAction] resource).
+func ensure_action_name( action_name:StringName ) -> void:
+	assert( not String( action_name ).is_empty(),
+			"CustomInputMap.ensure_action_name: empty action_name" )
+	if _actions.has( action_name ):
+		return
+	_actions[action_name] = null
+	refresh_actions_inspector()
+
+
 ## Ensure a non-null [InputAction] exists for [param action_name] and return it.
 ## Materializes null placeholders (allowed by the resource model).
 func ensure_action(
@@ -175,6 +217,7 @@ func ensure_action(
 		return ia
 	ia = InputAction.new( deadzone )
 	_actions[action_name] = ia
+	refresh_actions_inspector()
 	return ia
 
 
@@ -188,8 +231,15 @@ func add_action(
 	if ia != null:
 		push_warning( "CustomInputMap.add_action:",
 				"action '%s' already exists (deadzone %s)" % [action_name, ia.deadzone] )
+	# Name-only (default deadzone, no events) → null placeholder, not empty resource.
+	if events.is_empty() and is_equal_approx( deadzone, DEFAULT_DEADZONE ):
+		_actions[action_name] = null
+		refresh_actions_inspector()
+		return null
 	# Key may exist with null value — materialize instead of no-op.
 	ia = ensure_action( action_name, deadzone )
+	if not is_equal_approx( ia.deadzone, deadzone ):
+		ia.deadzone = deadzone
 	for ie:InputEvent in events:
 		var dup:InputEvent = ie.duplicate()
 		ia.add_event( dup )
@@ -201,6 +251,8 @@ func erase_action( action_name:StringName ) -> void:
 			"CustomInputMap.erase_action: empty action_name" )
 	if not _actions.erase( action_name ):
 		push_warning( "CustomInputMap.erase_action: action '%s' not found" % action_name )
+		return
+	refresh_actions_inspector()
 
 
 ## Move an existing action to [param new_name], keeping the same [InputAction]
@@ -226,12 +278,33 @@ func rename_action( old_name:StringName, new_name:StringName ) -> void:
 	@warning_ignore( "return_value_discarded" )
 	_actions.erase( old_name )
 	_actions[new_name] = ia
+	refresh_actions_inspector()
+
+
+## Reorder keys to [param ordered_names] (permutation). Keeps the same
+## [InputAction] instances. Names missing from the map are skipped; keys not
+## listed are appended in their previous order.
+func reorder_actions( ordered_names:Array[StringName] ) -> void:
+	var next:Dictionary[StringName, InputAction] = {}
+	var seen:Dictionary = {}
+	for k:StringName in ordered_names:
+		if not _actions.has( k ) or seen.has( k ):
+			continue
+		next[k] = _actions[k]
+		seen[k] = true
+	for k:StringName in _actions:
+		if seen.has( k ):
+			continue
+		next[k] = _actions[k]
+	_actions = next
+	notify_property_list_changed()
 
 
 func set_action_deadzone( action_name:StringName, deadzone:float ) -> void:
 	# ensure_action asserts non-empty name.
 	var ia:InputAction = ensure_action( action_name, deadzone )
 	ia.deadzone = deadzone
+	dematerialize_if_trivial( action_name )
 
 
 func add_action_event( action_name:StringName, event:InputEvent ) -> void:
@@ -255,6 +328,7 @@ func erase_action_event( action_name:StringName, event:InputEvent ) -> void:
 				% action_name )
 		return
 	ia.erase_event( event )
+	dematerialize_if_trivial( action_name )
 
 
 func clear_action_events( action_name:StringName ) -> void:
@@ -267,6 +341,54 @@ func clear_action_events( action_name:StringName ) -> void:
 				% action_name )
 		return
 	ia.clear_events()
+	dematerialize_if_trivial( action_name )
+
+
+## Keep the action name but drop the [InputAction] resource ([code]null[/code]
+## placeholder). No-op if the name is missing.
+func clear_action_def( action_name:StringName ) -> void:
+	assert( not String( action_name ).is_empty(),
+			"CustomInputMap.clear_action_def: empty action_name" )
+	if not _actions.has( action_name ):
+		push_warning(
+				"CustomInputMap.clear_action_def: action '%s' not found"
+				% action_name )
+		return
+	if _actions.get( action_name ) == null:
+		return
+	_actions[action_name] = null
+	refresh_actions_inspector()
+
+
+## If [param action_name] has a trivial def (no events, default deadzone),
+## store [code]null[/code] and keep the name. Returns true when dematerialized.
+func dematerialize_if_trivial( action_name:StringName ) -> bool:
+	if not _actions.has( action_name ):
+		return false
+	var ia:InputAction = _actions.get( action_name )
+	if ia == null:
+		return false
+	if not is_trivial_action_def( ia ):
+		return false
+	clear_action_def( action_name )
+	return true
+
+
+## Dematerialize every trivial def. Returns how many entries became null.
+func prune_trivial_defs() -> int:
+	var count:int = 0
+	var names:Array[StringName] = get_action_names()
+	for action_name:StringName in names:
+		var ia:InputAction = _actions.get( action_name )
+		if ia == null:
+			continue
+		if not is_trivial_action_def( ia ):
+			continue
+		_actions[action_name] = null
+		count += 1
+	if count > 0:
+		refresh_actions_inspector()
+	return count
 
 
 ## Drop every action and its events so [InputEvent] / [InputAction] refcounts
@@ -277,6 +399,7 @@ func clear() -> void:
 		if is_instance_valid( ia ):
 			ia.clear_events()
 	_actions.clear()
+	refresh_actions_inspector()
 
 #endregion Mutate
 
