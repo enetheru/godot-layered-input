@@ -70,10 +70,13 @@ add_child(editor)
 ```
 addons/enetheru.input_map_editor/
   plugin.cfg / plugin.gd / export_plugin.gd / .exportignore
+  docs/      # Host session redesign plan (desired vs applied)
   systems/   # CustomInputMap, InputAction, InputManager, Responder
   ui/        # InputMapEditor scene + event config dialog + icons
   test/      # Headless smoke (excluded from export)
 ```
+
+Host attach/detach redesign: [docs/host_session_plan.md](docs/host_session_plan.md).
 
 No dependency on project-specific bases (`ENode`, `ERes`, `Core`, `EneLog`).
 
