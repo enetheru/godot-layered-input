@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="CustomInputMap" format=3 uid="uid://6hh6cxvfe0kf"]
 
-[ext_resource type="Script" uid="uid://bkqnc854wksva" path="res://addons/enetheru.input_map_editor/systems/input_map_action.gd" id="1_pc2b8"]
+[ext_resource type="Script" uid="uid://bkqnc854wksva" path="res://addons/enetheru.input_map_editor/systems/input_action.gd" id="1_pc2b8"]
 [ext_resource type="Script" uid="uid://dnx2qot3j0di6" path="res://addons/enetheru.input_map_editor/systems/custom_input_map.gd" id="2_rrq4e"]
 
 [sub_resource type="InputEventKey" id="InputEventKey_eokxa"]
