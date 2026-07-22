@@ -805,7 +805,7 @@ func _sync_ok_enabled() -> void:
 	if is_instance_valid( _configured_event ):
 		for v:Variant in _action_events:
 			var ie:InputEvent = v
-			if _InputManager.compare_event( ie, _configured_event ):
+			if InputAction.compare_event( ie, _configured_event ):
 				do_dup = true
 				break
 	if is_instance_valid( error_lbl ):

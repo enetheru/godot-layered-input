@@ -89,7 +89,7 @@ func duplicate_action() -> InputAction:
 func has_event( event:InputEvent ) -> bool:
 	assert( event, "InputAction.has_event: event is invalid" )
 	for ev:InputEvent in self:
-		if _InputManager.compare_event( event, ev ):
+		if compare_event( event, ev ):
 			return true
 	return false
 
@@ -110,12 +110,25 @@ func erase_event( event:InputEvent ) -> void:
 		if ev == null:
 			events.remove_at( i )
 			continue
-		if _InputManager.compare_event( event, ev ):
+		if compare_event( event, ev ):
 			events.remove_at( i )
 
 
 func clear_events() -> void:
 	events.clear()
+
+
+## True when [param a] and [param b] are the same event or match under
+## [method InputEvent.is_match].
+## Lives here (not on [code]_InputManager[/code]) so [InputAction] does not
+## depend on the manager autoload / script — that cycle broke headless load of
+## [code]default_input_map.tres[/code].
+static func compare_event(
+			a:InputEvent,
+			b:InputEvent,
+			exact_match:bool = true ) -> bool:
+	assert( a and b, "InputAction.compare_event: a or b is invalid" )
+	return a == b or a.is_match( b, exact_match )
 
 
 # First valid event index after after_index, or -1 if none remain.

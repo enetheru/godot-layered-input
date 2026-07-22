@@ -215,6 +215,16 @@ func clear_action_events( action_name:StringName ) -> void:
 		return
 	ia.clear_events()
 
+
+## Drop every action and its events so [InputEvent] / [InputAction] refcounts
+## can fall immediately (shutdown, tests, large temporary snapshots).
+func clear() -> void:
+	for action_name:StringName in get_action_names():
+		var ia:InputAction = _actions.get( action_name )
+		if is_instance_valid( ia ):
+			ia.clear_events()
+	_actions.clear()
+
 #endregion Mutate
 
 

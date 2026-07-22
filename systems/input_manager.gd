@@ -23,9 +23,15 @@ extends Node
 ## [method push_state], [method pop_state]) because this node owns
 ## [member responder_root] — not a separate UndoRedo service or per-map editor
 ## history.
+##
+## Default root map is [method get_default_input_map] (lazy [method @GlobalScope.load],
+## not [code]preload[/code]) so this script does not form a cycle with
+## [InputAction] via [code]default_input_map.tres[/code].
 
 
-const INPUT_MAP:CustomInputMap = preload( "default_input_map.tres" )
+## Path to the stock root layer; loaded only via [method get_default_input_map].
+const DEFAULT_INPUT_MAP_PATH:String = (
+		"res://addons/enetheru.input_map_editor/systems/default_input_map.tres" )
 
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
@@ -46,6 +52,9 @@ var undo_stack:Array[Responder] = []
 
 var _want_rebuild:bool = false
 var _rebuilding:bool = false
+
+## Cached stock map from [constant DEFAULT_INPUT_MAP_PATH] (null until first load).
+static var _default_input_map:CustomInputMap
 
 
 #            ███████ ██  ██████  ███    ██  █████  ██      ███████             #
@@ -98,12 +107,16 @@ func _enter_tree() -> void:
 
 	responder_root = Responder.new()
 	responder_root.name = &"root"
-	responder_root.input_map = INPUT_MAP
+	responder_root.input_map = get_default_input_map()
 	add_child( responder_root )
 	if not responder_root.child_order_changed.is_connected( _on_responder_tree_changed ):
 		_connect_sig( responder_root.child_order_changed, _on_responder_tree_changed )
 
 	request_rebuild()
+
+
+func _exit_tree() -> void:
+	shutdown()
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -166,6 +179,46 @@ func request_rebuild() -> void:
 	_rebuild_input_map.call_deferred()
 
 
+## Tear down responder tree, undo snapshots, effective map, and the static
+## default-map cache. Idempotent — safe from [method _exit_tree] and tests.
+## [br]Does not erase engine [InputMap] actions (those may still hold events
+## that were [method CustomInputMap.apply_to_engine]'d).
+func shutdown() -> void:
+	_want_rebuild = false
+	_rebuilding = false
+
+	var parent:Node = get_parent()
+	if is_instance_valid( parent ) \
+	and parent.child_order_changed.is_connected( _on_parent_child_order_changed ):
+		parent.child_order_changed.disconnect( _on_parent_child_order_changed )
+
+	for snapshot:Responder in undo_stack:
+		if not is_instance_valid( snapshot ):
+			continue
+		_release_map( snapshot.input_map )
+		snapshot.input_map = null
+		if snapshot.is_inside_tree():
+			snapshot.queue_free()
+		else:
+			snapshot.free()
+	undo_stack.clear()
+
+	if is_instance_valid( responder_root ):
+		if responder_root.child_order_changed.is_connected(
+				_on_responder_tree_changed ):
+			responder_root.child_order_changed.disconnect(
+					_on_responder_tree_changed )
+		_release_responder_tree( responder_root )
+		if responder_root.get_parent() == self:
+			remove_child( responder_root )
+		responder_root.free()
+	responder_root = null
+
+	_release_map( effective_map )
+	effective_map = null
+	clear_default_input_map_cache()
+
+
 #        ███████ ████████  █████  ████████ ██  ██████                          #
 #        ██         ██    ██   ██    ██    ██ ██                               #
 #        ███████    ██    ███████    ██    ██ ██                               #
@@ -173,12 +226,30 @@ func request_rebuild() -> void:
 #        ███████    ██    ██   ██    ██    ██  ██████                          #
 func                        _________STATIC__________              ()->void:pass
 
-static func compare_event(
-			a:InputEvent,
-			b:InputEvent,
-			exact_match:bool = true ) -> bool:
-	assert( a and b, "InputManager.compare_event: a or b is invalid" )
-	return a == b or a.is_match( b, exact_match )
+## Stock root [CustomInputMap]. Loaded on first use (not script-parse preload).
+## Uses [constant ResourceLoader.CACHE_MODE_IGNORE] so shutdown can drop the
+## only strong ref without leaving a ResourceLoader cache pin.
+static func get_default_input_map() -> CustomInputMap:
+	if is_instance_valid( _default_input_map ):
+		return _default_input_map
+	var loaded:Resource = ResourceLoader.load(
+			DEFAULT_INPUT_MAP_PATH,
+			"",
+			ResourceLoader.CACHE_MODE_IGNORE )
+	if loaded is CustomInputMap:
+		_default_input_map = loaded as CustomInputMap
+		return _default_input_map
+	push_error( "InputManager.get_default_input_map: failed to load '%s'"
+			% DEFAULT_INPUT_MAP_PATH )
+	_default_input_map = CustomInputMap.new()
+	return _default_input_map
+
+
+## Drop the static stock map (clears actions/events first). Safe if never loaded.
+static func clear_default_input_map_cache() -> void:
+	if is_instance_valid( _default_input_map ):
+		_default_input_map.clear()
+	_default_input_map = null
 
 
 #       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #
@@ -199,7 +270,9 @@ func _collect_maps( node:Node, out:Array[CustomInputMap] ) -> void:
 
 ## Internal rebuild body; schedule via [method request_rebuild].
 func _rebuild_input_map() -> void:
-	assert( responder_root, "InputManager._rebuild_input_map: responder root missing" )
+	if not is_instance_valid( responder_root ):
+		_want_rebuild = false
+		return
 	_want_rebuild = false
 	if _rebuilding:
 		return
@@ -213,6 +286,9 @@ func _rebuild_input_map() -> void:
 		# Later layers overwrite on name clash (merge default).
 		effective.merge( layer )
 
+	# Drop the previous merge so its duplicated events/actions free promptly.
+	if effective_map != effective:
+		_release_map( effective_map )
 	effective_map = effective
 	effective.apply_to_engine()
 	input_map_changed.emit( effective )
@@ -224,3 +300,24 @@ func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:
 	var err:Error = sig.connect( callable, flags ) as Error
 	if err != OK:
 		push_error( "InputManager._connect_sig: %s" % error_string( err ) )
+
+
+func _release_map( map:CustomInputMap ) -> void:
+	if not is_instance_valid( map ):
+		return
+	# Do not clear the shared stock cache here — [method clear_default_input_map_cache]
+	# owns that. Runtime merges / snapshots can clear immediately.
+	if map == _default_input_map:
+		return
+	map.clear()
+
+
+func _release_responder_tree( node:Node ) -> void:
+	if not is_instance_valid( node ):
+		return
+	if node is Responder:
+		var responder:Responder = node as Responder
+		_release_map( responder.input_map )
+		responder.input_map = null
+	for child:Node in node.get_children():
+		_release_responder_tree( child )
