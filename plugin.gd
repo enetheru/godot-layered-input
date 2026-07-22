@@ -3,21 +3,17 @@ extends EditorPlugin
 
 ## Editor plugin for [CustomInputMap] resources.
 ##
-## Host mode is chosen in Project Settings ([code]input_map_editor/host_mode[/code]):
-## [br] • [b]Bottom panel[/b] (default)
-## [br] • [b]Main screen[/b] — tab next to 2D / 3D / Script (main-screen plugin API)
+## [b]Host mode[/b] ([code]input_map_editor/host_mode[/code] in Project Settings):
+## [br] • [b]Bottom panel[/b] — default ([method add_control_to_bottom_panel])
+## [br] • [b]Main screen[/b] — tab next to 2D/3D/Script (main-screen plugin API)
 ## [br] • [b]Inspector[/b] — [EditorInspectorPlugin] for [CustomInputMap]
-## [br]Changing host mode requires disabling and re-enabling this plugin.
-## [br][color=goldenrod]TODO[/color]:Multi-select open maps from the filesystem.
+## [br]Changing host mode requires disable/enable of this plugin.
 
 
 const EditorScene = preload( "ui/input_map_editor.tscn" )
 const SettingsScript = preload( "settings/input_map_editor_settings.gd" )
-const SettingsHelperScript = preload( "settings/settings_helper.gd" )
 const InspectorPluginScript = preload( "inspector_plugin.gd" )
 
-const SETTINGS_PREFIX:String = "input_map_editor"
-const SETTING_HOST_MODE:String = "input_map_editor/host_mode"
 const MAIN_SCREEN_NAME:String = "Input Map"
 
 
@@ -28,23 +24,14 @@ const MAIN_SCREEN_NAME:String = "Input Map"
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-## Primary editor instance (bottom panel or main screen).
 var _panel:InputMapEditor
 var _panel_button:Button
-
 var _opts:InputMapEditorSettings
-var _settings_mgr:RefCounted
 var _inspector_plugin:EditorInspectorPlugin
-
-## Active inspector-embedded editor (INSPECTOR host mode only).
 var _inspector_editor:InputMapEditor
 
-## Avoid re-entrant configure when we caused the inspector refresh ourselves.
 var _suppress_edited_object_signal:bool = false
-
-## Standalone disk maps mutated by the panel (Save / _save_external_data).
 var _dirty_maps:Array[CustomInputMap] = []
-
 var _export_plugin:EditorExportPlugin
 
 
@@ -64,7 +51,6 @@ func _on_edited_object_changed() -> void:
 		return
 	if obj is InputAction and _open_maps_contain_action( obj as InputAction ):
 		return
-	# Inspector host frees its own editor; only clear bottom/main panel here.
 	if not _is_host_inspector():
 		_clear_edited_map()
 
@@ -94,13 +80,15 @@ func _on_settings_changed( setting_name:StringName, _value:Variant ) -> void:
 		_notify_reload_plugin(
 				"Host mode changed. Disable and re-enable the "
 				+ "Custom Input Map Editor plugin to apply." )
-		return
-	if setting_name == &"auto_raise":
+		# Persist immediately so unload does not drop the choice.
+		ProjectSettings.save()
 		return
 	if setting_name == &"panel_min_height" and is_instance_valid( _panel ):
-		_panel.custom_minimum_size = Vector2(
-				0.0, _opts.panel_min_height if _opts else 280.0 )
-		_panel.panel_min_height = _opts.panel_min_height if _opts else 280.0
+		_apply_panel_defaults( _panel )
+	if setting_name == &"auto_raise" \
+	or setting_name == &"default_deadzone" \
+	or setting_name == &"panel_min_height":
+		ProjectSettings.save()
 
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
@@ -112,15 +100,12 @@ func                        ________OVERRIDES________              ()->void:pass
 
 func _enter_tree() -> void:
 	_opts = SettingsScript.new() as InputMapEditorSettings
-	_migrate_legacy_settings()
-	_settings_mgr = SettingsHelperScript.new( _opts, SETTINGS_PREFIX )
-	if _settings_mgr.has_signal( &"settings_changed" ):
-		_connect_sig( _settings_mgr.settings_changed, _on_settings_changed )
+	_connect_sig( _opts.settings_changed, _on_settings_changed )
 
 	_export_plugin = preload( "export_plugin.gd" ).new()
 	add_export_plugin( _export_plugin )
 
-	_panel = EditorScene.instantiate()
+	_panel = EditorScene.instantiate() as InputMapEditor
 	_panel.resource_edit_mode = true
 	_panel.apply_edit_map_to_engine = false
 	_apply_panel_defaults( _panel )
@@ -154,19 +139,24 @@ func _exit_tree() -> void:
 	if is_instance_valid( _panel ):
 		if _panel.resource_modified.is_connected( _on_resource_modified ):
 			_panel.resource_modified.disconnect( _on_resource_modified )
+		# Detach first so free does not free a still-docked control.
+		if _panel.get_parent() != null:
+			_panel.get_parent().remove_child( _panel )
 		_panel.queue_free()
 		_panel = null
 	_panel_button = null
 	_inspector_editor = null
-	_settings_mgr = null
 	_opts = null
 	_dirty_maps.clear()
+	# Intentionally leave ProjectSettings keys intact.
 
 
-## Must read ProjectSettings directly — the editor may call this before
-## [method _enter_tree] finishes building [member _opts].
+## Editor may call this before [method _enter_tree]; read ProjectSettings only.
 func _has_main_screen() -> bool:
-	return _read_host_mode() == InputMapEditorSettings.HostMode.MAIN_SCREEN
+	return (
+			InputMapEditorSettings.read_host_mode()
+			== InputMapEditorSettings.HostMode.MAIN_SCREEN
+	)
 
 
 func _get_plugin_name() -> String:
@@ -228,22 +218,10 @@ func                        ________INTERNAL_________              ()->void:pass
 #region Host layout
 #MARK: Host layout
 
-## ProjectSettings-backed host mode (safe before [member _opts] exists).
-func _read_host_mode() -> int:
-	if ProjectSettings.has_setting( SETTING_HOST_MODE ):
-		return int( ProjectSettings.get_setting( SETTING_HOST_MODE ) )
-	# Legacy two-bool keys from the first settings pass.
-	if ProjectSettings.get_setting( "input_map_editor/use_main_screen", false ):
-		return InputMapEditorSettings.HostMode.MAIN_SCREEN
-	if ProjectSettings.get_setting( "input_map_editor/replace_inspector", false ):
-		return InputMapEditorSettings.HostMode.INSPECTOR
-	return InputMapEditorSettings.HostMode.BOTTOM_PANEL
-
-
 func _host_mode() -> int:
 	if _opts != null:
 		return _opts.host_mode as int
-	return _read_host_mode()
+	return InputMapEditorSettings.read_host_mode()
 
 
 func _is_host_main_screen() -> bool:
@@ -254,32 +232,33 @@ func _is_host_inspector() -> bool:
 	return _host_mode() == InputMapEditorSettings.HostMode.INSPECTOR
 
 
-func _is_host_bottom() -> bool:
-	return _host_mode() == InputMapEditorSettings.HostMode.BOTTOM_PANEL
-
-
 func _use_auto_raise() -> bool:
-	return _opts == null or _opts.auto_raise
+	if _opts != null:
+		return _opts.auto_raise
+	return InputMapEditorSettings.read_auto_raise()
 
 
 func _attach_host() -> void:
 	match _host_mode():
 		InputMapEditorSettings.HostMode.MAIN_SCREEN:
-			# Main-screen plugin: child of the central viewport (docs pattern).
-			EditorInterface.get_editor_main_screen().add_child( _panel )
+			# Official main-screen plugin pattern:
+			# https://docs.godotengine.org/en/stable/tutorials/plugins/editor/making_main_screen_plugins.html
+			var main_screen:VBoxContainer = EditorInterface.get_editor_main_screen()
+			main_screen.add_child( _panel )
 			_panel.set_anchors_and_offsets_preset( Control.PRESET_FULL_RECT )
 			_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			# Required: hide until the tab is selected.
 			_make_visible( false )
 		InputMapEditorSettings.HostMode.INSPECTOR:
 			_inspector_plugin = InspectorPluginScript.new()
 			if _inspector_plugin.has_method( &"setup" ):
 				_inspector_plugin.call( &"setup", self )
 			add_inspector_plugin( _inspector_plugin )
-			# Primary _panel stays unused; inspector embeds its own instance.
+			# Keep a hidden stash so the primary instance is not freed.
+			add_child( _panel )
 			_panel.visible = false
 		_:
-			# Bottom panel (default).
 			_panel_button = add_control_to_bottom_panel( _panel, MAIN_SCREEN_NAME )
 			_panel.visible = true
 
@@ -291,10 +270,7 @@ func _detach_host() -> void:
 	if _panel_button != null and is_instance_valid( _panel ):
 		remove_control_from_bottom_panel( _panel )
 		_panel_button = null
-	if is_instance_valid( _panel ) and _panel.get_parent() != null:
-		# Main screen or any leftover parent.
-		if _panel_button == null:
-			_panel.get_parent().remove_child( _panel )
+	# Main-screen / stash: remove_child happens in _exit_tree free path.
 
 
 func _raise_editor_if_needed() -> void:
@@ -313,32 +289,19 @@ func _raise_editor_if_needed() -> void:
 
 func _notify_reload_plugin( message:String ) -> void:
 	push_warning( "InputMapEditorPlugin: %s" % message )
-	# Godot 4.2+ editor toaster when available.
 	if EditorInterface.has_method( &"get_editor_toaster" ):
 		var toaster:Object = EditorInterface.call( &"get_editor_toaster" )
 		if toaster != null and toaster.has_method( &"push_toast" ):
 			toaster.call( &"push_toast", message, 1 )
 
 
-func _migrate_legacy_settings() -> void:
-	if ProjectSettings.has_setting( SETTING_HOST_MODE ):
-		return
-	var mode:int = InputMapEditorSettings.HostMode.BOTTOM_PANEL
-	if ProjectSettings.get_setting( "input_map_editor/use_main_screen", false ):
-		mode = InputMapEditorSettings.HostMode.MAIN_SCREEN
-	elif ProjectSettings.get_setting( "input_map_editor/replace_inspector", false ):
-		mode = InputMapEditorSettings.HostMode.INSPECTOR
-	if _opts != null:
-		_opts.host_mode = mode as InputMapEditorSettings.HostMode
-
-
 func _apply_panel_defaults( editor:InputMapEditor ) -> void:
 	if editor == null:
 		return
-	var min_h:float = 280.0
+	var min_h:float = InputMapEditorSettings.read_panel_min_height()
 	if _opts != null:
 		min_h = _opts.panel_min_height
-		editor.panel_min_height = min_h
+	editor.panel_min_height = min_h
 	editor.custom_minimum_size = Vector2( 0.0, min_h )
 
 #endregion Host layout
@@ -350,23 +313,23 @@ func _apply_panel_defaults( editor:InputMapEditor ) -> void:
 func inspector_can_handle( object:Object ) -> bool:
 	if not _is_host_inspector():
 		return false
-	# Only the map resource — nested InputAction keeps the default inspector
-	# if opened elsewhere; the map editor is the primary UI for the map.
 	return object is CustomInputMap
 
 
 func get_settings_panel_min_height() -> float:
-	return _opts.panel_min_height if _opts else 280.0
+	return InputMapEditorSettings.read_panel_min_height()
 
 
 func bind_inspector_editor( editor:InputMapEditor ) -> void:
 	_inspector_editor = editor
-	if editor != null and not editor.resource_modified.is_connected( _on_resource_modified ):
+	if editor == null:
+		return
+	_apply_panel_defaults( editor )
+	if not editor.resource_modified.is_connected( _on_resource_modified ):
 		_connect_sig( editor.resource_modified, _on_resource_modified )
 
 
 func inspector_map_for_action( action:InputAction ) -> CustomInputMap:
-	# Prefer the bottom/main panel open maps, then the inspector editor's.
 	var maps:Array[CustomInputMap] = []
 	if is_instance_valid( _panel ):
 		maps.append_array( _panel.open_maps )
@@ -428,15 +391,12 @@ func _open_maps_contain_action( action:InputAction ) -> bool:
 func _refresh_editor_if_action( editor:InputMapEditor, action:InputAction ) -> void:
 	if editor == null or action == null:
 		return
-	if not editor.open_maps.is_empty() or editor.edit_map != null:
-		# Refresh if the action belongs to an open map on this editor.
-		for map:CustomInputMap in editor.open_maps:
-			if map != null and map.get_actions().has( action ):
-				editor.refresh()
-				return
-		if editor.edit_map != null \
-		and editor.edit_map.get_actions().has( action ):
+	for map:CustomInputMap in editor.open_maps:
+		if map != null and map.get_actions().has( action ):
 			editor.refresh()
+			return
+	if editor.edit_map != null and editor.edit_map.get_actions().has( action ):
+		editor.refresh()
 
 
 func _clear_suppress() -> void:
