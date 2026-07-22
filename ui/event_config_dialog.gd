@@ -52,6 +52,9 @@ enum ModCheckbox {
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
+## Size passed to [method Window.popup_centered] when opening the dialog.
+@export var popup_size:Vector2i = Vector2i( 661, 400 )
+
 # FIXME: rename these nodes with short suffixes for their type, eg. lbl, vbox, btn.
 @onready var event_label:Label = $VBoxContainer/VBoxContainer/EventLabel
 @onready var event_listener:EventListenerLineEdit = $VBoxContainer/VBoxContainer/EventListenerLineEdit
@@ -455,8 +458,7 @@ func popup_and_configure(
 	# Prefer the listener over any other focusable child when the window opens.
 	if is_instance_valid( event_listener ):
 		event_listener.focus_mode = Control.FOCUS_ALL
-	# FIXME, magic value here should be moved to an export var
-	popup_centered( Vector2i(661, 400) )
+	popup_centered( popup_size )
 	# Ensure OK reflects current event (null → disabled).
 	_sync_ok_enabled()
 	_focus_listener()

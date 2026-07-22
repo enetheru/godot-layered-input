@@ -61,7 +61,7 @@ func _enter_tree() -> void:
 	_panel = EditorScene.instantiate()
 	_panel.resource_edit_mode = true
 	_panel.apply_edit_map_to_engine = false
-	_panel.custom_minimum_size = Vector2( 0, 280 )
+	_panel.custom_minimum_size = Vector2( 0.0, _panel.panel_min_height )
 
 	@warning_ignore( "return_value_discarded" )
 	_panel.resource_modified.connect( _on_resource_modified )

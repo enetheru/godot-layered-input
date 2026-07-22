@@ -86,6 +86,9 @@ func                        ________PROPERTIES_______              ()->void:pass
 ## [method CustomInputMap.apply_to_engine]. Prefer rebuild via InputManager instead.
 @export var apply_edit_map_to_engine: bool = false
 
+## Preferred minimum height when hosted as an editor bottom panel.
+@export var panel_min_height:float = 280.0
+
 ## Current panel mode. EDITOR = resource tooling; MONITOR = running-game inspection.
 @export var operation_mode: OperationMode = OperationMode.EDITOR:
 	set = set_operation_mode

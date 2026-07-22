@@ -55,15 +55,15 @@ const _JOY_AXIS_DESCRIPTIONS: PackedStringArray = [
 	"Joystick 4 Down",
 ]
 
-const _HOLD_TO_UNFOCUS_MS: int = 3000
-
-
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
 # ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
 # ██████  ██████  ██    ██ ██████  █████   ██████     ██    ██ █████   ███████ #
 # ██      ██   ██ ██    ██ ██      ██      ██   ██    ██    ██ ██           ██ #
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
+
+## Hold [code]ui_cancel[/code] this long (ms) to release focus while listening.
+@export var hold_to_unfocus_ms:int = 3000
 
 var allowed_input_types:int = ALL_INPUT_TYPES
 var _event:InputEvent
@@ -166,10 +166,10 @@ func _gui_input(event: InputEvent) -> void:
 
 	var event_to_check: InputEvent = event
 
-	# Hold ui_cancel to release focus (same timeout as engine).
-	if event.is_action_pressed(&"ui_cancel", true, true):
-		var now := Time.get_ticks_msec()
-		if _hold_next_ms > 0 and (now - _hold_next_ms) < _HOLD_TO_UNFOCUS_MS:
+	# Hold ui_cancel to release focus (see [member hold_to_unfocus_ms]).
+	if event.is_action_pressed( &"ui_cancel", true, true ):
+		var now:int = Time.get_ticks_msec()
+		if _hold_next_ms > 0 and ( now - _hold_next_ms ) < hold_to_unfocus_ms:
 			_hold_next_ms = 0
 			var next := find_next_valid_focus()
 			if next:
