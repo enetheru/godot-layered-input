@@ -43,6 +43,15 @@ enum Column {
 	BUTTONS = 2,
 }
 
+## Result codes from [method _check_new_action_name].
+enum ActionNameError {
+	OK = 0,
+	EMPTY,
+	INVALID_CHARS,
+	DUPLICATE,
+	NO_MAP,
+}
+
 ## Operation modes for the panel (editor tooling vs live inspection).
 enum OperationMode {
 	## Edit a [CustomInputMap] asset (writable). Used by the bottom-panel plugin.
@@ -210,24 +219,18 @@ func                        __Add_Action_____________              ()->void:pass
 ##│/_/ \_\__,_\__,_| /_/ \_\__|\__|_\___/_||_|
 ##╰─────────────────────────────────────────────
 
-func _on_add_edit_text_changed(action_name: String) -> void:
-	var err := _check_new_action_name(action_name)
-	# This is just weird, setting the tooltip to be the error, not changing the
-	# style of the box or showing any sort of live error.
-	# FIXME, make it make sense in a more standard way.
-	# Show the exact characters that are the problem.
-	add_button.tooltip_text = err if not err.is_empty() else "Add action to root map"
-	add_button.disabled = not err.is_empty()
+func _on_add_edit_text_changed( action_name:String ) -> void:
+	_apply_action_name_feedback( _check_new_action_name( action_name ) )
 
 
 func _on_add_action_pressed() -> void:
 	# Snapshot text before any focus-change side effects.
 	var typed:String = line_edit.text
-	_submit_new_action(typed)
+	_submit_new_action( typed )
 
 
-func _on_add_action_submitted(submitted: String) -> void:
-	_submit_new_action(submitted)
+func _on_add_action_submitted( submitted:String ) -> void:
+	_submit_new_action( submitted )
 
 #endregion Add Action
 
@@ -246,13 +249,10 @@ func _on_action_edited() -> void:
 			ti.set_text( Column.ACTION, old_name )
 			show_message( "Action name cannot be empty." )
 			return
-		if not _is_action_name_valid( new_name ):
+		var name_check:Dictionary = _check_new_action_name( new_name )
+		if name_check[&"code"] != ActionNameError.OK:
 			ti.set_text( Column.ACTION, old_name )
-			show_message( "Invalid action name. It cannot contain '/', ':', '=', '\\' or '\"'." )
-			return
-		if _map_has_action( _get_mutation_map(), new_name ):
-			ti.set_text( Column.ACTION, old_name )
-			show_message( "An action with the name '%s' already exists." % new_name )
+			show_message( name_check[&"message"] )
 			return
 		action_renamed.emit( old_name, new_name )
 	elif col == Column.DEADZONE:
@@ -1382,53 +1382,85 @@ func _get_effective_map() -> CustomInputMap:
 	return InputManager.effective_map
 
 
-# FIXME: because this function is used in multple places, return a dictionary
-# of error types, and messages. That way we can respond in a very specific way
-# depending on what the error is.
-# Either that or perform more granular checking, so the caller can discern
-# their own way.
-func _check_new_action_name(action_name: String) -> String:
+## Validate [param action_name] for add/rename.
+## Returns [code]{&"code": ActionNameError, &"message": String, &"bad_chars": String}[/code].
+func _check_new_action_name( action_name:String ) -> Dictionary:
 	if action_name.is_empty():
-		return "Action name cannot be empty."
-	if not _is_action_name_valid(action_name):
-		return "Invalid action name. It cannot contain '/', ':', '=', '\\' or '\"'."
-	if _map_has_action(_get_mutation_map(), action_name):
-		# If the target exists, then scroll to it
-		# optionally trigger an edit.
-		return "An action with the name '%s' already exists." % action_name
-	return ""
+		return {
+			&"code": ActionNameError.EMPTY,
+			&"message": "Action name cannot be empty.",
+			&"bad_chars": "",
+		}
+	var bad:String = _invalid_action_name_chars( action_name )
+	if not bad.is_empty():
+		return {
+			&"code": ActionNameError.INVALID_CHARS,
+			&"message": "Invalid characters in action name: %s" % bad,
+			&"bad_chars": bad,
+		}
+	var map:CustomInputMap = _get_mutation_map()
+	if map == null:
+		return {
+			&"code": ActionNameError.NO_MAP,
+			&"message": "No input map available. Select a CustomInputMap resource.",
+			&"bad_chars": "",
+		}
+	if _map_has_action( map, action_name ):
+		return {
+			&"code": ActionNameError.DUPLICATE,
+			&"message": "An action with the name '%s' already exists." % action_name,
+			&"bad_chars": "",
+		}
+	return {
+		&"code": ActionNameError.OK,
+		&"message": "",
+		&"bad_chars": "",
+	}
 
 
-func _map_has_action(map: CustomInputMap, action_name: String) -> bool:
+func _apply_action_name_feedback( result:Dictionary ) -> void:
+	var code:int = result.get( &"code", ActionNameError.OK )
+	var msg:String = result.get( &"message", "" )
+	var ok:bool = code == ActionNameError.OK
+	add_button.disabled = not ok
+	if ok:
+		add_button.tooltip_text = "Add action to map"
+		line_edit.tooltip_text = ""
+		line_edit.modulate = Color.WHITE
+	else:
+		add_button.tooltip_text = msg
+		line_edit.tooltip_text = msg
+		# Light error tint on the field (theme-independent).
+		line_edit.modulate = Color( 1.0, 0.85, 0.85 )
+
+
+func _map_has_action( map:CustomInputMap, action_name:String ) -> bool:
 	if map == null:
 		return false
-	return map.has_action(StringName(action_name))
+	return map.has_action( StringName( action_name ) )
 
 
-func _target_has_action(action_name: String) -> bool:
-	return _map_has_action(_get_target_map(), action_name)
+func _target_has_action( action_name:String ) -> bool:
+	return _map_has_action( _get_target_map(), action_name )
 
 
-func _submit_new_action(action_name: String) -> void:
-	var candidate := action_name.strip_edges()
-	if candidate.is_empty():
-		return
+func _submit_new_action( action_name:String ) -> void:
+	var candidate:String = action_name.strip_edges()
 	# Prefer the map under the current tree selection when multi-file is open.
-	var selected := tree.get_selected() if is_instance_valid(tree) else null
+	var selected:TreeItem = tree.get_selected() if is_instance_valid( tree ) else null
 	if selected != null:
-		_set_mutation_context(selected)
-	var err := _check_new_action_name(candidate)
-	if not err.is_empty():
-		show_message(err)
-		return
-	if _get_mutation_map() == null:
-		show_message("No input map available. Select a CustomInputMap resource.")
+		_set_mutation_context( selected )
+	var result:Dictionary = _check_new_action_name( candidate )
+	_apply_action_name_feedback( result )
+	if result[&"code"] != ActionNameError.OK:
+		if result[&"code"] != ActionNameError.EMPTY:
+			show_message( result[&"message"] )
 		return
 	# Emit first so host can read the name; clear after so text_changed
 	# does not race a second submit with an empty string.
-	action_added.emit(candidate)
+	action_added.emit( candidate )
 	line_edit.clear()
-	_on_add_edit_text_changed(line_edit.text)
+	_on_add_edit_text_changed( line_edit.text )
 
 
 #   ██ ███    ██ ██████  ██    ██ ████████     ███    ███  ██████  ██████      #
@@ -1470,18 +1502,32 @@ func _host_refresh(map: CustomInputMap = null) -> void:
 #       ██ ██   ████    ██    ███████ ██   ██ ██   ████ ██   ██ ███████        #
 func                        ________INTERNAL_________              ()->void:pass
 
-static func _is_action_name_valid(action_name: String) -> bool:
-	if action_name.is_empty():
-		return false
-	# Match engine ActionMapEditor: reject / : " = \ and control chars.
-	for i: int in range(action_name.length()):
-		var c: int = action_name.unicode_at(i)
-		if c < 32:
-			return false
-		match c:
-			0x2F, 0x3A, 0x22, 0x3D, 0x5C:
-				return false
-	return true
+static func _is_action_name_valid( action_name:String ) -> bool:
+	return _invalid_action_name_chars( action_name ).is_empty() \
+			and not action_name.is_empty()
+
+
+## Characters rejected by the engine ActionMapEditor: / : " = \ and controls.
+static func _invalid_action_name_chars( action_name:String ) -> String:
+	var seen:Dictionary = {}
+	var bad:String = ""
+	for i:int in range( action_name.length() ):
+		var c:int = action_name.unicode_at( i )
+		var reject:bool = c < 32
+		if not reject:
+			match c:
+				0x2F, 0x3A, 0x22, 0x3D, 0x5C:
+					reject = true
+		if not reject:
+			continue
+		var ch:String = String.chr( c ) if c >= 32 else "\\x%02x" % c
+		if seen.has( ch ):
+			continue
+		seen[ch] = true
+		if not bad.is_empty():
+			bad += " "
+		bad += "'%s'" % ch
+	return bad
 
 
 # Connect and report failures (Signal.connect returns Error).

@@ -13,7 +13,9 @@ extends Node
 ##[br]
 ## • [member active] — when false, input processing is off and the map is
 ##   excluded from the merged engine [InputMap].
-##[br][color=goldenrod]TODO[/color]:Document how game code should mount responders.
+##[br][color=goldenrod]TODO[/color]:Document how game code should mount
+## responders — defer until the plugin API is more mature (would need a rewrite
+## if written too early).
 
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
