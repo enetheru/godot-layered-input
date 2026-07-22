@@ -23,12 +23,15 @@ extends PopupPanel
 ##[br][color=goldenrod]TODO[/color]:public methods all need documentation.
 ##[br][color=goldenrod]TODO[/color]:private/internal methods need documentation
 ## using regular comments.
-##[br][color=goldenrod]TODO[/color]:define column numbers as an enum and use
-## them instead of the raw values.
 
 ## Post Popup Notification is not publicy defined.
 ##[br][color=goldenrod]TODO[/color]:validate that the notification is fired.
 const NOTIFICATION_POST_POPUP:int = 31
+
+## Manual selection [Tree] columns (single label column today).
+enum Column {
+	LABEL = 0,
+}
 
 enum KeyMode {
 	KEYCODE = 0,
@@ -613,8 +616,8 @@ func _update_input_list() -> void:
 	if (_allowed_input_types & EventListenerLineEdit.InputType.KEY):
 		var kb_root:TreeItem = input_list_tree.create_item( root )
 		# Column 0 - Name + Icon
-		kb_root.set_text( 0, "Keyboard Keys" )
-		kb_root.set_icon( 0, IconCache.get_icon(&"KEYBOARD") )
+		kb_root.set_text( Column.LABEL, "Keyboard Keys" )
+		kb_root.set_icon( Column.LABEL, IconCache.get_icon( &"KEYBOARD" ) )
 		kb_root.set_collapsed( collapse )
 		kb_root.set_meta( &"__type", EventListenerLineEdit.InputType.KEY )
 		# FIXME A filter well named function might be preferrable to the if
@@ -628,15 +631,14 @@ func _update_input_list() -> void:
 			and not key_name.containsn( search_term ):
 				continue
 			var item:TreeItem = input_list_tree.create_item( kb_root )
-			# Column 0 - Name
-			item.set_text( 0, key_name )
+			item.set_text( Column.LABEL, key_name )
 			item.set_meta( &"__keycode", keycode )
 
 	if (_allowed_input_types & EventListenerLineEdit.InputType.MOUSE_BUTTON):
 		var mouse_root:TreeItem = input_list_tree.create_item( root )
 		# Column 0 - Name / Icon
-		mouse_root.set_text( 0, "Mouse Buttons" )
-		mouse_root.set_icon( 0, IconCache.get_icon(&"MOUSE") )
+		mouse_root.set_text( Column.LABEL, "Mouse Buttons" )
+		mouse_root.set_icon( Column.LABEL, IconCache.get_icon( &"MOUSE" ) )
 		mouse_root.set_collapsed( collapse )
 		mouse_root.set_meta( &"__type", EventListenerLineEdit.InputType.MOUSE_BUTTON )
 		var mouse_buttons:Array[int] = [
@@ -653,15 +655,14 @@ func _update_input_list() -> void:
 			and not desc.containsn( search_term ):
 				continue
 			var item:TreeItem = input_list_tree.create_item( mouse_root )
-			# Column 0 - Name / Icon
-			item.set_text( 0, desc )
+			item.set_text( Column.LABEL, desc )
 			item.set_meta( &"__index", btn )
 
 	if (_allowed_input_types & EventListenerLineEdit.InputType.JOY_BUTTON):
 		var joyb_root:TreeItem = input_list_tree.create_item( root )
 		# Column 0 - Name / Icon
-		joyb_root.set_text( 0, "Joypad Buttons" )
-		joyb_root.set_icon( 0, IconCache.get_icon(&"JOY_BUTTON") )
+		joyb_root.set_text( Column.LABEL, "Joypad Buttons" )
+		joyb_root.set_icon( Column.LABEL, IconCache.get_icon( &"JOY_BUTTON" ) )
 		joyb_root.set_collapsed( collapse )
 		joyb_root.set_meta( &"__type", EventListenerLineEdit.InputType.JOY_BUTTON )
 		for i:int in range( JoyButton.JOY_BUTTON_MAX ):
@@ -672,15 +673,14 @@ func _update_input_list() -> void:
 			and not desc.containsn( search_term ):
 				continue
 			var item:TreeItem = input_list_tree.create_item( joyb_root )
-			# Column 0 - Name / Icon
-			item.set_text( 0, desc )
+			item.set_text( Column.LABEL, desc )
 			item.set_meta( &"__index", i )
 
 	if (_allowed_input_types & EventListenerLineEdit.InputType.JOY_MOTION):
 		var joya_root:TreeItem = input_list_tree.create_item( root )
 		# Column 0 - Name / Icon
-		joya_root.set_text( 0, "Joypad Axes" )
-		joya_root.set_icon( 0, IconCache.get_icon(&"JOY_AXIS") )
+		joya_root.set_text( Column.LABEL, "Joypad Axes" )
+		joya_root.set_icon( Column.LABEL, IconCache.get_icon( &"JOY_AXIS" ) )
 		joya_root.set_collapsed( collapse )
 		joya_root.set_meta( &"__type", EventListenerLineEdit.InputType.JOY_MOTION )
 		for i:int in range( JoyAxis.JOY_AXIS_MAX * 2 ):
@@ -694,8 +694,7 @@ func _update_input_list() -> void:
 			and not desc.containsn( search_term ):
 				continue
 			var item:TreeItem = input_list_tree.create_item( joya_root )
-			# Column 0 - Name / Icon
-			item.set_text( 0, desc )
+			item.set_text( Column.LABEL, desc )
 			item.set_meta( &"__axis", axis )
 			item.set_meta( &"__value", direction )
 
@@ -746,7 +745,7 @@ func _select_matching_input_list_item( event:InputEvent ) -> void:
 						matched = ev.button_index == input_item.get_meta(&"__index")
 					if matched:
 						category.collapsed = false
-						input_item.select(0)
+						input_item.select( Column.LABEL )
 						input_list_tree.ensure_cursor_is_visible()
 						_in_tree_update = false
 						return

@@ -36,6 +36,13 @@ enum ItemButton {
 	REVERT_ACTION,
 }
 
+## Main action map [Tree] columns.
+enum Column {
+	ACTION = 0,
+	DEADZONE = 1,
+	BUTTONS = 2,
+}
+
 ## Operation modes for the panel (editor tooling vs live inspection).
 enum OperationMode {
 	## Edit a [CustomInputMap] asset (writable). Used by the bottom-panel plugin.
@@ -229,31 +236,31 @@ func _on_action_edited() -> void:
 	if ti == null or not _item_is_editable(ti):
 		return
 	_set_mutation_context(ti)
-	var col := tree.get_edited_column()
-	if col == 0:
-		var new_name := ti.get_text(0).strip_edges()
-		var old_name: String = ti.get_meta(&"__name")
+	var col:int = tree.get_edited_column()
+	if col == Column.ACTION:
+		var new_name:String = ti.get_text( Column.ACTION ).strip_edges()
+		var old_name:String = ti.get_meta( &"__name" )
 		if new_name == old_name:
 			return
 		if new_name.is_empty():
-			ti.set_text(0, old_name)
-			show_message("Action name cannot be empty.")
+			ti.set_text( Column.ACTION, old_name )
+			show_message( "Action name cannot be empty." )
 			return
-		if not _is_action_name_valid(new_name):
-			ti.set_text(0, old_name)
-			show_message("Invalid action name. It cannot contain '/', ':', '=', '\\' or '\"'.")
+		if not _is_action_name_valid( new_name ):
+			ti.set_text( Column.ACTION, old_name )
+			show_message( "Invalid action name. It cannot contain '/', ':', '=', '\\' or '\"'." )
 			return
-		if _map_has_action(_get_mutation_map(), new_name):
-			ti.set_text(0, old_name)
-			show_message("An action with the name '%s' already exists." % new_name)
+		if _map_has_action( _get_mutation_map(), new_name ):
+			ti.set_text( Column.ACTION, old_name )
+			show_message( "An action with the name '%s' already exists." % new_name )
 			return
-		action_renamed.emit(old_name, new_name)
-	elif col == 1:
-		var action_name: String = ti.get_meta(&"__name")
-		var old_action: Dictionary = ti.get_meta(&"__action")
-		var new_action: Dictionary = old_action.duplicate(true)
-		new_action["deadzone"] = ti.get_range(1)
-		action_edited.emit.call_deferred(action_name, new_action)
+		action_renamed.emit( old_name, new_name )
+	elif col == Column.DEADZONE:
+		var action_name:String = ti.get_meta( &"__name" )
+		var old_action:Dictionary = ti.get_meta( &"__action" )
+		var new_action:Dictionary = old_action.duplicate( true )
+		new_action[&"deadzone"] = ti.get_range( Column.DEADZONE )
+		action_edited.emit.call_deferred( action_name, new_action )
 
 
 func _on_tree_item_selected() -> void:
@@ -502,19 +509,17 @@ func _ready() -> void:
 	_ensure_button_icons()
 
 	tree.columns = 3
-	# Column 0 — Action name
-	tree.set_column_title(0, "Action")
-	tree.set_column_expand(0, true)
-	tree.set_column_clip_content(0, true)
-	# Column 1 — Deadzone
-	tree.set_column_title(1, "Deadzone")
-	tree.set_column_expand(1, false)
-	tree.set_column_custom_minimum_width(1, 80)
-	# Column 2 — buttons (revert / add|edit / remove), like the engine editor
-	tree.set_column_title(2, "")
-	tree.set_column_expand(2, false)
+	tree.set_column_title( Column.ACTION, "Action" )
+	tree.set_column_expand( Column.ACTION, true )
+	tree.set_column_clip_content( Column.ACTION, true )
+	tree.set_column_title( Column.DEADZONE, "Deadzone" )
+	tree.set_column_expand( Column.DEADZONE, false )
+	tree.set_column_custom_minimum_width( Column.DEADZONE, 80 )
+	# Buttons (revert / add|edit / remove), like the engine editor.
+	tree.set_column_title( Column.BUTTONS, "" )
+	tree.set_column_expand( Column.BUTTONS, false )
 	# ~3×16px icons + margins (engine packs all buttons in this column)
-	tree.set_column_custom_minimum_width(2, 72)
+	tree.set_column_custom_minimum_width( Column.BUTTONS, 72 )
 
 	@warning_ignore_start("return_value_discarded")
 	filter_name_line_edit.text_changed.connect(_on_search_bar_value_changed.unbind(1))
@@ -595,10 +600,10 @@ func refresh() -> void:
 
 func _refresh_tree() -> void:
 	var selected_key: String = ""
-	var selected_col: int = 0
-	var selected: TreeItem = tree.get_selected()
+	var selected_col:int = Column.ACTION
+	var selected:TreeItem = tree.get_selected()
 	if selected:
-		selected_key = str(selected.get_meta(&"__select_key", selected.get_text(0)))
+		selected_key = str( selected.get_meta( &"__select_key", selected.get_text( Column.ACTION ) ) )
 		selected_col = tree.get_selected_column()
 
 	var collapsed: Dictionary = {}
@@ -674,8 +679,8 @@ func _refresh_tree() -> void:
 			)
 		else:
 			var empty: TreeItem = tree.create_item(parent)
-			empty.set_text(0, "(InputManager responder tree not available)")
-			empty.set_selectable(0, false)
+			empty.set_text( Column.ACTION, "(InputManager responder tree not available)" )
+			empty.set_selectable( Column.ACTION, false )
 
 
 func _populate_open_map_roots(
@@ -687,8 +692,8 @@ func _populate_open_map_roots(
 	var maps := _get_open_maps()
 	if maps.is_empty():
 		var empty: TreeItem = tree.create_item(root)
-		empty.set_text(0, "(no CustomInputMap selected)")
-		empty.set_selectable(0, false)
+		empty.set_text( Column.ACTION, "(no CustomInputMap selected)" )
+		empty.set_selectable( Column.ACTION, false )
 		return
 	for map: CustomInputMap in maps:
 		if map == null:
@@ -863,10 +868,10 @@ func _subsection_fill() -> Color:
 func _apply_action_row_chrome(item: TreeItem) -> void:
 	# Transparent bg colour (engine prop_subsection is alpha 0); StyleBoxes paint the bar.
 	var transparent := Color(1, 1, 1, 0)
-	item.set_custom_bg_color(0, transparent)
-	item.set_custom_bg_color(1, transparent)
-	item.set_custom_stylebox(0, _sb_subsection_left)
-	item.set_custom_stylebox(1, _sb_subsection_right)
+	item.set_custom_bg_color( Column.ACTION, transparent )
+	item.set_custom_bg_color( Column.DEADZONE, transparent )
+	item.set_custom_stylebox( Column.ACTION, _sb_subsection_left )
+	item.set_custom_stylebox( Column.DEADZONE, _sb_subsection_right )
 
 
 #               ███████ ██ ██   ████████ ███████ ██████  ███████               #
@@ -938,12 +943,12 @@ func                        __________TREE___________              ()->void:pass
 
 func _make_section_item(parent: TreeItem, title: String, key: StringName) -> TreeItem:
 	var item:TreeItem = tree.create_item(parent)
-	item.set_text(0, title)
-	item.set_selectable(0, false)
-	item.set_selectable(1, false)
-	item.set_meta(&"__section", true)
-	item.set_meta(&"__select_key", String(key))
-	item.set_custom_color(0, Color(0.75, 0.85, 1.0))
+	item.set_text( Column.ACTION, title )
+	item.set_selectable( Column.ACTION, false )
+	item.set_selectable( Column.DEADZONE, false )
+	item.set_meta( &"__section", true )
+	item.set_meta( &"__select_key", String( key ) )
+	item.set_custom_color( Column.ACTION, Color( 0.75, 0.85, 1.0 ) )
 	return item
 
 
@@ -956,19 +961,19 @@ func _make_map_root_item(
 	var path := _map_display_path(map)
 	# Prefer stable path key over instance id (ids change across reloads).
 	var select_key := "map:%s" % path
-	item.set_text(0, path)
-	item.set_tooltip_text(0, path)
-	item.set_meta(&"__map", map)
-	item.set_meta(&"__map_root", true)
-	item.set_meta(&"__select_key", select_key)
-	item.set_custom_color(0, Color(0.75, 0.85, 1.0))
+	item.set_text( Column.ACTION, path )
+	item.set_tooltip_text( Column.ACTION, path )
+	item.set_meta( &"__map", map )
+	item.set_meta( &"__map_root", true )
+	item.set_meta( &"__select_key", select_key )
+	item.set_custom_color( Column.ACTION, Color( 0.75, 0.85, 1.0 ) )
 	# Selectable so "add action" context can follow the chosen file root.
-	item.set_selectable(0, true)
-	item.set_selectable(1, false)
+	item.set_selectable( Column.ACTION, true )
+	item.set_selectable( Column.DEADZONE, false )
 	# Leave expanded until children are attached (see _apply_map_root_collapsed).
 	item.collapsed = false
 	if selected_key == select_key:
-		item.select(0)
+		item.select( Column.ACTION )
 	return item
 
 
@@ -1019,15 +1024,15 @@ func _populate_map_actions(
 		return
 	if map == null:
 		var empty:TreeItem = tree.create_item(parent)
-		empty.set_text(0, "(no map)")
-		empty.set_selectable(0, false)
+		empty.set_text( Column.ACTION, "(no map)" )
+		empty.set_selectable( Column.ACTION, false )
 		return
 
 	var action_names:Array[StringName] = map.get_action_names()
 	if action_names.is_empty():
 		var empty:TreeItem = tree.create_item( parent )
-		empty.set_text( 0, "(no actions)" )
-		empty.set_selectable( 0, false )
+		empty.set_text( Column.ACTION, "(no actions)" )
+		empty.set_selectable( Column.ACTION, false )
 		if owner_map != null:
 			empty.set_meta( &"__map", owner_map )
 		return
@@ -1074,13 +1079,13 @@ func _populate_responder_branch(
 		label += " — no map"
 	elif not responder.contributes_map():
 		label += " — not contributing"
-	node_item.set_text(0, label)
-	node_item.set_meta(&"__responder", true)
-	node_item.set_meta(&"__select_key", node_key)
+	node_item.set_text( Column.ACTION, label )
+	node_item.set_meta( &"__responder", true )
+	node_item.set_meta( &"__select_key", node_key )
 	if responder.input_map != null:
-		node_item.set_meta(&"__map", responder.input_map)
-	node_item.collapsed = collapsed.get(node_key, false)
-	node_item.set_custom_color(0, Color(0.85, 0.85, 0.7))
+		node_item.set_meta( &"__map", responder.input_map )
+	node_item.collapsed = collapsed.get( node_key, false )
+	node_item.set_custom_color( Column.ACTION, Color( 0.85, 0.85, 0.7 ) )
 
 	if responder.input_map != null:
 		_populate_map_actions(
@@ -1130,39 +1135,40 @@ func _add_action_item(
 	# Joined rounded bar on cols 0–1 (engine prop_subsection_stylebox_left/right).
 	_apply_action_row_chrome(action_item)
 
-	# Column 0 — Action Name
-	action_item.set_cell_mode(0, TreeItem.CELL_MODE_STRING)
-	action_item.set_text(0, action_info.name)
-	action_item.set_editable(0, action_info.editable)
+	action_item.set_cell_mode( Column.ACTION, TreeItem.CELL_MODE_STRING )
+	action_item.set_text( Column.ACTION, action_info.name )
+	action_item.set_editable( Column.ACTION, action_info.editable )
 	if action_info.icon:
-		action_item.set_icon(0, action_info.icon)
+		action_item.set_icon( Column.ACTION, action_info.icon )
 
-	# Column 1 — Deadzone
-	action_item.set_cell_mode(1, TreeItem.CELL_MODE_RANGE)
-	action_item.set_range_config(1, 0.0, 1.0, 0.01)
-	action_item.set_range(1, deadzone)
-	action_item.set_editable(1, action_info.editable)
+	action_item.set_cell_mode( Column.DEADZONE, TreeItem.CELL_MODE_RANGE )
+	action_item.set_range_config( Column.DEADZONE, 0.0, 1.0, 0.01 )
+	action_item.set_range( Column.DEADZONE, deadzone )
+	action_item.set_editable( Column.DEADZONE, action_info.editable )
 
-	# Column 2 — all action buttons (engine packs these in one column)
+	# All action buttons share one column (engine layout).
 	if action_info.has_initial:
-		var deadzone_eq: bool = (
-				action_info.action_initial.get("deadzone", null)
-				== action_info.action.get("deadzone", null)
+		var deadzone_eq:bool = (
+				action_info.action_initial.get( "deadzone", null )
+				== action_info.action.get( "deadzone", null )
 		)
-		var initial_events: Array = action_info.action_initial.get("events", [])
-		var action_events: Array = action_info.action.get("events", [])
-		var events_eq := _event_arrays_equal(initial_events, action_events)
-		var action_eq := deadzone_eq and events_eq
-		action_item.set_meta(&"__action_initial", action_info.action_initial)
+		var initial_events:Array = action_info.action_initial.get( "events", [] )
+		var action_events:Array = action_info.action.get( "events", [] )
+		var events_eq:bool = _event_arrays_equal( initial_events, action_events )
+		var action_eq:bool = deadzone_eq and events_eq
+		action_item.set_meta( &"__action_initial", action_info.action_initial )
 		action_item.add_button(
-				2, _button_icon_revert, ItemButton.REVERT_ACTION, action_eq or not action_info.editable,
+				Column.BUTTONS, _button_icon_revert, ItemButton.REVERT_ACTION,
+				action_eq or not action_info.editable,
 				"Cannot Revert - Action is same as initial" if action_eq else "Revert Action"
 		)
 	action_item.add_button(
-			2, _button_icon_add, ItemButton.ADD_EVENT, not action_info.editable, "Add Event"
+			Column.BUTTONS, _button_icon_add, ItemButton.ADD_EVENT,
+			not action_info.editable, "Add Event"
 	)
 	action_item.add_button(
-			2, _button_icon_remove, ItemButton.REMOVE_ACTION, not action_info.editable,
+			Column.BUTTONS, _button_icon_remove, ItemButton.REMOVE_ACTION,
+			not action_info.editable,
 			"Remove Action" if action_info.editable else "Cannot Remove Action"
 	)
 
@@ -1195,17 +1201,17 @@ func _add_action_event(
 	if owner_map != null:
 		event_item.set_meta(&"__map", owner_map)
 
-	# Column 0 — event label + type icon
-	event_item.set_text(0, _format_input_event_text(event, true))
-	event_item.set_icon(0, IconCache.for_event(event))
-	event_item.set_icon_max_width(0, TREE_BUTTON_SIZE.x)
-	# Column 1 — empty (align under deadzone)
-	# Column 2 — edit + remove (same column as action-row buttons)
+	event_item.set_text( Column.ACTION, _format_input_event_text( event, true ) )
+	event_item.set_icon( Column.ACTION, IconCache.for_event( event ) )
+	event_item.set_icon_max_width( Column.ACTION, TREE_BUTTON_SIZE.x )
+	# Column.DEADZONE left empty (align under deadzone).
 	event_item.add_button(
-			2, _button_icon_edit, ItemButton.EDIT_EVENT, not action_info.editable, "Edit Event"
+			Column.BUTTONS, _button_icon_edit, ItemButton.EDIT_EVENT,
+			not action_info.editable, "Edit Event"
 	)
 	event_item.add_button(
-			2, _button_icon_remove, ItemButton.REMOVE_EVENT, not action_info.editable, "Remove Event"
+			Column.BUTTONS, _button_icon_remove, ItemButton.REMOVE_EVENT,
+			not action_info.editable, "Remove Event"
 	)
 	return event_item
 
@@ -1230,7 +1236,7 @@ func _get_drag_data_fw(at_position: Vector2) -> Variant:
 		return null
 
 	var label := Label.new()
-	label.text = selected.get_text(0)
+	label.text = selected.get_text( Column.ACTION )
 	tree.set_drag_preview(label)
 
 	var drag_data := {}
