@@ -78,11 +78,9 @@ class ActionInfo:
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-@onready var filter_name_line_edit: LineEdit = $VBoxContainer/EditorEventSearchBar/FilterNameLineEdit
-## Typed as LineEdit: during plugin reload the script may be a placeholder without
-## EventListenerLineEdit methods (see _listener_* helpers).
-@onready var event_listener_line_edit: LineEdit = $VBoxContainer/EditorEventSearchBar/EventListenerLineEdit
-@onready var clear_all_button: Button = $VBoxContainer/EditorEventSearchBar/ClearAllButton
+@onready var filter_name_line_edit:LineEdit = $VBoxContainer/EditorEventSearchBar/FilterNameLineEdit
+@onready var event_listener_line_edit:EventListenerLineEdit = $VBoxContainer/EditorEventSearchBar/EventListenerLineEdit
+@onready var clear_all_button:Button = $VBoxContainer/EditorEventSearchBar/ClearAllButton
 
 @onready var line_edit: LineEdit = $VBoxContainer/HBoxContainer/LineEdit
 @onready var add_button: Button = $VBoxContainer/HBoxContainer/AddButton
@@ -190,10 +188,10 @@ func _on_clear_all_search() -> void:
 	filter_name_line_edit.set_block_signals(true)
 	filter_name_line_edit.clear()
 	filter_name_line_edit.set_block_signals(false)
-	if is_instance_valid(event_listener_line_edit):
-		event_listener_line_edit.set_block_signals(true)
-		_listener_clear_event(event_listener_line_edit)
-		event_listener_line_edit.set_block_signals(false)
+	if is_instance_valid( event_listener_line_edit ):
+		event_listener_line_edit.set_block_signals( true )
+		event_listener_line_edit.clear_event()
+		event_listener_line_edit.set_block_signals( false )
 	_on_search_bar_value_changed()
 
 
@@ -521,10 +519,7 @@ func _ready() -> void:
 	tree.set_column_custom_minimum_width( Column.BUTTONS, 72 )
 
 	_connect_sig( filter_name_line_edit.text_changed, _on_search_bar_value_changed.unbind( 1 ) )
-	if is_instance_valid( event_listener_line_edit ) \
-	and event_listener_line_edit.has_signal( &"event_changed" ):
-		# FIXME This is broken, there is no event changed.
-		_connect_sig( event_listener_line_edit.event_changed, _on_search_event_changed )
+	_connect_sig( event_listener_line_edit.event_changed, _on_search_event_changed )
 	_connect_sig( clear_all_button.pressed, _on_clear_all_search )
 	_connect_sig( line_edit.text_changed, _on_add_edit_text_changed )
 	_connect_sig( line_edit.text_submitted, _on_add_action_submitted )
@@ -882,7 +877,7 @@ func                        _________FILTERS_________              ()->void:pass
 func _has_filters() -> bool:
 	return (
 			not filter_name_line_edit.text.is_empty()
-			or _listener_get_event(event_listener_line_edit) != null
+			or event_listener_line_edit.get_event() != null
 	)
 
 
@@ -890,44 +885,27 @@ func _update_clear_all_enabled() -> void:
 	clear_all_button.disabled = not _has_filters()
 
 
-func _should_display_action(action_name: String, events: Array) -> bool:
-	var search_ev := _listener_get_event(event_listener_line_edit)
-	var event_match := true
+func _should_display_action( action_name:String, events:Array ) -> bool:
+	var search_ev:InputEvent = event_listener_line_edit.get_event()
+	var event_match:bool = true
 	if search_ev != null:
 		event_match = false
-		for v: Variant in events:
-			var ev: InputEvent = v
-			if ev != null and ev.is_match(search_ev, true):
+		for v:Variant in events:
+			var ev:InputEvent = v
+			if ev != null and ev.is_match( search_ev, true ):
 				event_match = true
 				break
-	var name_filter := filter_name_line_edit.text.strip_edges()
-	return event_match and (name_filter.is_empty() or name_filter.is_subsequence_ofn(action_name))
+	var name_filter:String = filter_name_line_edit.text.strip_edges()
+	return event_match and (
+			name_filter.is_empty() or name_filter.is_subsequence_ofn( action_name ) )
 
 
-## Safe access while EventListenerLineEdit may be a tool-script placeholder.
-func _listener_get_event(listener: Object) -> InputEvent:
-	if listener == null or not is_instance_valid(listener):
-		return null
-	if not listener.has_method(&"get_event"):
-		return null
-	return listener.call(&"get_event")
-
-
-func _listener_clear_event(listener: Object) -> void:
-	if listener == null or not is_instance_valid(listener):
-		return
-	if listener.has_method(&"clear_event"):
-		listener.call(&"clear_event")
-	elif listener is LineEdit:
-		(listener as LineEdit).clear()
-
-
-func _format_input_event_text(event: InputEvent, include_device: bool = true) -> String:
+func _format_input_event_text( event:InputEvent, include_device:bool = true ) -> String:
 	if event == null:
 		return ""
-	# Static helper on the preloaded script (safe during class_name placeholder windows).
+	# Static on preloaded script (avoids class_name resolve during plugin reload).
 	if _EventListenerScript != null:
-		return str(_EventListenerScript.get_event_text(event, include_device))
+		return str( _EventListenerScript.get_event_text( event, include_device ) )
 	return event.as_text()
 
 
