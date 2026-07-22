@@ -118,6 +118,10 @@ var resource_edit_mode: bool = false:
 var open_maps: Array[CustomInputMap] = []
 
 var _refreshing: bool = false
+## True while [method _host_refresh] mutates a map (skip self-driven changed refresh).
+var _host_mutating:bool = false
+## Maps whose [signal Resource.changed] we listen to for inspector → panel sync.
+var _maps_listening:Array[CustomInputMap] = []
 
 var _show_root: bool = true
 var _show_effective: bool = false
@@ -494,6 +498,13 @@ func _on_input_map_changed(_effective: CustomInputMap) -> void:
 		refresh()
 
 
+## Open map mutated outside the panel (e.g. Inspector) — redraw the action list.
+func _on_open_map_changed() -> void:
+	if _host_mutating or _refreshing:
+		return
+	refresh()
+
+
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
 #     ██    ██ ██    ██ ██      ██   ██ ██   ██ ██ ██   ██ ██      ██          #
 #     ██    ██ ██    ██ █████   ██████  ██████  ██ ██   ██ █████   ███████     #
@@ -563,6 +574,11 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	# Drop map.changed listeners (editor and runtime).
+	for m:CustomInputMap in _maps_listening:
+		if m != null and m.changed.is_connected( _on_open_map_changed ):
+			m.changed.disconnect( _on_open_map_changed )
+	_maps_listening.clear()
 	if Engine.is_editor_hint():
 		return
 	if is_instance_valid(InputManager):
@@ -714,6 +730,7 @@ func load_from_custom_map(map: CustomInputMap, _builtins_prefix: String = "ui_")
 	_show_root = true
 	if is_instance_valid(root_cb):
 		root_cb.set_pressed_no_signal(true)
+	_sync_open_map_changed_signals()
 	refresh()
 
 
@@ -755,6 +772,7 @@ func configure_for_resource(map: CustomInputMap) -> void:
 	open_maps.clear()
 	if map != null:
 		open_maps.append(map)
+	_sync_open_map_changed_signals()
 	if is_node_ready():
 		_apply_mode_ui()
 		refresh()
@@ -770,6 +788,7 @@ func open_map(map: CustomInputMap) -> void:
 		open_maps.append(map)
 	edit_map = map
 	_current_map = map
+	_sync_open_map_changed_signals()
 	if is_node_ready():
 		_apply_mode_ui()
 		refresh()
@@ -782,6 +801,7 @@ func set_open_maps(maps: Array[CustomInputMap]) -> void:
 	_set_open_maps(maps)
 	edit_map = open_maps[0] if not open_maps.is_empty() else null
 	_current_map = edit_map
+	_sync_open_map_changed_signals()
 	if is_node_ready():
 		_apply_mode_ui()
 		refresh()
@@ -1467,10 +1487,32 @@ func _host_refresh(map: CustomInputMap = null) -> void:
 		if rr != null and is_instance_valid(InputManager):
 			if map == rr.input_map or edit_map == null:
 				InputManager.request_rebuild()
-	# Notify editor / save pipeline that the resource mutated (once).
+	# Notify inspector + editor save pipeline (skip our own changed → refresh loop).
+	_host_mutating = true
 	map.emit_changed()
-	resource_modified.emit(map)
+	map.notify_property_list_changed()
+	resource_modified.emit( map )
 	refresh()
+	_host_mutating = false
+
+
+## Listen to [signal Resource.changed] on open maps so inspector edits refresh the tree.
+func _sync_open_map_changed_signals() -> void:
+	for m:CustomInputMap in _maps_listening:
+		if m != null and m.changed.is_connected( _on_open_map_changed ):
+			m.changed.disconnect( _on_open_map_changed )
+	_maps_listening.clear()
+	for m:CustomInputMap in _get_open_maps():
+		if m == null:
+			continue
+		if not m.changed.is_connected( _on_open_map_changed ):
+			var err:Error = m.changed.connect( _on_open_map_changed ) as Error
+			if err != OK:
+				push_error(
+						"InputMapEditor._sync_open_map_changed_signals: %s"
+						% error_string( err ) )
+				continue
+		_maps_listening.append( m )
 
 
 #       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #

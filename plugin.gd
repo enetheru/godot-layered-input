@@ -22,6 +22,9 @@ var _panel_button:Button
 ## Avoid re-entrant configure when we caused the inspector refresh ourselves.
 var _suppress_edited_object_signal:bool = false
 
+## Standalone disk maps the bottom panel has mutated (need Save / _save_external_data).
+var _dirty_maps:Array[CustomInputMap] = []
+
 
 #             ███████ ██    ██ ███████ ███    ██ ████████ ███████              #
 #             ██      ██    ██ ██      ████   ██    ██    ██                   #
@@ -44,11 +47,11 @@ func _on_edited_object_changed() -> void:
 func _on_resource_modified( map:CustomInputMap ) -> void:
 	if map == null:
 		return
-	# Panel already called emit_changed(). Do not call update_file() here —
-	# that rescans the asset, re-fires edited_object_changed, and re-configures
+	# Panel already emit_changed + notify_property_list_changed for the inspector.
+	# Do not call EditorFileSystem.update_file here — it rescans and re-configures
 	# the panel in a slow loop.
+	_mark_map_needs_save( map )
 	_suppress_edited_object_signal = true
-	# Defer clear so any synchronous inspector callbacks see the flag.
 	_clear_suppress.call_deferred()
 
 
@@ -93,6 +96,38 @@ func _exit_tree() -> void:
 		_panel.queue_free()
 		_panel = null
 	_panel_button = null
+	_dirty_maps.clear()
+
+
+## List dirty standalone Input Maps so Save All / quit can prompt.
+func _get_unsaved_status( for_scene:String ) -> String:
+	_prune_dirty_maps()
+	if not for_scene.is_empty():
+		# Scene close: pathless maps already dirtied the scene via mark_scene_as_unsaved.
+		return ""
+	if _dirty_maps.is_empty():
+		return ""
+	var lines:PackedStringArray = PackedStringArray()
+	for m:CustomInputMap in _dirty_maps:
+		if m != null and not m.resource_path.is_empty():
+			lines.append( m.resource_path )
+	if lines.is_empty():
+		return ""
+	return "Save changes to Input Map resource(s):\n%s" % "\n".join( lines )
+
+
+## Persist standalone maps the panel marked dirty.
+func _save_external_data() -> void:
+	_prune_dirty_maps()
+	for m:CustomInputMap in _dirty_maps:
+		if m == null or m.resource_path.is_empty():
+			continue
+		var err:Error = ResourceSaver.save( m ) as Error
+		if err != OK:
+			push_error(
+					"InputMapEditorPlugin: failed to save '%s': %s"
+					% [m.resource_path, error_string( err )] )
+	_dirty_maps.clear()
 
 
 #       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #
@@ -128,6 +163,25 @@ func _clear_edited_map() -> void:
 
 func _clear_suppress() -> void:
 	_suppress_edited_object_signal = false
+
+
+## Disk maps → plugin dirty list (Save All). Pathless → mark the open scene unsaved.
+func _mark_map_needs_save( map:CustomInputMap ) -> void:
+	if map == null:
+		return
+	if map.resource_path.is_empty():
+		EditorInterface.mark_scene_as_unsaved()
+		return
+	if not _dirty_maps.has( map ):
+		_dirty_maps.append( map )
+
+
+func _prune_dirty_maps() -> void:
+	var kept:Array[CustomInputMap] = []
+	for m:CustomInputMap in _dirty_maps:
+		if m != null and not m.resource_path.is_empty():
+			kept.append( m )
+	_dirty_maps = kept
 
 
 # Connect and report failures (Signal.connect returns Error).
