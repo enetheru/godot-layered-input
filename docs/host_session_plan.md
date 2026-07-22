@@ -1,9 +1,13 @@
 # Plan: Host session boundary for Input Map Editor
 
-**Status:** proposed  
+**Status:** implemented (decision **B**, with main-screen caveat)  
 **Date:** 2026-07-23  
-**Scope:** `plugin.gd`, `settings/`, `inspector_plugin.gd` — not domain systems  
+**Scope:** `plugin.gd`, `host_session.gd`, `settings/`, `inspector_plugin.gd` — not domain systems  
 **Out of scope:** auto-restart via `set_plugin_enabled`, style pass on `input_map_editor.gd`
+
+**Decision B notes:** Dock ↔ Inspector rehosts in-process. Transitions that
+touch **Main screen** still require disable/re-enable (Godot registers main
+tabs at plugin enable only).
 
 ---
 
@@ -238,65 +242,35 @@ Keep public resource API and export plugin as-is.
 ### Phase 0 — Spec freeze (docs only)
 
 - [x] This plan committed under `docs/host_session_plan.md`
-- [ ] User sign-off on: **rehost in-process (phase 2)** vs **apply-on-next-enable only (phase 1)**
-
-**Decision needed from you before Phase 2:**  
-**A)** Phase 1 only: manual disable/enable applies host (minimal risk).  
-**B)** Phase 1 + Phase 2: `rehost()` on desired change (better UX, more care).
+- [x] User chose **B** (rehost), with main-screen engine caveat documented
 
 ### Phase 1 — Session boundary + instance detach
 
-**Implement:**
+- [x] `host_session.gd` AppliedHost; latch kind at attach only
+- [x] Detach instance-driven; never reads desired host
+- [x] No primary panel when applied kind is INSPECTOR
+- [x] `_has_main_screen` uses session when live, desired when not
+- [x] Deferred guards (`_session_id`) + `_shutting_down`
+- [x] Settings static API; plugin owns `settings_changed`
+- [x] Inspector rebind + `cleanup()` / `unbind_inspector_editor`
 
-1. `AppliedHost` / session fields; latch kind at attach only.
-2. Detach instance-driven; never reads desired host.
-3. No primary panel when applied kind is INSPECTOR.
-4. `_has_main_screen` uses session when live, desired when not.
-5. Deferred guards + `_shutting_down`.
-6. Settings: stop treating host_mode as live tree driver (toast when desired ≠ applied at most once per change).
-7. Inspector: disconnect previous editor; no bind to non-existent primary panel.
+**Manual accept (user):** matrix 1a–1i in editor log
 
-**Accept:**
+### Phase 2 — In-process rehost (decision B)
 
-| # | Scenario | Pass |
-|---|----------|------|
-| 1a | Enable dock → disable | No script errors; dock gone |
-| 1b | Enable main → disable | No main tab leftover; panel freed |
-| 1c | Enable inspector → open CustomInputMap → disable | No inspector embed leftover; no PREDELETE null |
-| 1d | Enable dock → change host_mode to main → disable | Detach still removes **dock** (not “main”) |
-| 1e | Enable main → change host_mode to dock → disable | Detach still removes **main** parent |
-| 1f | Enable inspector → change host_mode → disable | Detach removes inspector plugin |
-| 1g | Re-enable after 1d–1f | New host matches **desired** |
-| 1h | Edit map in dock; dirty; save external | Still works |
-| 1i | No `set_plugin_enabled` recursion | Code search clean |
+- [x] `_rehost()` with `_rehosting` guard; dirty maps kept
+- [x] Desired host change → save + rehost (not on noise before `_settings_live`)
+- [x] **Caveat:** transitions involving main screen toast + require disable/enable
+- [x] Dock ↔ Inspector full in-process rehost
 
-### Phase 2 — Optional in-process rehost
+**Manual accept (user):** 2c dock↔inspector; 2a/2b via disable/enable for main
 
-**Implement only if decision B:**
+### Phase 3 — Hardening
 
-1. `rehost()` with `_rehosting` re-entrancy guard.
-2. On desired host change: save + rehost once (not on auto_raise / min height).
-3. Preserve dirty map list across rehost if maps still valid.
-4. Do not rehost on register/load noise (`_emit_live` or equivalent).
-
-**Accept:**
-
-| # | Scenario | Pass |
-|---|----------|------|
-| 2a | Dock → main via settings | Tab appears; dock gone; no crash |
-| 2b | Main → inspector | Main gone; inspector handles CustomInputMap |
-| 2c | Inspector → dock | Dock appears; inspector plugin removed |
-| 2d | Spam-toggle host_mode | No crash; ends consistent with last desired |
-| 2e | Rehost while inspector open on map | Clean rebind or clear; no dual plugins |
-
-### Phase 3 — Hardening (can parallel after 1)
-
-1. Inspector `resized` disconnect on free/remove.
-2. Collapse settings to static register/read; plugin-owned signal if still needed for min height live update.
-3. Smoke test script or checklist under `test/` documenting the matrix (automated where headless allows; editor hosts often need manual).
-4. README + class docs match behaviour.
-
-**Accept:** Unload with open inspector + settings change shows no dangling connections in log; min height still applies on next editor build.
+- [x] Inspector `resized` disconnect on cleanup / re-parse
+- [x] Settings static register/read; plugin-owned signal
+- [x] README desired vs applied + rehost table
+- [ ] Optional: automated smoke for non-editor pieces only
 
 ### Phase 4 — Optional product follow-ups (explicit backlog)
 

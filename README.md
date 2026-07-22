@@ -17,16 +17,25 @@ Prefix: `input_map_editor/` (Project → Project Settings → General, search �
 
 | Setting | Default | Notes |
 |---------|---------|--------|
-| `host_mode` | Dock | Enum: **Dock** · **Main screen** · **Inspector**. **Disable & re-enable the plugin** after change. |
+| `host_mode` | Dock | Enum: **Dock** · **Main screen** · **Inspector**. |
 | `auto_raise` | `true` | Focus dock / main screen when a map is selected. |
 | `default_deadzone` | `0.2` | Authoring default (more wiring later). |
 | `panel_min_height` | `280` | Min height for dock / inspector editors. |
+
+**Desired vs applied host:** ProjectSettings stores the *desired* host. The plugin keeps an *applied* session for whatever is actually in the tree. Detach never re-reads settings.
+
+| Change | Behaviour |
+|--------|-----------|
+| Dock ↔ Inspector while enabled | In-process **rehost** (no plugin toggle). |
+| Any change involving **Main screen** | Save setting; **disable & re-enable** the plugin (engine builds main tabs only at enable). |
 
 Settings use `set_initial_value` + `ProjectSettings.save()` so they survive plugin unload.
 
 **Dock** uses Godot 4.7+ `EditorDock` + `add_dock` with vertical, horizontal, and floating layouts (not the older bottom-panel-only API).
 
 **Main screen** = main-screen plugin tab (`get_editor_main_screen().add_child`, `_has_main_screen`, `_make_visible`).
+
+**Inspector** mode does not create a hidden dock/main panel; only the inspector embed is used.
 
 ## Install
 

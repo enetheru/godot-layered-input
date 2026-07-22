@@ -5,6 +5,7 @@ extends EditorInspectorPlugin
 ##
 ## The inspector is a [ScrollContainer], so SIZE_EXPAND alone will not fill the
 ## dock. We match the inspector's current height (minus chrome) as min size.
+## [method cleanup] disconnects editor signals before the host session detaches.
 
 
 const EditorScene = preload( "ui/input_map_editor.tscn" )
@@ -12,10 +13,20 @@ const EditorScene = preload( "ui/input_map_editor.tscn" )
 var _plugin:EditorPlugin
 var _wrap:MarginContainer
 var _editor:InputMapEditor
+var _insp_resized_cb:Callable = Callable()
 
 
 func setup( plugin:EditorPlugin ) -> void:
 	_plugin = plugin
+
+
+## Called from host detach before [method EditorPlugin.remove_inspector_plugin].
+func cleanup() -> void:
+	_disconnect_inspector_resized()
+	_unbind_editor()
+	_wrap = null
+	_editor = null
+	_plugin = null
 
 
 func _can_handle( object:Object ) -> bool:
@@ -27,6 +38,10 @@ func _can_handle( object:Object ) -> bool:
 func _parse_begin( object:Object ) -> void:
 	if _plugin == null or not ( object is CustomInputMap ):
 		return
+
+	# Re-parse: drop previous bind/resize before building a new control tree.
+	_disconnect_inspector_resized()
+	_unbind_editor()
 
 	_wrap = MarginContainer.new()
 	_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -50,10 +65,11 @@ func _parse_begin( object:Object ) -> void:
 	_fit_inspector_height()
 	add_custom_control( _wrap )
 
-	# Keep filling if the inspector dock is resized.
 	var insp:EditorInspector = EditorInterface.get_inspector()
-	if insp != null and not insp.resized.is_connected( _on_inspector_resized ):
-		insp.resized.connect( _on_inspector_resized )
+	if insp != null:
+		_insp_resized_cb = Callable( self, &"_on_inspector_resized" )
+		if not insp.resized.is_connected( _insp_resized_cb ):
+			insp.resized.connect( _insp_resized_cb )
 
 
 func _parse_property(
@@ -85,3 +101,21 @@ func _fit_inspector_height() -> void:
 	_wrap.custom_minimum_size = Vector2( 0.0, target )
 	_editor.custom_minimum_size = Vector2( 0.0, target )
 	_editor.panel_min_height = target
+
+
+func _unbind_editor() -> void:
+	if _plugin != null \
+	and is_instance_valid( _editor ) \
+	and _plugin.has_method( &"unbind_inspector_editor" ):
+		_plugin.call( &"unbind_inspector_editor", _editor )
+	_editor = null
+	_wrap = null
+
+
+func _disconnect_inspector_resized() -> void:
+	if not _insp_resized_cb.is_valid():
+		return
+	var insp:EditorInspector = EditorInterface.get_inspector()
+	if insp != null and insp.resized.is_connected( _insp_resized_cb ):
+		insp.resized.disconnect( _insp_resized_cb )
+	_insp_resized_cb = Callable()

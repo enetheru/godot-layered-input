@@ -7,15 +7,15 @@ extends EditorPlugin
 ## [br] • [b]Dock[/b] — [EditorDock] via [method add_dock] (any slot + floating)
 ## [br] • [b]Main screen[/b] — tab next to 2D/3D/Script
 ## [br] • [b]Inspector[/b] — [EditorInspectorPlugin] for [CustomInputMap]
-## [br]Settings choose the host only at enable. Runtime and teardown use the
-## [br]mode latched at attach (and instance state), not a live re-read of the
-## [br]setting — so changing host mode mid-session does not break cleanup.
-## [br]Apply a new host mode by disable/enable of this plugin.
+## [br]
+## [b]Desired[/b] host is ProjectSettings. [b]Applied[/b] host is [code]_session[/code],
+## set only in attach/rehost. Detach never re-reads settings. Changing host mode
+## while enabled runs in-process rehost (no [code]set_plugin_enabled[/code]).
 
 
 const EditorScene = preload( "ui/input_map_editor.tscn" )
 const SettingsScript = preload( "settings/input_map_editor_settings.gd" )
-const InspectorPluginScript = preload( "inspector_plugin.gd" )
+const HostSessionScript = preload( "host_session.gd" )
 
 const MAIN_SCREEN_NAME:String = "Input Map"
 
@@ -27,16 +27,20 @@ const MAIN_SCREEN_NAME:String = "Input Map"
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-var _panel:InputMapEditor
-## Universal dock host (Godot 4.7+ [EditorDock]); null in other modes.
-var _dock:EditorDock
-var _opts:InputMapEditorSettings
-var _inspector_plugin:EditorInspectorPlugin
-var _inspector_editor:InputMapEditor
-## Host mode latched in [method _attach_host]; [code]-1[/code] when unattached.
-## Teardown and in-session host queries use this, not ProjectSettings.
-var _attached_host_mode:int = -1
+## Applied host; null when detached. See host_session.gd.
+var _session:RefCounted
+## Bumped at detach start; deferred work captures and checks this.
+var _session_id:int = 0
+var _shutting_down:bool = false
+var _rehosting:bool = false
+## Ignore ProjectSettings noise until register settles.
+var _settings_live:bool = false
 
+var _inspector_editor:InputMapEditor
+var _auto_raise:bool = true
+var _panel_min_height:float = 280.0
+
+var _ps_changed_cb:Callable = Callable()
 var _suppress_edited_object_signal:bool = false
 var _dirty_maps:Array[CustomInputMap] = []
 var _export_plugin:EditorExportPlugin
@@ -50,7 +54,7 @@ var _export_plugin:EditorExportPlugin
 func                        __________EVENTS_________              ()->void:pass
 
 func _on_edited_object_changed() -> void:
-	if _suppress_edited_object_signal:
+	if _shutting_down or _suppress_edited_object_signal:
 		return
 	var obj:Object = EditorInterface.get_inspector().get_edited_object()
 	if obj is CustomInputMap:
@@ -63,6 +67,8 @@ func _on_edited_object_changed() -> void:
 
 
 func _on_inspector_property_edited( _property:String ) -> void:
+	if _shutting_down:
+		return
 	var editor:InputMapEditor = _active_editor()
 	if editor == null:
 		return
@@ -75,27 +81,18 @@ func _on_inspector_property_edited( _property:String ) -> void:
 
 
 func _on_resource_modified( map:CustomInputMap ) -> void:
-	if map == null:
+	if _shutting_down or map == null:
 		return
 	_mark_map_needs_save( map )
 	_suppress_edited_object_signal = true
-	_clear_suppress.call_deferred()
+	var id:int = _session_id
+	_clear_suppress_deferred( id )
 
 
-func _on_settings_changed( setting_name:StringName, _value:Variant ) -> void:
-	if setting_name == &"host_mode":
-		_notify_reload_plugin(
-				"Host mode changed. Disable and re-enable the "
-				+ "Custom Input Map Editor plugin to apply." )
-		# Persist immediately so unload does not drop the choice.
-		ProjectSettings.save()
+func _on_project_settings_changed() -> void:
+	if _shutting_down or not _settings_live or _rehosting:
 		return
-	if setting_name == &"panel_min_height" and is_instance_valid( _panel ):
-		_apply_panel_defaults( _panel )
-	if setting_name == &"auto_raise" \
-	or setting_name == &"default_deadzone" \
-	or setting_name == &"panel_min_height":
-		ProjectSettings.save()
+	_sync_settings_from_project.call_deferred( _session_id )
 
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
@@ -106,19 +103,21 @@ func _on_settings_changed( setting_name:StringName, _value:Variant ) -> void:
 func                        ________OVERRIDES________              ()->void:pass
 
 func _enter_tree() -> void:
-	_opts = SettingsScript.new() as InputMapEditorSettings
-	_connect_sig( _opts.settings_changed, _on_settings_changed )
+	_shutting_down = false
+	_settings_live = false
+	SettingsScript.register_project_settings()
+	_auto_raise = SettingsScript.read_auto_raise()
+	_panel_min_height = SettingsScript.read_panel_min_height()
+
+	_ps_changed_cb = Callable( self, &"_on_project_settings_changed" )
+	if not ProjectSettings.settings_changed.is_connected( _ps_changed_cb ):
+		@warning_ignore( "return_value_discarded" )
+		ProjectSettings.settings_changed.connect( _ps_changed_cb )
 
 	_export_plugin = preload( "export_plugin.gd" ).new()
 	add_export_plugin( _export_plugin )
 
-	_panel = EditorScene.instantiate() as InputMapEditor
-	_panel.resource_edit_mode = true
-	_panel.apply_edit_map_to_engine = false
-	_apply_panel_defaults( _panel )
-	_connect_sig( _panel.resource_modified, _on_resource_modified )
-
-	_attach_host()
+	_attach_session( SettingsScript.read_host_mode() )
 
 	var inspector:EditorInspector = EditorInterface.get_inspector()
 	if not inspector.edited_object_changed.is_connected( _on_edited_object_changed ):
@@ -127,10 +126,15 @@ func _enter_tree() -> void:
 		_connect_sig( inspector.property_edited, _on_inspector_property_edited )
 
 	_on_edited_object_changed()
+	_enable_settings_live.call_deferred( _session_id )
 
 
 func _exit_tree() -> void:
-	_detach_host()
+	_shutting_down = true
+	_settings_live = false
+	_session_id += 1
+
+	_detach_session()
 
 	if _export_plugin:
 		remove_export_plugin( _export_plugin )
@@ -143,36 +147,23 @@ func _exit_tree() -> void:
 		if inspector.property_edited.is_connected( _on_inspector_property_edited ):
 			inspector.property_edited.disconnect( _on_inspector_property_edited )
 
-	if is_instance_valid( _panel ):
-		if _panel.resource_modified.is_connected( _on_resource_modified ):
-			_panel.resource_modified.disconnect( _on_resource_modified )
-		if _panel.get_parent() != null:
-			_panel.get_parent().remove_child( _panel )
-		_panel.queue_free()
-		_panel = null
-	_dock = null
+	if _ps_changed_cb.is_valid() \
+	and ProjectSettings.settings_changed.is_connected( _ps_changed_cb ):
+		ProjectSettings.settings_changed.disconnect( _ps_changed_cb )
+	_ps_changed_cb = Callable()
+
 	_inspector_editor = null
-	_attached_host_mode = -1
-	# Explicit RefCounted teardown before drop (do not rely on PREDELETE).
-	var opts:InputMapEditorSettings = _opts
-	_opts = null
-	if opts != null:
-		opts.shutdown()
 	_dirty_maps.clear()
 	# Intentionally leave ProjectSettings keys intact.
 
 
-## Editor may call this before [method _enter_tree]. While attached, report the
-## latched host so a mid-session setting change does not desync the main tab.
+## Before [method _enter_tree] uses desired; while live uses applied session.
 func _has_main_screen() -> bool:
-	if _attached_host_mode >= 0:
-		return (
-				_attached_host_mode
-				== InputMapEditorSettings.HostMode.MAIN_SCREEN
-		)
+	if _session != null:
+		return bool( _session.call( &"is_main_screen" ) )
 	return (
-			InputMapEditorSettings.read_host_mode()
-			== InputMapEditorSettings.HostMode.MAIN_SCREEN
+			SettingsScript.read_host_mode()
+			== SettingsScript.HostMode.MAIN_SCREEN
 	)
 
 
@@ -190,11 +181,12 @@ func _get_plugin_icon() -> Texture2D:
 
 
 func _make_visible( visible:bool ) -> void:
-	if not is_instance_valid( _panel ):
+	if _shutting_down or not _is_host_main_screen():
 		return
-	if not _is_host_main_screen():
+	var panel:InputMapEditor = _session_panel()
+	if not is_instance_valid( panel ):
 		return
-	_panel.visible = visible
+	panel.visible = visible
 
 
 func _get_unsaved_status( for_scene:String ) -> String:
@@ -232,132 +224,186 @@ func _save_external_data() -> void:
 #       ██ ██   ████    ██    ███████ ██   ██ ██   ████ ██   ██ ███████        #
 func                        ________INTERNAL_________              ()->void:pass
 
-#region Host layout
-#MARK: Host layout
+#region Host session
+#MARK: Host session
 
-## ProjectSettings / opts value — only for [method _attach_host] enable path.
-func _settings_host_mode() -> int:
-	if _opts != null:
-		return _opts.host_mode as int
-	return InputMapEditorSettings.read_host_mode()
+func _session_kind() -> int:
+	if _session == null:
+		return -1
+	return int( _session.get( &"kind" ) )
 
 
-## Mode of the host currently attached this load (not a live setting read).
-func _host_mode() -> int:
-	if _attached_host_mode >= 0:
-		return _attached_host_mode
-	return _settings_host_mode()
+func _session_panel() -> InputMapEditor:
+	if _session == null:
+		return null
+	var p:Variant = _session.get( &"panel" )
+	if p is InputMapEditor:
+		return p as InputMapEditor
+	return null
+
+
+func _session_dock() -> EditorDock:
+	if _session == null:
+		return null
+	var d:Variant = _session.get( &"dock" )
+	if d is EditorDock:
+		return d as EditorDock
+	return null
 
 
 func _is_host_main_screen() -> bool:
-	return _host_mode() == InputMapEditorSettings.HostMode.MAIN_SCREEN
+	return _session != null and bool( _session.call( &"is_main_screen" ) )
 
 
 func _is_host_inspector() -> bool:
-	return _host_mode() == InputMapEditorSettings.HostMode.INSPECTOR
+	return _session != null and bool( _session.call( &"is_inspector" ) )
 
 
-func _use_auto_raise() -> bool:
-	if _opts != null:
-		return _opts.auto_raise
-	return InputMapEditorSettings.read_auto_raise()
+func _attach_session( desired_kind:int ) -> void:
+	var panel:InputMapEditor = null
+	if desired_kind != SettingsScript.HostMode.INSPECTOR:
+		panel = _create_panel()
+	_session = HostSessionScript.attach( self, desired_kind, panel )
+	if panel != null:
+		_apply_panel_defaults( panel )
 
 
-func _attach_host() -> void:
-	# Latch once at enable. Later ProjectSettings edits must not change this.
-	_attached_host_mode = _settings_host_mode()
-	match _attached_host_mode:
-		InputMapEditorSettings.HostMode.MAIN_SCREEN:
-			# https://docs.godotengine.org/en/stable/tutorials/plugins/editor/making_main_screen_plugins.html
-			var main_screen:VBoxContainer = EditorInterface.get_editor_main_screen()
-			main_screen.add_child( _panel )
-			_panel.set_anchors_and_offsets_preset( Control.PRESET_FULL_RECT )
-			_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			_make_visible( false )
-		InputMapEditorSettings.HostMode.INSPECTOR:
-			_inspector_plugin = InspectorPluginScript.new()
-			if _inspector_plugin.has_method( &"setup" ):
-				_inspector_plugin.call( &"setup", self )
-			add_inspector_plugin( _inspector_plugin )
-			add_child( _panel )
-			_panel.visible = false
-		_:
-			# Universal dock (not add_control_to_bottom_panel — that is bottom-only).
-			# https://docs.godotengine.org/en/stable/classes/class_editordock.html
-			_dock = EditorDock.new()
-			_dock.title = MAIN_SCREEN_NAME
-			_dock.layout_key = "enetheru_input_map_editor"
-			_dock.default_slot = EditorDock.DOCK_SLOT_BOTTOM
-			# Vertical (side) + horizontal (bottom) + floating.
-			_dock.available_layouts = (
-					EditorDock.DOCK_LAYOUT_VERTICAL
-					| EditorDock.DOCK_LAYOUT_HORIZONTAL
-					| EditorDock.DOCK_LAYOUT_FLOATING
-			)
-			_dock.global = true
-			_dock.icon_name = &"InputEventAction"
-			_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			_dock.add_child( _panel )
-			add_dock( _dock )
-			_panel.visible = true
+func _detach_session() -> void:
+	# Cancel deferred work tied to this session.
+	_session_id += 1
+	_unbind_inspector_editor_any()
+	if _session == null:
+		return
+	var panel:InputMapEditor = _session_panel()
+	if is_instance_valid( panel ) \
+	and panel.resource_modified.is_connected( _on_resource_modified ):
+		panel.resource_modified.disconnect( _on_resource_modified )
+	var session:RefCounted = _session
+	_session = null
+	session.call( &"detach", self )
 
 
-## Tear down whatever was actually attached (instance state). Never reads
-## [member host_mode] from ProjectSettings — a mid-session setting change must
-## not skip dock/inspector/main cleanup.
-func _detach_host() -> void:
-	if _inspector_plugin != null:
-		remove_inspector_plugin( _inspector_plugin )
-		_inspector_plugin = null
-	if is_instance_valid( _dock ):
-		remove_dock( _dock )
-		# Panel is child of dock; reparent out before freeing dock.
-		if is_instance_valid( _panel ) and _panel.get_parent() == _dock:
-			_dock.remove_child( _panel )
-		_dock.queue_free()
-		_dock = null
-	# Main screen: panel lives under the editor main screen, not self.
-	# Inspector: panel is a child of this plugin (left for _exit_tree free).
-	elif is_instance_valid( _panel ):
-		var parent:Node = _panel.get_parent()
-		if parent != null and parent != self:
-			parent.remove_child( _panel )
+## Switch applied host to match desired ProjectSettings. Preserves dirty maps.
+## [br]Dock ↔ Inspector is in-process. Any transition involving main screen needs
+## a plugin disable/enable (engine builds main tabs only at enable time).
+func _rehost() -> void:
+	if _shutting_down or _rehosting:
+		return
+	var desired:int = SettingsScript.read_host_mode()
+	var applied:int = _session_kind()
+	if _session != null and applied == desired:
+		return
+	var touches_main:bool = (
+			desired == SettingsScript.HostMode.MAIN_SCREEN
+			or applied == SettingsScript.HostMode.MAIN_SCREEN
+	)
+	if touches_main:
+		ProjectSettings.save()
+		_toast(
+				"Main screen host changes require disable and re-enable "
+				+ "of the Custom Input Map Editor plugin." )
+		return
+	_rehosting = true
+	_settings_live = false
+	_detach_session()
+	_attach_session( desired )
+	_on_edited_object_changed()
+	_settings_live = true
+	_rehosting = false
+	_toast(
+			"Input Map Editor host updated (%s)."
+			% _host_mode_label( desired ) )
+
+
+func _create_panel() -> InputMapEditor:
+	var panel:InputMapEditor = EditorScene.instantiate() as InputMapEditor
+	panel.resource_edit_mode = true
+	panel.apply_edit_map_to_engine = false
+	_apply_panel_defaults( panel )
+	_connect_sig( panel.resource_modified, _on_resource_modified )
+	return panel
 
 
 func _raise_editor_if_needed() -> void:
-	if not _use_auto_raise():
+	if not _auto_raise or _shutting_down:
 		return
 	if _is_host_inspector():
 		return
-	if not is_instance_valid( _panel ):
+	var panel:InputMapEditor = _session_panel()
+	if not is_instance_valid( panel ):
 		return
 	if _is_host_main_screen():
 		EditorInterface.set_main_screen_editor( MAIN_SCREEN_NAME )
 		return
-	if is_instance_valid( _dock ):
-		_dock.make_visible()
+	var dock:EditorDock = _session_dock()
+	if is_instance_valid( dock ):
+		dock.make_visible()
 
 
-func _notify_reload_plugin( message:String ) -> void:
+func _apply_panel_defaults( editor:InputMapEditor ) -> void:
+	if editor == null:
+		return
+	editor.panel_min_height = _panel_min_height
+	editor.custom_minimum_size = Vector2( 0.0, _panel_min_height )
+
+
+func _host_mode_label( kind:int ) -> String:
+	match kind:
+		SettingsScript.HostMode.MAIN_SCREEN:
+			return "Main screen"
+		SettingsScript.HostMode.INSPECTOR:
+			return "Inspector"
+		_:
+			return "Dock"
+
+
+func _toast( message:String ) -> void:
 	push_warning( "InputMapEditorPlugin: %s" % message )
 	if EditorInterface.has_method( &"get_editor_toaster" ):
 		var toaster:Object = EditorInterface.call( &"get_editor_toaster" )
 		if toaster != null and toaster.has_method( &"push_toast" ):
 			toaster.call( &"push_toast", message, 1 )
 
+#endregion Host session
 
-func _apply_panel_defaults( editor:InputMapEditor ) -> void:
-	if editor == null:
+
+#region Settings sync
+#MARK: Settings sync
+
+func _enable_settings_live( id:int ) -> void:
+	if _shutting_down or id != _session_id:
 		return
-	var min_h:float = InputMapEditorSettings.read_panel_min_height()
-	if _opts != null:
-		min_h = _opts.panel_min_height
-	editor.panel_min_height = min_h
-	editor.custom_minimum_size = Vector2( 0.0, min_h )
+	_auto_raise = SettingsScript.read_auto_raise()
+	_panel_min_height = SettingsScript.read_panel_min_height()
+	_settings_live = true
 
-#endregion Host layout
+
+func _sync_settings_from_project( id:int ) -> void:
+	if _shutting_down or id != _session_id or not _settings_live or _rehosting:
+		return
+	var prev_raise:bool = _auto_raise
+	var prev_h:float = _panel_min_height
+	var desired:int = SettingsScript.read_host_mode()
+	_auto_raise = SettingsScript.read_auto_raise()
+	_panel_min_height = SettingsScript.read_panel_min_height()
+
+	if _session != null and desired != _session_kind():
+		# Persist so a later unload does not drop the choice mid-rehost.
+		ProjectSettings.save()
+		_rehost()
+		return
+
+	if not is_equal_approx( prev_h, _panel_min_height ):
+		var panel:InputMapEditor = _session_panel()
+		if is_instance_valid( panel ):
+			_apply_panel_defaults( panel )
+		if is_instance_valid( _inspector_editor ):
+			_apply_panel_defaults( _inspector_editor )
+		ProjectSettings.save()
+	elif prev_raise != _auto_raise:
+		ProjectSettings.save()
+
+#endregion Settings sync
 
 
 #region Inspector plugin API
@@ -370,22 +416,44 @@ func inspector_can_handle( object:Object ) -> bool:
 
 
 func get_settings_panel_min_height() -> float:
-	return InputMapEditorSettings.read_panel_min_height()
+	return _panel_min_height
 
 
 func bind_inspector_editor( editor:InputMapEditor ) -> void:
-	_inspector_editor = editor
-	if editor == null:
+	if editor == null or _shutting_down:
 		return
+	if _inspector_editor == editor:
+		return
+	_unbind_inspector_editor_any()
+	_inspector_editor = editor
 	_apply_panel_defaults( editor )
 	if not editor.resource_modified.is_connected( _on_resource_modified ):
 		_connect_sig( editor.resource_modified, _on_resource_modified )
 
 
+func unbind_inspector_editor( editor:InputMapEditor ) -> void:
+	if editor == null:
+		return
+	if _inspector_editor != editor:
+		return
+	if is_instance_valid( editor ) \
+	and editor.resource_modified.is_connected( _on_resource_modified ):
+		editor.resource_modified.disconnect( _on_resource_modified )
+	_inspector_editor = null
+
+
+func _unbind_inspector_editor_any() -> void:
+	if is_instance_valid( _inspector_editor ):
+		if _inspector_editor.resource_modified.is_connected( _on_resource_modified ):
+			_inspector_editor.resource_modified.disconnect( _on_resource_modified )
+	_inspector_editor = null
+
+
 func inspector_map_for_action( action:InputAction ) -> CustomInputMap:
 	var maps:Array[CustomInputMap] = []
-	if is_instance_valid( _panel ):
-		maps.append_array( _panel.open_maps )
+	var panel:InputMapEditor = _session_panel()
+	if is_instance_valid( panel ):
+		maps.append_array( panel.open_maps )
 	if is_instance_valid( _inspector_editor ):
 		maps.append_array( _inspector_editor.open_maps )
 	for map:CustomInputMap in maps:
@@ -399,7 +467,7 @@ func inspector_map_for_action( action:InputAction ) -> CustomInputMap:
 func _active_editor() -> InputMapEditor:
 	if _is_host_inspector() and is_instance_valid( _inspector_editor ):
 		return _inspector_editor
-	return _panel
+	return _session_panel()
 
 
 func _edit_map( map:CustomInputMap, do_raise:bool = true ) -> void:
@@ -452,7 +520,14 @@ func _refresh_editor_if_action( editor:InputMapEditor, action:InputAction ) -> v
 		editor.refresh()
 
 
-func _clear_suppress() -> void:
+func _clear_suppress_deferred( id:int ) -> void:
+	# Use call_deferred with bound id check inside.
+	_clear_suppress.call_deferred( id )
+
+
+func _clear_suppress( id:int ) -> void:
+	if _shutting_down or id != _session_id:
+		return
 	_suppress_edited_object_signal = false
 
 
