@@ -18,7 +18,6 @@ extends Resource
 ## active responders. Create `.tres` assets by hand and assign them on responders.
 ## [br]
 ##[br][color=goldenrod]TODO[/color]:Implement iterators for actions
-##[br][color=goldenrod]TODO[/color]:Improve clarity of merge function names.
 ##[br][color=goldenrod]TODO[/color]:add a merge flag to apply_to_engine to
 ## merge InputAction Input Events
 
@@ -203,23 +202,26 @@ func duplicate_map() -> CustomInputMap:
 	return dup
 
 
-## Return a new map = [param base] with this layer applied on top.
-## Same action names are replaced wholesale (not event-appended).
-## If [param base] is null, this layer alone is returned as a deep copy.
-func merge_over( base:CustomInputMap ) -> CustomInputMap:
-	var new_map:CustomInputMap = base.duplicate_map() if is_instance_valid( base ) else CustomInputMap.new()
-	for action_name:StringName in _actions.keys():
-		var ia:InputAction = _actions[action_name]
-		new_map._actions[action_name] = ia.duplicate_action() if is_instance_valid( ia ) else InputAction.new()
-	return new_map
+## Fold [param other] into this map in place (same shape as [method Dictionary.merge]).
+## [br]Same action names are replaced wholesale (not event-appended).
+## When [param overwrite] is [code]true[/code] (default), [param other] wins on
+## clash — later input layers override earlier ones. When [code]false[/code],
+## existing names are kept (Dictionary default; less common for layer stacks).
+func merge( other:CustomInputMap, overwrite:bool = true ) -> void:
+	assert( is_instance_valid( other ), "CustomInputMap.merge: other is invalid" )
+	for action_name:StringName in other._actions.keys():
+		if not overwrite and _actions.has( action_name ):
+			continue
+		var ia:InputAction = other._actions[action_name]
+		_actions[action_name] = (
+				ia.duplicate_action() if is_instance_valid( ia ) else InputAction.new() )
 
 
-## apply [param top] over this map.
-## Same action names are replaced wholesale (not event-appended).
-func merge_with( top:CustomInputMap ) -> void:
-	for action_name:StringName in top._actions.keys():
-		var ia:InputAction = top._actions[action_name]
-		_actions[action_name] = ia.duplicate_action() if is_instance_valid( ia ) else InputAction.new()
+## New map: this map with [param other] folded in (same shape as [method Dictionary.merged]).
+func merged( other:CustomInputMap, overwrite:bool = true ) -> CustomInputMap:
+	var out:CustomInputMap = duplicate_map()
+	out.merge( other, overwrite )
+	return out
 
 #endregion Clone / Merge
 
@@ -377,5 +379,5 @@ func                        __________TOOLS__________              ()->void:pass
 @export_category("Tools")
 @export_tool_button('Copy Project+Engine Map')
 var export_engine_map:Callable = func() -> void:
-	var engine_map := from_engine()
-	merge_with( engine_map )
+	var engine_map:CustomInputMap = from_engine()
+	merge( engine_map )

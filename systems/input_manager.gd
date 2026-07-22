@@ -198,7 +198,8 @@ func _rebuild_input_map() -> void:
 
 	var effective:CustomInputMap = CustomInputMap.new()
 	for layer:CustomInputMap in layers:
-		effective = layer.merge_over( effective )
+		# Later layers overwrite on name clash (merge default).
+		effective.merge( layer )
 
 	effective_map = effective
 	effective.apply_to_engine()
