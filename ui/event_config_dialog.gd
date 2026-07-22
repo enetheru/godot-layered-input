@@ -109,7 +109,8 @@ var _mod_checkboxes:Array[CheckBox] = []
 #            ███████ ██  ██████  ██   ████ ██   ██ ███████ ███████             #
 func                        _________SIGNALS_________              ()->void:pass
 
-signal confirmed
+## User accepted the dialog. [param event] is the configured binding (never null on emit).
+signal confirmed( event:InputEvent )
 
 signal canceled
 
@@ -311,10 +312,8 @@ func _on_ok_pressed() -> void:
 		return
 	if ok.disabled:
 		return
-	# Emit while still visible so listeners can read get_event() reliably.
-	# FIXME: if listeners need the results of get_event on closure, then it should
-	# be added to the signal as an argument.
-	confirmed.emit()
+	# Pass the event so listeners need not call get_event() after hide.
+	confirmed.emit( _event )
 	hide()
 
 
@@ -396,6 +395,7 @@ func _notification(what:int) -> void:
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
+## Configured binding while the dialog is open (also passed on [signal confirmed]).
 func get_event() -> InputEvent:
 	return _event
 

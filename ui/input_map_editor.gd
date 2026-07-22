@@ -270,25 +270,24 @@ func _on_tree_item_selected() -> void:
 	_set_mutation_context(item)
 
 
-func _on_event_config_confirmed() -> void:
-	var ev: InputEvent = event_config_dialog.get_event()
-	if ev == null:
-		show_message("No input event was configured.")
+func _on_event_config_confirmed( event:InputEvent ) -> void:
+	if not is_instance_valid( event ):
+		show_message( "No input event was configured." )
 		return
 	if _current_action_name.is_empty():
-		show_message("No action selected for this event.")
+		show_message( "No action selected for this event." )
 		return
-	var new_action: Dictionary = _current_action.duplicate(true)
-	var action_events: Array = new_action.get("events", [])
-	var events: Array = action_events.duplicate()
+	var new_action:Dictionary = _current_action.duplicate( true )
+	var action_events:Array = new_action.get( "events", [] )
+	var events:Array = action_events.duplicate()
 	# Store a duplicate so the dialog can clear its state without affecting the map.
-	var stored: InputEvent = ev.duplicate()
+	var stored:InputEvent = event.duplicate()
 	if _current_action_event_index == -1:
-		events.append(stored)
+		events.append( stored )
 	else:
 		events[_current_action_event_index] = stored
 	new_action["events"] = events
-	action_edited.emit(_current_action_name, new_action)
+	action_edited.emit( _current_action_name, new_action )
 
 
 #region Tree Item Events
