@@ -7,9 +7,19 @@ Self-contained Godot 4 addon for layered input maps and an editor UI.
 - **`CustomInputMap` / `InputAction`** — serializable action-layer resources
 - **`InputManager` + `Responder`** — runtime merge of active maps onto the engine `InputMap`
 - **`InputMapEditor`** — tree UI with two operation modes:
-  - **EDITOR** — edit a `CustomInputMap` asset (writable; bottom panel)
+  - **EDITOR** — edit a `CustomInputMap` asset (writable)
   - **MONITOR** — inspect live effective / loaded maps from a running game (read-only host)
-- **Editor plugin** — bottom panel **"Input Map"** (loads when a `CustomInputMap` is selected)
+- **Editor plugin** — default **bottom panel** "Input Map"; optional main screen or inspector host
+
+## Project Settings
+
+Prefix: `input_map_editor/` (Project → Project Settings → General, search “input map”).
+
+| Setting | Default | Notes |
+|---------|---------|--------|
+| `use_main_screen` | `false` | Main editor tab. Mutually exclusive with `replace_inspector`. **Reload plugin** after change. |
+| `replace_inspector` | `false` | `EditorInspectorPlugin` embeds the map editor for `CustomInputMap`. **Reload plugin**. |
+| `auto_raise` | `true` | When not using replace-inspector, raise bottom panel / main screen on map select. Live. |
 
 ## Install
 
