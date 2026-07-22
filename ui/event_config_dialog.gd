@@ -331,38 +331,28 @@ func set_allowed_input_types( type_masks:int ) -> void:
 		event_listener.set_allowed_input_types( type_masks )
 
 
-## Open dialog to edit [param event] (or blank). [param current_action] expects
+## Open dialog to edit [param event], or blank when [param event] is null.
+## [param current_action] expects
 ## [code]{"events": Array, "deadzone": float}[/code] for duplicate detection.
 func popup_and_configure(
 			event:InputEvent = null,
 			current_action_name:String = "",
 			current_action:Dictionary = {} ) -> void:
-	var events:Array = current_action.get("events", [])
+	var events:Array = current_action.get( "events", [] )
 	_action_events = events.duplicate()
 
-	# FIXME: This looks like its resetting the UI, should perhaps be separated
-	# into its own method,
 	if is_instance_valid( event ):
-		_set_event( null, null )
-		for cb:CheckBox in _mod_checkboxes:
-			cb.set_pressed_no_signal( false )
-		key_mode.select( KeyMode.PHY_KEYCODE )
-		command_control.set_pressed_no_signal( false )
-		device_option_button.select(0)
-		location_option_button.select(0)
-	else:
 		# Drop one matching instance so the event being edited is not
-		# flagged duplicate.
+		# immediately flagged as a duplicate of itself.
 		for i:int in range( _action_events.size() ):
 			var ie:InputEvent = _action_events[i]
 			if is_instance_valid( ie ) \
 			and ie.is_match( event ):
 				_action_events.remove_at( i )
 				break
-		# FIXME event is invalid duplicate is not available.
-		var a:InputEvent = event.duplicate()
-		var b:InputEvent = event.duplicate()
-		_set_event( a, b )
+		_set_event( event.duplicate(), event.duplicate() )
+	else:
+		_reset_configure_ui()
 
 	if current_action_name.is_empty():
 		title = "Event Configuration"
@@ -382,6 +372,17 @@ func popup_and_configure(
 	# Ensure OK reflects current event (null → disabled).
 	_sync_ok_enabled()
 	_focus_listener()
+
+
+## Clear binding + option controls for a blank “add event” open.
+func _reset_configure_ui() -> void:
+	_set_event( null, null )
+	for cb:CheckBox in _mod_checkboxes:
+		cb.set_pressed_no_signal( false )
+	key_mode.select( KeyMode.PHY_KEYCODE )
+	command_control.set_pressed_no_signal( false )
+	device_option_button.select( 0 )
+	location_option_button.select( 0 )
 
 
 #       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #
