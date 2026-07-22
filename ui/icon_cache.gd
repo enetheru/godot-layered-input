@@ -4,8 +4,7 @@ extends RefCounted
 ## Shared textures for [InputMapEditor] / [EventConfigDialog].
 ##
 ## Prefers project icons when present; otherwise builds [DPITexture] fallbacks
-## from the same SVGs the engine editor uses.
-##[br][color=goldenrod]TODO[/color]:Replace INVALID_KEY svg with a real mark.
+## from the same SVGs the engine editor uses (editor/icons/*.svg).
 
 
 const _COLOR_MAP:Dictionary = {
@@ -25,7 +24,8 @@ const SVG:Dictionary = {
 	&"MOUSE": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M8 1a5 5 0 0 0-5 5v4a5 5 0 0 0 10 0V6a5 5 0 0 0-5-5zm-1 2.1A3 3 0 0 1 10 6v1H7zm-1 .9v1H5A3 3 0 0 1 6 4zm2 3h3v3a3 3 0 0 1-6 0V7h3z\"/></svg>",
 	&"JOY_BUTTON": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M5 4a4 4 0 0 0-4 4v1a3 3 0 0 0 3 3h1l1 3h4l1-3h1a3 3 0 0 0 3-3V8a4 4 0 0 0-4-4zm1 3h1v1H6zm3 0h1v1H9zM4.5 8.5A1.5 1.5 0 1 1 4.5 11a1.5 1.5 0 0 1 0-2.5zm7 0A1.5 1.5 0 1 1 11.5 11a1.5 1.5 0 0 1 0-2.5z\"/></svg>",
 	&"JOY_AXIS": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 2a5 5 0 1 1 0 10A5 5 0 0 1 8 3zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z\"/></svg>",
-	&"INVALID_KEY": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M8 2a6 6 0 1 0 5.65 4H11.5A4 4 0 1 1 8 4V2zm0 0V0l3 2.5L8 5V2z\"/></svg>",
+	# Engine editor/icons/KeyboardError.svg — fallback for unknown [method get_icon] keys.
+	&"INVALID_KEY": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#ff5f5f\" d=\"M4 2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H4Zm4.223 1.262c1.06.005 2.29.257 2.92 1.197.532.862.275 2.057-.484 2.703-.346.382-.862.629-1.075 1.117.055.345-.33.172-.537.213H7.148c-.037-.749.503-1.335 1.026-1.796.406-.253.744-1.002.129-1.22-.626-.25-1.374.117-1.645.715l-2.08-1.039c.599-1.147 1.868-1.818 3.136-1.872.17-.013.339-.018.509-.018Zm.127 5.697c.798-.057 1.616.616 1.54 1.45-.023.81-.841 1.413-1.623 1.328-.833.022-1.6-.771-1.443-1.613.097-.721.83-1.195 1.526-1.165zM1 4v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4h-1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4Z\"/></svg>",
 }
 
 
