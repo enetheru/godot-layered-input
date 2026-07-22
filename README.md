@@ -17,9 +17,12 @@ Prefix: `input_map_editor/` (Project → Project Settings → General, search �
 
 | Setting | Default | Notes |
 |---------|---------|--------|
-| `use_main_screen` | `false` | Main editor tab. Mutually exclusive with `replace_inspector`. **Reload plugin** after change. |
-| `replace_inspector` | `false` | `EditorInspectorPlugin` embeds the map editor for `CustomInputMap`. **Reload plugin**. |
-| `auto_raise` | `true` | When not using replace-inspector, raise bottom panel / main screen on map select. Live. |
+| `host_mode` | Bottom panel | Dropdown: **Bottom panel** · **Main screen** (tab next to 2D/3D/Script) · **Inspector**. **Disable & re-enable the plugin** after change (toast + warning). |
+| `auto_raise` | `true` | Raise bottom panel / main screen when a map is selected. Ignored in Inspector mode. Live. |
+| `default_deadzone` | `0.2` | Authoring default (wired more tightly later). |
+| `panel_min_height` | `280` | Min height for bottom / inspector-hosted editors. |
+
+**Main screen** uses Godot’s main-screen plugin API (`_has_main_screen`, central viewport) — not a dock. Bottom panel undock/float is limited by the engine (bottom slots are not full docks).
 
 ## Install
 
