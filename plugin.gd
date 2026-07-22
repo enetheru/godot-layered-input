@@ -35,8 +35,10 @@ func _on_edited_object_changed() -> void:
 		return
 	var obj:Object = EditorInterface.get_inspector().get_edited_object()
 	if obj is CustomInputMap:
-		var cim:CustomInputMap = obj
-		_edit_map( cim )
+		_edit_map( obj as CustomInputMap )
+	else:
+		# Inspector left a CustomInputMap — drop the stale action list.
+		_clear_edited_map()
 
 
 func _on_resource_modified( map:CustomInputMap ) -> void:
@@ -111,6 +113,17 @@ func _edit_map( map:CustomInputMap ) -> void:
 		return
 	_panel.configure_for_resource( map )
 	make_bottom_panel_item_visible( _panel )
+
+
+## Clear the bottom-panel list when the inspector is not on a CustomInputMap.
+func _clear_edited_map() -> void:
+	if _panel == null:
+		return
+	if _panel.resource_edit_mode \
+	and _panel.edit_map == null \
+	and _panel.open_maps.is_empty():
+		return
+	_panel.configure_for_resource( null )
 
 
 func _clear_suppress() -> void:
