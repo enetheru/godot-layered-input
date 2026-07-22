@@ -149,19 +149,12 @@ func add_action_event(action_name:StringName, event:InputEvent) -> void:
 
 
 func erase_action_event( action_name:StringName, event:InputEvent ) -> void:
-	if String( action_name ).is_empty():
-		push_warning( "CustomInputMap.erase_action_event: empty action_name" )
-		return
-	if not is_instance_valid( event ):
-		push_warning( "CustomInputMap.erase_action_event: invalid event" )
-		return
 	var ia:InputAction = _actions.get( action_name )
-	if not is_instance_valid( ia ):
-		push_warning(
-				"CustomInputMap.erase_action_event: no InputAction for '%s'"
-				% action_name )
+	if is_instance_valid( ia ) \
+	and is_instance_valid( action_name ):
+		ia.erase_event( event )
 		return
-	ia.erase_event( event )
+	push_warning("CustomInputMap.erase_action_event: empty action_name or invalid event.")
 
 
 func clear_action_events( action_name:StringName ) -> void:
