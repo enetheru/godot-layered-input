@@ -1507,13 +1507,14 @@ func _get_responder_root() -> Responder:
 
 
 ## After a panel mutation: refresh the tree and mark the map dirty for save.
-## Map mutate APIs already call [method CustomInputMap.refresh_actions_inspector]
-## (or nested [signal Resource.changed]) so the Inspector stays in sync.
-## [param structure_changed] is kept for call-site intent / future use; a second
-## inspector refresh is only forced when the mutate path may have skipped it.
+## Callers set [member _host_mutating] before map API calls so mid-mutation
+## [signal Resource.changed] does not rebuild the tree twice.
+## Map structure mutators already call [method CustomInputMap.refresh_actions_inspector];
+## value paths rely on nested [InputAction] emits. We only re-emit map-level
+## [method CustomInputMap.notify_actions_values_changed] for dirty/listeners.
 func _host_refresh(
 			map:CustomInputMap = null,
-			structure_changed:bool = false ) -> void:
+			_structure_changed:bool = false ) -> void:
 	if map == null:
 		map = _get_mutation_map()
 	if map == null:
@@ -1528,13 +1529,10 @@ func _host_refresh(
 				InputManager.request_rebuild()
 	# Skip self-driven changed → refresh while we rebuild the tree + dirty list.
 	_host_mutating = true
-	# Mutate methods already notified; re-emit so unsaved tracking and any
-	# non-panel listeners still see the edit. Structure paths that only mutated
-	# the dict in-place without refresh_actions_inspector get a forced refresh.
-	if structure_changed:
-		map.refresh_actions_inspector()
-	else:
-		map.notify_actions_values_changed()
+	# Structure mutators already refreshed the Inspector dict; avoid a second
+	# shallow reassign here (extra collapse). Value edits need map-level emit
+	# for dirty tracking when only nested InputAction changed.
+	map.notify_actions_values_changed()
 	resource_modified.emit( map )
 	refresh()
 	# Re-bind nested InputAction listeners after add/remove/materialize.

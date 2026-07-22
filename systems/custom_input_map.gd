@@ -34,8 +34,8 @@ const DEFAULT_TOGGLE_DEADZONE:float = 0.5
 func                        ________PROPERTIES_______              ()->void:pass
 
 ## Maps action names to [InputAction] definitions (or [code]null[/code]).
-## [br][code]null[/code] is a name-only placeholder — same as a default-empty
-## def (default deadzone, no events). Prefer null over an empty resource.
+## [br][code]null[/code] is a name-only placeholder (panel “add name” with no
+## events yet). An empty [InputAction] resource is also legal (Inspector).
 ## [br][b]Editor note:[/b] in-place [code]dict[k]=…[/code] edits do [i]not[/i]
 ## refresh the Inspector dictionary; mutate via the methods below (they call
 ## [method refresh_actions_inspector] on structure changes).
@@ -231,7 +231,15 @@ func add_action(
 	if ia != null:
 		push_warning( "CustomInputMap.add_action:",
 				"action '%s' already exists (deadzone %s)" % [action_name, ia.deadzone] )
-	# Name-only (default deadzone, no events) → null placeholder, not empty resource.
+		# Do not wipe an existing def when called again with empty defaults.
+		if not is_equal_approx( ia.deadzone, deadzone ):
+			ia.deadzone = deadzone
+		for ie:InputEvent in events:
+			var dup:InputEvent = ie.duplicate()
+			ia.add_event( dup )
+		return ia
+	# New name, no events, default deadzone → null placeholder (panel-style).
+	# Inspector may still author an empty InputAction resource separately.
 	if events.is_empty() and is_equal_approx( deadzone, DEFAULT_DEADZONE ):
 		_actions[action_name] = null
 		refresh_actions_inspector()
@@ -419,8 +427,10 @@ func merge( other:CustomInputMap, overwrite:bool = true ) -> void:
 		if not overwrite and _actions.has( action_name ):
 			continue
 		var ia:InputAction = other._actions[action_name]
+		# Preserve null placeholders; do not invent empty InputAction resources.
 		_actions[action_name] = (
-				ia.duplicate_action() if is_instance_valid( ia ) else InputAction.new() )
+				ia.duplicate_action() if ia != null else null )
+	refresh_actions_inspector()
 
 
 ## New map: this map with [param other] folded in (same shape as [method Dictionary.merged]).
