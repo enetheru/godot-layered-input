@@ -106,6 +106,8 @@ func                        __Mutate_________________              ()->void:pass
 func ensure_action(
 			action_name:StringName,
 			deadzone:float = DEFAULT_DEADZONE ) -> InputAction:
+	assert( not String( action_name ).is_empty(),
+			"CustomInputMap.ensure_action: empty action_name" )
 	var ia:InputAction = _actions.get( action_name )
 	if is_instance_valid( ia ):
 		return ia
@@ -118,10 +120,12 @@ func add_action(
 			action_name:StringName,
 			deadzone:float = DEFAULT_DEADZONE,
 			events:Array[InputEvent] = [] ) -> InputAction:
+	assert( not String( action_name ).is_empty(),
+			"CustomInputMap.add_action: empty action_name" )
 	var ia:InputAction = _actions.get( action_name )
 	if is_instance_valid( ia ):
-		push_warning("CustomInputMap.add_action:",
-			"action '%s' already exists (deadzone %s)" % [action_name, ia.deadzone])
+		push_warning( "CustomInputMap.add_action:",
+				"action '%s' already exists (deadzone %s)" % [action_name, ia.deadzone] )
 	# Key may exist with null value — materialize instead of no-op.
 	ia = ensure_action( action_name, deadzone )
 	for ie:InputEvent in events:
@@ -131,25 +135,28 @@ func add_action(
 
 
 func erase_action( action_name:StringName ) -> void:
+	assert( not String( action_name ).is_empty(),
+			"CustomInputMap.erase_action: empty action_name" )
 	if not _actions.erase( action_name ):
-		push_warning("CustomInputMap: action_name '%s' not found" % action_name)
+		push_warning( "CustomInputMap.erase_action: action '%s' not found" % action_name )
 
 
 func set_action_deadzone( action_name:StringName, deadzone:float ) -> void:
+	# ensure_action asserts non-empty name.
 	var ia:InputAction = ensure_action( action_name, deadzone )
 	ia.deadzone = deadzone
 
 
-func add_action_event(action_name:StringName, event:InputEvent) -> void:
-	if not is_instance_valid( event ):
-		push_error("CustomInputMap.add_action_event: invalid event")
-		return
+func add_action_event( action_name:StringName, event:InputEvent ) -> void:
+	assert( not String( action_name ).is_empty(),
+			"CustomInputMap.add_action_event: empty action_name" )
+	assert( is_instance_valid( event ),
+			"CustomInputMap.add_action_event: invalid event" )
 	var ia:InputAction = ensure_action( action_name )
 	ia.add_event( event )
 
 
 func erase_action_event( action_name:StringName, event:InputEvent ) -> void:
-	# action_name / event mistakes are caller bugs — not soft data warnings.
 	assert( not String( action_name ).is_empty(),
 			"CustomInputMap.erase_action_event: empty action_name" )
 	assert( is_instance_valid( event ),
@@ -164,9 +171,13 @@ func erase_action_event( action_name:StringName, event:InputEvent ) -> void:
 
 
 func clear_action_events( action_name:StringName ) -> void:
+	assert( not String( action_name ).is_empty(),
+			"CustomInputMap.clear_action_events: empty action_name" )
 	var ia:InputAction = _actions.get( action_name )
 	if not is_instance_valid( ia ):
-		push_warning("CustomInputMap.clear_action_events: empty InputAction")
+		push_warning(
+				"CustomInputMap.clear_action_events: no InputAction for '%s'"
+				% action_name )
 		return
 	ia.clear_events()
 
