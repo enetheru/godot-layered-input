@@ -122,6 +122,8 @@ var _refreshing: bool = false
 var _host_mutating:bool = false
 ## Maps whose [signal Resource.changed] we listen to for inspector → panel sync.
 var _maps_listening:Array[CustomInputMap] = []
+## Nested [InputAction] resources under open maps (deadzone / events edits).
+var _actions_listening:Array[InputAction] = []
 
 var _show_root: bool = true
 var _show_effective: bool = false
@@ -257,11 +259,16 @@ func _on_action_edited() -> void:
 			return
 		action_renamed.emit( old_name, new_name )
 	elif col == Column.DEADZONE:
+		# Mutate the live InputAction only — do not rebuild events or replace the
+		# resource (that collapses the Inspector's expanded action view).
 		var action_name:String = ti.get_meta( &"__name" )
-		var old_action:Dictionary = ti.get_meta( &"__action" )
-		var new_action:Dictionary = old_action.duplicate( true )
-		new_action[&"deadzone"] = ti.get_range( Column.DEADZONE )
-		action_edited.emit.call_deferred( action_name, new_action )
+		var map:CustomInputMap = _get_mutation_map()
+		if map == null:
+			return
+		map.set_action_deadzone(
+				StringName( action_name ),
+				ti.get_range( Column.DEADZONE ) )
+		_host_refresh( map, false )
 
 
 func _on_tree_item_selected() -> void:
@@ -393,7 +400,7 @@ func _on_host_action_added( action_name:String ) -> void:
 	if map == null:
 		return
 	var _ia:InputAction = map.ensure_action( action_name )
-	_host_refresh( map )
+	_host_refresh( map, true )
 
 
 func _on_host_action_edited( action_name:String, new_action:Dictionary ) -> void:
@@ -405,15 +412,24 @@ func _on_host_action_edited( action_name:String, new_action:Dictionary ) -> void
 	var key:StringName = StringName( action_name )
 	var deadzone:float = float( new_action.get( &"deadzone",
 			new_action.get( "deadzone", CustomInputMap.DEFAULT_DEADZONE ) ) )
-	# Materialize null placeholders; asserts used to fire when key existed with null def.
-	map.set_action_deadzone( key, deadzone )
-	map.clear_action_events( key )
+	# Keep the same InputAction instance so the Inspector does not collapse.
+	var ia:InputAction = map.ensure_action( key, deadzone )
+	if not is_equal_approx( ia.deadzone, deadzone ):
+		ia.deadzone = deadzone
 	var event_list:Variant = new_action.get( &"events", new_action.get( "events", [] ) )
+	var wanted:Array = []
 	for v:Variant in event_list:
 		var ev:InputEvent = v as InputEvent
 		if ev != null:
-			map.add_action_event( key, ev.duplicate() )
-	_host_refresh( map )
+			wanted.append( ev )
+	var current:Array[InputEvent] = map.get_action_events( key )
+	if not _event_arrays_equal( current, wanted ):
+		map.clear_action_events( key )
+		for v2:Variant in wanted:
+			var src:InputEvent = v2 as InputEvent
+			if src != null:
+				map.add_action_event( key, src.duplicate() )
+	_host_refresh( map, false )
 
 
 func _on_host_action_removed( action_name:String ) -> void:
@@ -423,7 +439,7 @@ func _on_host_action_removed( action_name:String ) -> void:
 	if map == null:
 		return
 	map.erase_action( StringName( action_name ) )
-	_host_refresh( map )
+	_host_refresh( map, true )
 
 
 func _on_host_action_renamed( old_name:String, new_name:String ) -> void:
@@ -432,21 +448,8 @@ func _on_host_action_renamed( old_name:String, new_name:String ) -> void:
 	var map:CustomInputMap = _get_mutation_map()
 	if map == null:
 		return
-	var old_key:StringName = StringName( old_name )
-	var new_key:StringName = StringName( new_name )
-	if not map.has_action( old_key ):
-		return
-	var deadzone:float = map.get_action_deadzone( old_key )
-	var events:Array[InputEvent] = []
-	for ev:InputEvent in map.get_action_events( old_key ):
-		if is_instance_valid( ev ):
-			var dup:InputEvent = ev.duplicate()
-			events.append( dup )
-	map.erase_action( old_key )
-	map.set_action_deadzone( new_key, deadzone )
-	for ev:InputEvent in events:
-		map.add_action_event( new_key, ev )
-	_host_refresh( map )
+	map.rename_action( StringName( old_name ), StringName( new_name ) )
+	_host_refresh( map, true )
 
 
 func _on_host_action_reordered(
@@ -493,7 +496,7 @@ func _on_host_action_reordered(
 			if is_instance_valid( ev ):
 				var dup:InputEvent = ev.duplicate()
 				ia.add_event( dup )
-	_host_refresh( map )
+	_host_refresh( map, true )
 
 #endregion Host Actions
 
@@ -504,11 +507,14 @@ func _on_input_map_changed(_effective: CustomInputMap) -> void:
 		refresh()
 
 
-## Open map mutated outside the panel (e.g. Inspector) — redraw the action list.
+## Open map or nested [InputAction] mutated outside the panel (e.g. Inspector).
 func _on_open_map_changed() -> void:
 	if _host_mutating or _refreshing:
 		return
 	refresh()
+	# Dictionary add/remove may introduce new InputAction instances — re-bind
+	# after this signal returns (do not disconnect mid-emit).
+	_sync_open_map_changed_signals.call_deferred()
 
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
@@ -580,11 +586,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	# Drop map.changed listeners (editor and runtime).
-	for m:CustomInputMap in _maps_listening:
-		if m != null and m.changed.is_connected( _on_open_map_changed ):
-			m.changed.disconnect( _on_open_map_changed )
-	_maps_listening.clear()
+	# Drop map / nested action changed listeners (editor and runtime).
+	_disconnect_open_map_changed_signals()
 	if Engine.is_editor_hint():
 		return
 	if is_instance_valid(InputManager):
@@ -1504,7 +1507,14 @@ func _get_responder_root() -> Responder:
 	return InputManager.responder_root
 
 
-func _host_refresh(map: CustomInputMap = null) -> void:
+## After a panel mutation: refresh the tree and notify the editor save path.
+## [param structure_changed] true when action keys were added/removed/renamed/
+## reordered — calls [method Object.notify_property_list_changed] so the
+## Inspector rebuilds the `_actions` dictionary. Value-only edits (deadzone,
+## events) pass false so expanded Inspector rows do not collapse.
+func _host_refresh(
+			map:CustomInputMap = null,
+			structure_changed:bool = false ) -> void:
 	if map == null:
 		map = _get_mutation_map()
 	if map == null:
@@ -1520,18 +1530,30 @@ func _host_refresh(map: CustomInputMap = null) -> void:
 	# Notify inspector + editor save pipeline (skip our own changed → refresh loop).
 	_host_mutating = true
 	map.emit_changed()
-	map.notify_property_list_changed()
+	if structure_changed:
+		map.notify_property_list_changed()
 	resource_modified.emit( map )
 	refresh()
+	# Re-bind nested InputAction listeners after add/remove/materialize.
+	_sync_open_map_changed_signals()
 	_host_mutating = false
 
 
-## Listen to [signal Resource.changed] on open maps so inspector edits refresh the tree.
-func _sync_open_map_changed_signals() -> void:
+func _disconnect_open_map_changed_signals() -> void:
 	for m:CustomInputMap in _maps_listening:
 		if m != null and m.changed.is_connected( _on_open_map_changed ):
 			m.changed.disconnect( _on_open_map_changed )
 	_maps_listening.clear()
+	for ia:InputAction in _actions_listening:
+		if ia != null and ia.changed.is_connected( _on_open_map_changed ):
+			ia.changed.disconnect( _on_open_map_changed )
+	_actions_listening.clear()
+
+
+## Listen to [signal Resource.changed] on open maps and their [InputAction]s so
+## Inspector edits (keys, deadzone, events) refresh the tree.
+func _sync_open_map_changed_signals() -> void:
+	_disconnect_open_map_changed_signals()
 	for m:CustomInputMap in _get_open_maps():
 		if m == null:
 			continue
@@ -1539,10 +1561,21 @@ func _sync_open_map_changed_signals() -> void:
 			var err:Error = m.changed.connect( _on_open_map_changed ) as Error
 			if err != OK:
 				push_error(
-						"InputMapEditor._sync_open_map_changed_signals: %s"
+						"InputMapEditor._sync_open_map_changed_signals: map %s"
 						% error_string( err ) )
 				continue
 		_maps_listening.append( m )
+		for ia:InputAction in m.get_actions():
+			if ia == null:
+				continue
+			if not ia.changed.is_connected( _on_open_map_changed ):
+				var aerr:Error = ia.changed.connect( _on_open_map_changed ) as Error
+				if aerr != OK:
+					push_error(
+							"InputMapEditor._sync_open_map_changed_signals: action %s"
+							% error_string( aerr ) )
+					continue
+			_actions_listening.append( ia )
 
 
 #       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #

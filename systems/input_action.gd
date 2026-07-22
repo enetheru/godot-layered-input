@@ -31,8 +31,22 @@ const DEFAULT_DEADZONE:float = 0.2
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-@export var deadzone:float = DEFAULT_DEADZONE
-@export var events:Array[InputEvent] = []
+## Inspector and panel both edit this field; emit so listeners (Input Map tree)
+## stay in sync without replacing the whole action resource.
+@export var deadzone:float = DEFAULT_DEADZONE:
+	set( value ):
+		if is_equal_approx( deadzone, value ):
+			return
+		deadzone = value
+		emit_changed()
+
+## Binding list for this action. Setter covers wholesale Inspector replace;
+## [method add_event] / [method erase_event] / [method clear_events] emit on
+## in-place mutation.
+@export var events:Array[InputEvent] = []:
+	set( value ):
+		events = value
+		emit_changed()
 
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
@@ -124,23 +138,33 @@ func add_event( event:InputEvent ) -> void:
 	if has_event( event ):
 		push_warning( "InputAction.add_event: event already exists" )
 		return
+	# Append without reassigning [member events] (avoids setter replace).
 	events.append( event )
+	emit_changed()
 
 
 func erase_event( event:InputEvent ) -> void:
 	if not is_instance_valid( event ):
 		return
+	var removed:bool = false
 	for i:int in range( events.size() - 1, -1, -1 ):
 		var ev:InputEvent = events[i]
 		if ev == null:
 			events.remove_at( i )
+			removed = true
 			continue
 		if compare_event( event, ev ):
 			events.remove_at( i )
+			removed = true
+	if removed:
+		emit_changed()
 
 
 func clear_events() -> void:
+	if events.is_empty():
+		return
 	events.clear()
+	emit_changed()
 
 
 ## True when [param a] and [param b] are the same event or match under

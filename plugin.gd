@@ -70,9 +70,9 @@ func _on_inspector_property_edited( _property:String ) -> void:
 func _on_resource_modified( map:CustomInputMap ) -> void:
 	if map == null:
 		return
-	# Panel already emit_changed + notify_property_list_changed for the inspector.
-	# Do not call EditorFileSystem.update_file here — it rescans and re-configures
-	# the panel in a slow loop.
+	# Panel already emit_changed (and notify_property_list_changed only when
+	# action keys change). Do not call EditorFileSystem.update_file here — it
+	# rescans and re-configures the panel in a slow loop.
 	_mark_map_needs_save( map )
 	_suppress_edited_object_signal = true
 	_clear_suppress.call_deferred()

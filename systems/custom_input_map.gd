@@ -118,6 +118,11 @@ func has_action_def( action_name:StringName ) -> bool:
 	return _actions.get( action_name ) != null
 
 
+## The [InputAction] for [param action_name], or null if missing / placeholder.
+func get_action( action_name:StringName ) -> InputAction:
+	return _actions.get( action_name )
+
+
 ## equivalent to Dictionary.keys()
 func get_action_names() -> Array[StringName]:
 	return _actions.keys()
@@ -196,6 +201,31 @@ func erase_action( action_name:StringName ) -> void:
 			"CustomInputMap.erase_action: empty action_name" )
 	if not _actions.erase( action_name ):
 		push_warning( "CustomInputMap.erase_action: action '%s' not found" % action_name )
+
+
+## Move an existing action to [param new_name], keeping the same [InputAction]
+## instance (Inspector can stay on that resource). Warns on missing source or
+## clashing destination.
+func rename_action( old_name:StringName, new_name:StringName ) -> void:
+	assert( not String( old_name ).is_empty(),
+			"CustomInputMap.rename_action: empty old_name" )
+	assert( not String( new_name ).is_empty(),
+			"CustomInputMap.rename_action: empty new_name" )
+	if old_name == new_name:
+		return
+	if not _actions.has( old_name ):
+		push_warning(
+				"CustomInputMap.rename_action: action '%s' not found" % old_name )
+		return
+	if _actions.has( new_name ):
+		push_warning(
+				"CustomInputMap.rename_action: target '%s' already exists"
+				% new_name )
+		return
+	var ia:InputAction = _actions[old_name]
+	@warning_ignore( "return_value_discarded" )
+	_actions.erase( old_name )
+	_actions[new_name] = ia
 
 
 func set_action_deadzone( action_name:StringName, deadzone:float ) -> void:
