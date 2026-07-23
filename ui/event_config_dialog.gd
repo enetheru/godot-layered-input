@@ -348,9 +348,10 @@ func popup_and_configure(
 			current_action_name:String = "",
 			current_action:Dictionary = {} ) -> void:
 	# Action dicts from the tree use StringName keys (&"events"); accept either.
-	var events:Variant = current_action.get( &"events",
+	var events:Array = current_action.get(
+			&"events",
 			current_action.get( "events", [] ) )
-	_action_events = ( events as Array ).duplicate() if events is Array else []
+	_action_events = events.duplicate()
 
 	if is_instance_valid( event ):
 		# Drop one matching instance so the event being edited is not

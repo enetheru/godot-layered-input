@@ -47,7 +47,8 @@ func _ready() -> void:
 	failed += _check( "InputAction for-in", event_count == 1 )
 
 	var other:CustomInputMap = CustomInputMap.new()
-	other.add_action( &"smoke_use", 0.2 )
+	var smoke_use:InputAction = other.add_action( &"smoke_use", 0.2 )
+	failed += _check( "add_action returns InputAction", smoke_use != null )
 	var key2:InputEventKey = InputEventKey.new()
 	key2.keycode = KEY_E
 	other.add_action_event( &"smoke_use", key2 )
@@ -162,6 +163,7 @@ func _check( label:String, ok:bool ) -> int:
 func _has_global_class( class_id:StringName ) -> bool:
 	var classes:Array = ProjectSettings.get_global_class_list()
 	for entry:Dictionary in classes:
-		if StringName( entry.get( "class", "" ) ) == class_id:
+		var entry_class:StringName = entry.get( "class", "" )
+		if entry_class == class_id:
 			return true
 	return false

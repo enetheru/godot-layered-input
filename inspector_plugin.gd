@@ -34,7 +34,8 @@ func cleanup() -> void:
 func _can_handle( object:Object ) -> bool:
 	if _plugin == null or not _plugin.has_method( &"inspector_can_handle" ):
 		return false
-	return _plugin.call( &"inspector_can_handle", object ) as bool
+	var handled:bool = _plugin.call( &"inspector_can_handle", object )
+	return handled
 
 
 ## Embed a resource-mode [InputMapEditor] for the inspected [CustomInputMap].
@@ -72,7 +73,11 @@ func _parse_begin( object:Object ) -> void:
 	if insp != null:
 		_insp_resized_cb = Callable( self, &"_on_inspector_resized" )
 		if not insp.resized.is_connected( _insp_resized_cb ):
-			insp.resized.connect( _insp_resized_cb )
+			var err:Error = insp.resized.connect( _insp_resized_cb ) as Error
+			if err != OK:
+				push_warning(
+						"InputMapInspectorPlugin: resized.connect failed: %s"
+						% error_string( err ) )
 
 
 func _parse_property(
@@ -95,7 +100,9 @@ func _fit_inspector_height() -> void:
 		return
 	var min_h:float = 280.0
 	if _plugin != null and _plugin.has_method( &"get_settings_panel_min_height" ):
-		min_h = float( _plugin.call( &"get_settings_panel_min_height" ) )
+		var h:float = _plugin.call( &"get_settings_panel_min_height" )
+		min_h = h
+
 	var insp:EditorInspector = EditorInterface.get_inspector()
 	var target:float = min_h
 	if insp != null:

@@ -80,7 +80,8 @@ static func register_project_settings() -> void:
 ## Desired host from ProjectSettings (safe before any plugin session exists).
 static func read_host_mode() -> int:
 	if ProjectSettings.has_setting( KEY_HOST_MODE ):
-		return int( ProjectSettings.get_setting( KEY_HOST_MODE ) )
+		var mode:int = ProjectSettings.get_setting( KEY_HOST_MODE )
+		return mode
 	if ProjectSettings.get_setting( "input_map_editor/use_main_screen", false ):
 		return HostMode.MAIN_SCREEN
 	if ProjectSettings.get_setting( "input_map_editor/replace_inspector", false ):
@@ -91,21 +92,24 @@ static func read_host_mode() -> int:
 ## [code]auto_raise[/code] from ProjectSettings (default [code]true[/code]).
 static func read_auto_raise() -> bool:
 	if ProjectSettings.has_setting( KEY_AUTO_RAISE ):
-		return bool( ProjectSettings.get_setting( KEY_AUTO_RAISE ) )
+		var raise:bool = ProjectSettings.get_setting( KEY_AUTO_RAISE )
+		return raise
 	return true
 
 
 ## [code]panel_min_height[/code] from ProjectSettings (default [code]280[/code]).
 static func read_panel_min_height() -> float:
 	if ProjectSettings.has_setting( KEY_PANEL_MIN_HEIGHT ):
-		return float( ProjectSettings.get_setting( KEY_PANEL_MIN_HEIGHT ) )
+		var h:float = ProjectSettings.get_setting( KEY_PANEL_MIN_HEIGHT )
+		return h
 	return 280.0
 
 
 ## [code]default_deadzone[/code] from ProjectSettings (default [code]0.2[/code]).
 static func read_default_deadzone() -> float:
 	if ProjectSettings.has_setting( KEY_DEFAULT_DEADZONE ):
-		return float( ProjectSettings.get_setting( KEY_DEFAULT_DEADZONE ) )
+		var dz:float = ProjectSettings.get_setting( KEY_DEFAULT_DEADZONE )
+		return dz
 	return 0.2
 
 

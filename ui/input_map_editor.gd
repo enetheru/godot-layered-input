@@ -419,12 +419,15 @@ func _on_host_action_edited( action_name:String, new_action:Dictionary ) -> void
 	if map == null:
 		return
 	var key:StringName = StringName( action_name )
-	var deadzone:float = float( new_action.get( &"deadzone",
-			new_action.get( "deadzone", CustomInputMap.DEFAULT_DEADZONE ) ) )
-	var event_list:Variant = new_action.get( &"events", new_action.get( "events", [] ) )
-	var wanted:Array = []
+	var deadzone:float = new_action.get(
+			&"deadzone",
+			new_action.get( "deadzone", CustomInputMap.DEFAULT_DEADZONE ) )
+	var event_list:Array = new_action.get(
+			&"events",
+			new_action.get( "events", [] ) )
+	var wanted:Array[InputEvent] = []
 	for v:Variant in event_list:
-		var ev:InputEvent = v as InputEvent
+		var ev:InputEvent = v
 		if ev != null:
 			wanted.append( ev )
 	_host_mutating = true
@@ -436,10 +439,10 @@ func _on_host_action_edited( action_name:String, new_action:Dictionary ) -> void
 		ia.deadzone = deadzone
 	if not _event_arrays_equal( current, wanted ):
 		ia.clear_events()
-		for v2:Variant in wanted:
-			var src:InputEvent = v2 as InputEvent
-			if src != null:
-				ia.add_event( src.duplicate() )
+		for src:InputEvent in wanted:
+			var ie:InputEvent = src.duplicate()
+			if ie != null:
+				ia.add_event( ie )
 	# Only the panel dropping the *last* event (at default deadzone) clears the
 	# def. Empty InputActions authored in the Inspector stay as resources.
 	var dematerialized:bool = false

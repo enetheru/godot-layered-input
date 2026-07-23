@@ -15,6 +15,7 @@ extends EditorPlugin
 
 const EditorScene = preload( "ui/input_map_editor.tscn" )
 const SettingsScript = preload( "settings/input_map_editor_settings.gd" )
+## Preload so attach still resolves if class_name is mid-reload.
 const HostSessionScript = preload( "host_session.gd" )
 
 const MAIN_SCREEN_NAME:String = "Input Map"
@@ -27,8 +28,8 @@ const MAIN_SCREEN_NAME:String = "Input Map"
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-## Applied host; null when detached. See host_session.gd.
-var _session:RefCounted
+## Applied host; null when detached. See [HostSession].
+var _session:HostSession
 ## Bumped at detach start; deferred work captures and checks this.
 var _session_id:int = 0
 var _shutting_down:bool = false
@@ -162,7 +163,7 @@ func _exit_tree() -> void:
 ## Before [method _enter_tree] uses desired; while live uses applied session.
 func _has_main_screen() -> bool:
 	if _session != null:
-		return bool( _session.call( &"is_main_screen" ) )
+		return _session.is_main_screen()
 	return (
 			SettingsScript.read_host_mode()
 			== SettingsScript.HostMode.MAIN_SCREEN
@@ -231,33 +232,27 @@ func                        ________INTERNAL_________              ()->void:pass
 func _session_kind() -> int:
 	if _session == null:
 		return -1
-	return int( _session.get( &"kind" ) )
+	return _session.kind
 
 
 func _session_panel() -> InputMapEditor:
 	if _session == null:
 		return null
-	var p:Variant = _session.get( &"panel" )
-	if p is InputMapEditor:
-		return p as InputMapEditor
-	return null
+	return _session.panel
 
 
 func _session_dock() -> EditorDock:
 	if _session == null:
 		return null
-	var d:Variant = _session.get( &"dock" )
-	if d is EditorDock:
-		return d as EditorDock
-	return null
+	return _session.dock
 
 
 func _is_host_main_screen() -> bool:
-	return _session != null and bool( _session.call( &"is_main_screen" ) )
+	return _session != null and _session.is_main_screen()
 
 
 func _is_host_inspector() -> bool:
-	return _session != null and bool( _session.call( &"is_inspector" ) )
+	return _session != null and _session.is_inspector()
 
 
 func _attach_session( desired_kind:int ) -> void:
@@ -279,9 +274,9 @@ func _detach_session() -> void:
 	if is_instance_valid( panel ) \
 	and panel.resource_modified.is_connected( _on_resource_modified ):
 		panel.resource_modified.disconnect( _on_resource_modified )
-	var session:RefCounted = _session
+	var session:HostSession = _session
 	_session = null
-	session.call( &"detach", self )
+	session.detach( self )
 
 
 ## Switch applied host to match desired ProjectSettings. Preserves dirty maps.
@@ -299,7 +294,7 @@ func _rehost() -> void:
 			or applied == SettingsScript.HostMode.MAIN_SCREEN
 	)
 	if touches_main:
-		ProjectSettings.save()
+		_save_project_settings( "rehost main-screen notice" )
 		_toast(
 				"Main screen host changes require disable and re-enable "
 				+ "of the Custom Input Map Editor plugin." )
@@ -390,7 +385,7 @@ func _sync_settings_from_project( id:int ) -> void:
 
 	if _session != null and desired != _session_kind():
 		# Persist so a later unload does not drop the choice mid-rehost.
-		ProjectSettings.save()
+		_save_project_settings( "rehost desired host" )
 		_rehost()
 		return
 
@@ -400,9 +395,9 @@ func _sync_settings_from_project( id:int ) -> void:
 			_apply_panel_defaults( panel )
 		if is_instance_valid( _inspector_editor ):
 			_apply_panel_defaults( _inspector_editor )
-		ProjectSettings.save()
+		_save_project_settings( "panel_min_height" )
 	elif prev_raise != _auto_raise:
-		ProjectSettings.save()
+		_save_project_settings( "auto_raise" )
 
 #endregion Settings sync
 
@@ -565,3 +560,11 @@ func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:
 	var err:Error = sig.connect( callable, flags ) as Error
 	if err != OK:
 		push_error( "InputMapEditorPlugin._connect_sig: %s" % error_string( err ) )
+
+
+func _save_project_settings( context:String ) -> void:
+	var err:Error = ProjectSettings.save()
+	if err != OK:
+		push_warning(
+				"InputMapEditorPlugin: ProjectSettings.save failed (%s): %s"
+				% [context, error_string( err )] )

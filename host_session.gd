@@ -1,4 +1,5 @@
 @tool
+class_name HostSession
 extends RefCounted
 
 ## Applied host for one plugin load (or rehost). Not a ProjectSettings mirror.
@@ -35,34 +36,43 @@ func is_dock() -> bool:
 	return kind == SettingsScript.HostMode.DOCK
 
 
-## Build host for [param desired_kind]. [param panel] is required for dock/main
-## and must be null for inspector (inspector plugin creates its own editors).
+## Build host for [param desired_kind]. [param editor_panel] is required for
+## dock/main and must be null for inspector (inspector plugin creates its own
+## editors).
 static func attach(
 			plugin:EditorPlugin,
 			desired_kind:int,
-			panel:InputMapEditor ) -> RefCounted:
-	var session:RefCounted = new()
+			editor_panel:InputMapEditor ) -> HostSession:
+	var session:HostSession = HostSession.new()
 	session.kind = desired_kind
 	match desired_kind:
 		SettingsScript.HostMode.MAIN_SCREEN:
-			assert( panel != null, "HostSession.attach: main screen needs panel" )
-			session.panel = panel
+			assert(
+					editor_panel != null,
+					"HostSession.attach: main screen needs panel" )
+			session.panel = editor_panel
 			var main_screen:VBoxContainer = (
 					EditorInterface.get_editor_main_screen() )
-			main_screen.add_child( panel )
-			panel.set_anchors_and_offsets_preset( Control.PRESET_FULL_RECT )
-			panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			panel.visible = false
+			main_screen.add_child( editor_panel )
+			editor_panel.set_anchors_and_offsets_preset(
+					Control.PRESET_FULL_RECT )
+			editor_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			editor_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			editor_panel.visible = false
 		SettingsScript.HostMode.INSPECTOR:
-			assert( panel == null, "HostSession.attach: inspector has no primary panel" )
-			session.inspector_plugin = InspectorPluginScript.new()
-			if session.inspector_plugin.has_method( &"setup" ):
-				session.inspector_plugin.call( &"setup", plugin )
+			assert(
+					editor_panel == null,
+					"HostSession.attach: inspector has no primary panel" )
+			# Preload instance keeps setup()/cleanup() without class_name.
+			var insp_plugin:EditorInspectorPlugin = InspectorPluginScript.new()
+			insp_plugin.call( &"setup", plugin )
+			session.inspector_plugin = insp_plugin
 			plugin.add_inspector_plugin( session.inspector_plugin )
 		_:
-			assert( panel != null, "HostSession.attach: dock needs panel" )
-			session.panel = panel
+			assert(
+					editor_panel != null,
+					"HostSession.attach: dock needs panel" )
+			session.panel = editor_panel
 			session.kind = SettingsScript.HostMode.DOCK
 			var d:EditorDock = EditorDock.new()
 			d.title = MAIN_SCREEN_NAME
@@ -75,11 +85,11 @@ static func attach(
 			)
 			d.global = true
 			d.icon_name = &"InputEventAction"
-			panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			d.add_child( panel )
+			editor_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			editor_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			d.add_child( editor_panel )
 			plugin.add_dock( d )
-			panel.visible = true
+			editor_panel.visible = true
 			session.dock = d
 	return session
 
@@ -91,6 +101,7 @@ func detach( plugin:EditorPlugin ) -> void:
 			inspector_plugin.call( &"cleanup" )
 		plugin.remove_inspector_plugin( inspector_plugin )
 		inspector_plugin = null
+
 	if is_instance_valid( dock ):
 		plugin.remove_dock( dock )
 		if is_instance_valid( panel ) and panel.get_parent() == dock:
