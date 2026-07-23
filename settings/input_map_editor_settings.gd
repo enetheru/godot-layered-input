@@ -10,17 +10,23 @@ extends Object
 ## No RefCounted instance / PREDELETE teardown.
 
 
+## ProjectSettings key prefix for this plugin.
 const PREFIX:String = "input_map_editor"
 
+## ProjectSettings path for desired host mode ([enum HostMode]).
 const KEY_HOST_MODE:String = "input_map_editor/host_mode"
+## ProjectSettings path for auto-raise when editing a map.
 const KEY_AUTO_RAISE:String = "input_map_editor/auto_raise"
+## ProjectSettings path for the panel default action deadzone.
 const KEY_DEFAULT_DEADZONE:String = "input_map_editor/default_deadzone"
+## ProjectSettings path for inspector-embed minimum height.
 const KEY_PANEL_MIN_HEIGHT:String = "input_map_editor/panel_min_height"
 
 ## Legacy broken key written by the old SettingsHelper + @export_group path.
 const LEGACY_BROKEN_LAYOUT_KEY:String = "input_map_editor/Layout/"
 
 
+## Where the Input Map editor UI is hosted while the plugin is enabled.
 enum HostMode {
 	## Universal [EditorDock] (move to any slot, float). Default slot: bottom.
 	DOCK = 0,

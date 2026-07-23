@@ -102,6 +102,7 @@ func _on_project_settings_changed() -> void:
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
+## Register settings, export plugin, attach host session, wire inspector signals.
 func _enter_tree() -> void:
 	_shutting_down = false
 	_settings_live = false
@@ -129,6 +130,7 @@ func _enter_tree() -> void:
 	_enable_settings_live.call_deferred( _session_id )
 
 
+## Detach host, remove export plugin, disconnect inspector / settings signals.
 func _exit_tree() -> void:
 	_shutting_down = true
 	_settings_live = false
@@ -167,10 +169,12 @@ func _has_main_screen() -> bool:
 	)
 
 
+## Main-screen tab title ([constant MAIN_SCREEN_NAME]).
 func _get_plugin_name() -> String:
 	return MAIN_SCREEN_NAME
 
 
+## Editor icon for the main-screen / plugin list entry.
 func _get_plugin_icon() -> Texture2D:
 	var theme:Theme = EditorInterface.get_editor_theme()
 	if theme != null and theme.has_icon( &"InputEventAction", &"EditorIcons" ):
@@ -180,6 +184,7 @@ func _get_plugin_icon() -> Texture2D:
 	return null
 
 
+## Show or hide the main-screen panel when that host is applied.
 func _make_visible( visible:bool ) -> void:
 	if _shutting_down or not _is_host_main_screen():
 		return
@@ -189,18 +194,18 @@ func _make_visible( visible:bool ) -> void:
 	panel.visible = visible
 
 
+## Unsaved dirty [CustomInputMap] paths when the user closes the project.
 func _get_unsaved_status( for_scene:String ) -> String:
 	if not for_scene.is_empty():
 		return ""
 	var maps:Array[CustomInputMap] = _prune_dirty_maps()
 	if maps.is_empty():
 		return ""
-	var paths:PackedStringArray = PackedStringArray(
-			maps.map( func( m:CustomInputMap ) -> String:
-				return m.resource_path ) )
-	return "Save changes to Input Map resource(s):\n%s" % "\n".join( paths )
+	return "Save changes to Input Map resource(s):\n%s" % "\n".join(
+			maps.map( _dirty_map_resource_path ) )
 
 
+## Persist dirty maps via [ResourceSaver] (called with the save-all path).
 func _save_external_data() -> void:
 	# Sequential I/O: plain loop is intentional (not a pure projection).
 	var maps:Array[CustomInputMap] = _prune_dirty_maps()
@@ -544,10 +549,16 @@ func _mark_map_needs_save( map:CustomInputMap ) -> void:
 
 # Drop null / unsaved (empty path) maps. Returns the cleaned list (also stored).
 func _prune_dirty_maps() -> Array[CustomInputMap]:
-	_dirty_maps.assign( _dirty_maps.filter(
-			func( m:CustomInputMap ) -> bool:
-				return m != null and not m.resource_path.is_empty() ) )
+	_dirty_maps.assign( _dirty_maps.filter( _is_dirty_map_savable ) )
 	return _dirty_maps
+
+
+func _is_dirty_map_savable( m:CustomInputMap ) -> bool:
+	return m != null and not m.resource_path.is_empty()
+
+
+func _dirty_map_resource_path( m:CustomInputMap ) -> String:
+	return m.resource_path
 
 
 func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:

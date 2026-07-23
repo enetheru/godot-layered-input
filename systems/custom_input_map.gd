@@ -20,10 +20,10 @@ extends Resource
 ## [StringName] action name, in the same order as [method get_action_names].
 
 
-## Default deadzone
+## Default deadzone for materialised [InputAction]s on this map.
 const DEFAULT_DEADZONE:float = 0.2
 
-## Larger deadzone for toggle-style _actions (engine default for many `ui_*`).
+## Larger deadzone for toggle-style actions (engine default for many [code]ui_*[/code]).
 const DEFAULT_TOGGLE_DEADZONE:float = 0.5
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
@@ -466,7 +466,7 @@ func                        __Engine_________________              ()->void:pass
 ## Snapshot the current engine [InputMap] into a new resource.
 ## Useful when bootstrapping hand-authored `.tres` files from a running session.
 static func from_engine() -> CustomInputMap:
-	var new_map := CustomInputMap.new()
+	var new_map:CustomInputMap = CustomInputMap.new()
 	for action_name:StringName in InputMap.get_actions():
 		var _ia:InputAction = new_map.add_action(
 				action_name,

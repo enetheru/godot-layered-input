@@ -16,10 +16,8 @@ extends PanelContainer
 ##[br] • Effective — read-only merge currently applied to the engine
 ##[br] • Loaded — read-only hierarchy of every responder contribution
 ##[br][br]
-##[color=goldenrod]TODO[/color]:Full style pass (name:Type, parens spacing) —
-## file is large; host mutations and map API already aligned with CustomInputMap.
 ##[br][color=goldenrod]TODO[/color]:Split tree build / host mutations / drag-drop
-## into clearer #region blocks.
+## into clearer #region blocks (spacing/types aligned with AGENTS).
 
 ## Default pixel size for [TreeItem] buttons (layout uses texture size as-is).
 const TREE_BUTTON_SIZE:Vector2i = Vector2i( 16, 16 )
@@ -27,6 +25,7 @@ const TREE_BUTTON_SIZE:Vector2i = Vector2i( 16, 16 )
 ## Preload avoids class_name placeholder failures while the plugin reloads.
 const _EventListenerScript = preload("event_listener_line_edit.gd" )
 
+## Tree item button ids for add / edit / remove actions and events.
 enum ItemButton {
 	ADD_EVENT,
 	EDIT_EVENT,
@@ -221,11 +220,11 @@ func _on_view_toggles_changed() -> void:
 #region Add Action
 #MARK: Add Action
 func                        __Add_Action_____________              ()->void:pass
-##│   _      _    _     _      _   _
-##│  /_\  __| |__| |   /_\  __| |_(_)___ _ _
-##│ / _ \/ _` / _` |  / _ \/ _|  _| / _ \ ' \
-##│/_/ \_\__,_\__,_| /_/ \_\__|\__|_\___/_||_|
-##╰─────────────────────────────────────────────
+# │   _      _    _     _      _   _
+# │  /_\  __| |__| |   /_\  __| |_(_)___ _ _
+# │ / _ \/ _` / _` |  / _ \/ _|  _| / _ \ ' \
+# │/_/ \_\__,_\__,_| /_/ \_\__|\__|_\___/_||_|
+# ╰─────────────────────────────────────────────
 
 func _on_add_edit_text_changed( action_name:String ) -> void:
 	_apply_action_name_feedback( _check_new_action_name( action_name ) )
@@ -313,11 +312,11 @@ func _on_event_config_confirmed( event:InputEvent ) -> void:
 #region Tree Item Events
 #MARK: Tree Item Events
 func                        __Tree_Item_Events_______              ()->void:pass
-##│ _____              ___ _               ___             _
-##│|_   _| _ ___ ___  |_ _| |_ ___ _ __   | __|_ _____ _ _| |_ ___
-##│  | || '_/ -_) -_)  | ||  _/ -_) '  \  | _|\ V / -_) ' \  _(_-<
-##│  |_||_| \___\___| |___|\__\___|_|_|_| |___|\_/\___|_||_\__/__/
-##╰─────────────────────────────────────────────────────────────────
+# │ _____              ___ _               ___             _
+# │|_   _| _ ___ ___  |_ _| |_ ___ _ __   | __|_ _____ _ _| |_ ___
+# │  | || '_/ -_) -_)  | ||  _/ -_) '  \  | _|\ V / -_) ' \  _(_-<
+# │  |_||_| \___\___| |___|\__\___|_|_|_| |___|\_/\___|_||_\__/__/
+# ╰─────────────────────────────────────────────────────────────────
 
 func _on_tree_button_pressed( item:TreeItem, _column:int, id:int, mouse_button:int ) -> void:
 	if mouse_button != MOUSE_BUTTON_LEFT:

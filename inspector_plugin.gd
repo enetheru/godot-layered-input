@@ -30,12 +30,14 @@ func cleanup() -> void:
 	_plugin = null
 
 
+## Delegate to the host plugin ([method EditorPlugin] inspector_can_handle).
 func _can_handle( object:Object ) -> bool:
 	if _plugin == null or not _plugin.has_method( &"inspector_can_handle" ):
 		return false
 	return _plugin.call( &"inspector_can_handle", object ) as bool
 
 
+## Embed a resource-mode [InputMapEditor] for the inspected [CustomInputMap].
 func _parse_begin( object:Object ) -> void:
 	if _plugin == null or not ( object is CustomInputMap ):
 		return

@@ -25,12 +25,15 @@ enum Column {
 	LABEL = 0,
 }
 
+## How a keyboard bind is stored ([member InputEventKey.keycode] vs physical
+## vs unicode label).
 enum KeyMode {
 	KEYCODE = 0,
 	PHY_KEYCODE = 1,
 	UNICODE = 2,
 }
 
+## Indices into [member _mod_checkboxes] for Alt / Shift / Ctrl / Meta.
 enum ModCheckbox {
 	ALT = 0,
 	SHIFT = 1,
@@ -261,6 +264,7 @@ func _on_cancel_pressed() -> void:
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
+## Wire controls, device list, and OK/Cancel once after the scene loads.
 func _ready() -> void:
 	visible = false
 	hide()
@@ -300,6 +304,7 @@ func _ready() -> void:
 	error_lbl.hide()
 
 
+## Focus the event listener when the popup is shown or regains window focus.
 func _notification( what:int ) -> void:
 	match what:
 		NOTIFICATION_VISIBILITY_CHANGED when visible:

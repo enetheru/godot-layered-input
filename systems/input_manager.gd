@@ -41,6 +41,7 @@ const DEFAULT_INPUT_MAP_PATH:String = (
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
+## Root of the responder tree (created in [method _enter_tree]).
 var responder_root:Responder
 
 ## Last effective map pushed to the engine (for inspection and snapshots).
@@ -96,6 +97,7 @@ func _on_responder_tree_changed() -> void:
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
+## Create [member responder_root], wire tree signals, and schedule first rebuild.
 func _enter_tree() -> void:
 	var parent:Node = get_parent()
 	if parent \
@@ -115,6 +117,7 @@ func _enter_tree() -> void:
 	request_rebuild()
 
 
+## Tear down via [method shutdown] (idempotent).
 func _exit_tree() -> void:
 	shutdown()
 

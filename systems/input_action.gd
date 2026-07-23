@@ -21,6 +21,7 @@ extends Resource
 ## [InputEvent] in storage order (empty/null slots are not visited).
 
 
+## Default deadzone for new actions and inspector revert.
 const DEFAULT_DEADZONE:float = 0.2
 
 
@@ -78,6 +79,7 @@ func _property_can_revert( property:StringName ) -> bool:
 	return false
 
 
+## Revert target for [member deadzone] only ([member events] is not revertible).
 func _property_get_revert( property:StringName ) -> Variant:
 	if property == &"deadzone":
 		return DEFAULT_DEADZONE
@@ -90,6 +92,8 @@ func _property_get_revert( property:StringName ) -> Variant:
 #   _iter_next → advance state[0], return true if another element remains
 #   _iter_get  → return current element; argument is state[0], not the Array
 # state[0] here is the index into events of the current valid InputEvent.
+
+## Start [code]for event in action:[/code] on the first valid [InputEvent].
 func _iter_init( state:Array ) -> bool:
 	# Start before slot 0 so the same advance helper can find the first valid.
 	var first_index:int = _index_of_next_valid_event( -1 )
@@ -97,6 +101,7 @@ func _iter_init( state:Array ) -> bool:
 	return first_index >= 0
 
 
+## Advance to the next valid [InputEvent] for [code]for event in action:[/code].
 func _iter_next( state:Array ) -> bool:
 	var current_index:int = state[0]
 	var next_index:int = _index_of_next_valid_event( current_index )
@@ -105,6 +110,8 @@ func _iter_next( state:Array ) -> bool:
 
 
 # event_index is state[0]: index into events for this loop step.
+
+## Current valid [InputEvent] for the active for-in step.
 func _iter_get( event_index:Variant ) -> Variant:
 	return events[event_index]
 

@@ -41,6 +41,7 @@ func                        ________PROPERTIES_______              ()->void:pass
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
+## Apply process flags from [member active] when entering the tree.
 func _enter_tree() -> void:
 	_sync_process_flags()
 

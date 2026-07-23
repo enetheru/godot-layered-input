@@ -24,6 +24,7 @@ enum InputType {
 	JOY_MOTION = 0x8,
 }
 
+## All [enum InputType] bits combined (default allow-mask).
 const ALL_INPUT_TYPES:int = (
 		InputType.KEY
 		| InputType.MOUSE_BUTTON
@@ -65,6 +66,7 @@ func                        ________PROPERTIES_______              ()->void:pass
 ## Hold [code]ui_cancel[/code] this long (ms) to release focus while listening.
 @export var hold_to_unfocus_ms:int = 3000
 
+## Bitmask of [enum InputType] values currently accepted while focused.
 var allowed_input_types:int = ALL_INPUT_TYPES
 var _event:InputEvent
 var _ignore_next_event:bool = true
@@ -106,6 +108,7 @@ func _on_text_changed( new_text:String ) -> void:
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
+## Focus enter/exit: listen placeholder, dialog-escape, residual-click ignore.
 func _notification( what:int ) -> void:
 	match what:
 		NOTIFICATION_FOCUS_ENTER:
@@ -123,6 +126,7 @@ func _notification( what:int ) -> void:
 			placeholder_text = "Filter by Event"
 
 
+## Defaults for caret, clear button, focus, and signal wiring.
 func _ready() -> void:
 	caret_blink = false
 	clear_button_enabled = true
@@ -143,6 +147,7 @@ func manual_grab_focus() -> void:
 	grab_focus()
 
 
+## Capture allowed pressed events into the bind; swallow residual open-clicks.
 func _gui_input( event:InputEvent ) -> void:
 	if event is InputEventMouseMotion:
 		return

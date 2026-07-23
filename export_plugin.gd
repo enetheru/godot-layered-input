@@ -7,15 +7,19 @@ extends EditorExportPlugin
 
 const Self:Resource = preload( "export_plugin.gd" )
 
+## Addon root with trailing slash (for path matching against export files).
 var path_prefix:String = Self.resource_path.get_base_dir() + "/"
 
+## Glob-like patterns loaded from [code].exportignore[/code] for this export.
 var ignore_patterns:Array[String] = []
 
 
+## Export-plugin id shown in the export pipeline.
 func _get_name() -> String:
 	return "InputMapEditorExportPlugin"
 
 
+## Reload [member ignore_patterns] from [code].exportignore[/code] at export start.
 func _export_begin(
 			_features:PackedStringArray,
 			_is_debug:bool,
@@ -40,6 +44,7 @@ func _load_ignore_file() -> void:
 			ignore_patterns.append( line )
 
 
+## Skip files matching [member ignore_patterns] under this addon's prefix.
 func _export_file(
 			path:String,
 			_type:String,
