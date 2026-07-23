@@ -384,10 +384,8 @@ func _enable_settings_live( id:int ) -> void:
 	_settings_live = true
 
 
-func _apply_settings_change(
-			id:int,
-			prop_name:StringName,
-			value:Variant ) -> void:
+## [param prop_name] already applied on [member opts] by SettingsHelper.
+func _apply_settings_change( id:int, prop_name:StringName ) -> void:
 	if _shutting_down or id != _session_id or not _settings_live or _rehosting:
 		return
 	if opts == null:
@@ -397,14 +395,10 @@ func _apply_settings_change(
 			_save_project_settings( "rehost desired host" )
 			_rehost()
 		&"auto_raise":
-			if value is bool:
-				_auto_raise = value
+			_auto_raise = opts.auto_raise
 			_save_project_settings( "auto_raise" )
 		&"panel_min_height":
-			if value is float:
-				_panel_min_height = value
-			elif value is int:
-				_panel_min_height = value
+			_panel_min_height = opts.panel_min_height
 			var panel:InputMapEditor = _session_panel()
 			if is_instance_valid( panel ):
 				_apply_panel_defaults( panel )

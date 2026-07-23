@@ -8,7 +8,8 @@ extends Node
 
 ## Addon root (parent of [code]test/[/code]).
 func _addon_dir() -> String:
-	return get_script().resource_path.get_base_dir().get_base_dir()
+	var scr:Script = get_script()
+	return scr.resource_path.get_base_dir().get_base_dir()
 
 
 func _ready() -> void:
@@ -73,7 +74,7 @@ func _ready() -> void:
 
 	var root:String = _addon_dir()
 	var default_map:Resource = load(
-			root.path_join( "systems/default_input_map.tres" ) )
+			root.path_join( "settings/default_input_map.tres" ) )
 	failed += _check( "load default_input_map.tres",
 			is_instance_valid( default_map ) and default_map is CustomInputMap )
 
