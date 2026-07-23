@@ -15,10 +15,13 @@ extends EditorPlugin
 
 const EditorScene = preload( "ui/input_map_editor.tscn" )
 const SettingsScript = preload( "settings/input_map_editor_settings.gd" )
+const SettingsHelperScript = preload( "settings/settings_helper.gd" )
 ## Preload so attach still resolves if class_name is mid-reload.
 const HostSessionScript = preload( "host_session.gd" )
 
 const MAIN_SCREEN_NAME:String = "Input Map"
+## ProjectSettings prefix (must match existing keys: input_map_editor/*).
+const SETTINGS_PREFIX:String = "input_map_editor"
 
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
@@ -34,14 +37,17 @@ var _session:HostSession
 var _session_id:int = 0
 var _shutting_down:bool = false
 var _rehosting:bool = false
-## Ignore ProjectSettings noise until register settles.
+## Ignore settings noise until attach + helper settle.
 var _settings_live:bool = false
 
 var _inspector_editor:InputMapEditor
 var _auto_raise:bool = true
 var _panel_min_height:float = 280.0
 
-var _ps_changed_cb:Callable = Callable()
+## Options resource + SettingsHelper (not raw ProjectSettings in features).
+var opts:InputMapEditorSettings
+var settings_hlp:Object
+
 var _suppress_edited_object_signal:bool = false
 var _dirty_maps:Array[CustomInputMap] = []
 var _export_plugin:EditorExportPlugin
@@ -90,10 +96,12 @@ func _on_resource_modified( map:CustomInputMap ) -> void:
 	_clear_suppress_deferred( id )
 
 
-func _on_project_settings_changed() -> void:
+## SettingsHelper: [param prop_name] is the options resource member name.
+## [param _value] is already written onto [member opts] before this fires.
+func _on_settings_changed( prop_name:StringName, _value:Variant ) -> void:
 	if _shutting_down or not _settings_live or _rehosting:
 		return
-	_sync_settings_from_project.call_deferred( _session_id )
+	_apply_settings_change.call_deferred( _session_id, prop_name )
 
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
@@ -103,23 +111,18 @@ func _on_project_settings_changed() -> void:
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
-## Register settings, export plugin, attach host session, wire inspector signals.
+## Register settings helper, export plugin, attach host, wire inspector.
 func _enter_tree() -> void:
 	_shutting_down = false
 	_settings_live = false
-	SettingsScript.register_project_settings()
-	_auto_raise = SettingsScript.read_auto_raise()
-	_panel_min_height = SettingsScript.read_panel_min_height()
-
-	_ps_changed_cb = Callable( self, &"_on_project_settings_changed" )
-	if not ProjectSettings.settings_changed.is_connected( _ps_changed_cb ):
-		@warning_ignore( "return_value_discarded" )
-		ProjectSettings.settings_changed.connect( _ps_changed_cb )
+	_setup_settings_helper()
+	_auto_raise = opts.auto_raise
+	_panel_min_height = opts.panel_min_height
 
 	_export_plugin = preload( "export_plugin.gd" ).new()
 	add_export_plugin( _export_plugin )
 
-	_attach_session( SettingsScript.read_host_mode() )
+	_attach_session( opts.host_mode )
 
 	var inspector:EditorInspector = EditorInterface.get_inspector()
 	if not inspector.edited_object_changed.is_connected( _on_edited_object_changed ):
@@ -150,10 +153,11 @@ func _exit_tree() -> void:
 		if inspector.property_edited.is_connected( _on_inspector_property_edited ):
 			inspector.property_edited.disconnect( _on_inspector_property_edited )
 
-	if _ps_changed_cb.is_valid() \
-	and ProjectSettings.settings_changed.is_connected( _ps_changed_cb ):
-		ProjectSettings.settings_changed.disconnect( _ps_changed_cb )
-	_ps_changed_cb = Callable()
+	if settings_hlp != null \
+	and settings_hlp.is_connected( &"settings_changed", _on_settings_changed ):
+		settings_hlp.disconnect( &"settings_changed", _on_settings_changed )
+	settings_hlp = null
+	opts = null
 
 	_inspector_editor = null
 	_dirty_maps.clear()
@@ -164,10 +168,9 @@ func _exit_tree() -> void:
 func _has_main_screen() -> bool:
 	if _session != null:
 		return _session.is_main_screen()
-	return (
-			SettingsScript.read_host_mode()
-			== SettingsScript.HostMode.MAIN_SCREEN
-	)
+	if opts != null:
+		return opts.host_mode == SettingsScript.HostMode.MAIN_SCREEN
+	return false
 
 
 ## Main-screen tab title ([constant MAIN_SCREEN_NAME]).
@@ -279,13 +282,13 @@ func _detach_session() -> void:
 	session.detach( self )
 
 
-## Switch applied host to match desired ProjectSettings. Preserves dirty maps.
+## Switch applied host to match [member opts.host_mode]. Preserves dirty maps.
 ## [br]Dock ↔ Inspector is in-process. Any transition involving main screen needs
 ## a plugin disable/enable (engine builds main tabs only at enable time).
 func _rehost() -> void:
-	if _shutting_down or _rehosting:
+	if _shutting_down or _rehosting or opts == null:
 		return
-	var desired:int = SettingsScript.read_host_mode()
+	var desired:int = opts.host_mode
 	var applied:int = _session_kind()
 	if _session != null and applied == desired:
 		return
@@ -366,38 +369,52 @@ func _toast( message:String ) -> void:
 #region Settings sync
 #MARK: Settings sync
 
+func _setup_settings_helper() -> void:
+	opts = SettingsScript.new()
+	settings_hlp = SettingsHelperScript.new( opts, SETTINGS_PREFIX )
+	@warning_ignore( "return_value_discarded" )
+	settings_hlp.connect( &"settings_changed", _on_settings_changed )
+
+
 func _enable_settings_live( id:int ) -> void:
-	if _shutting_down or id != _session_id:
+	if _shutting_down or id != _session_id or opts == null:
 		return
-	_auto_raise = SettingsScript.read_auto_raise()
-	_panel_min_height = SettingsScript.read_panel_min_height()
+	_auto_raise = opts.auto_raise
+	_panel_min_height = opts.panel_min_height
 	_settings_live = true
 
 
-func _sync_settings_from_project( id:int ) -> void:
+func _apply_settings_change(
+			id:int,
+			prop_name:StringName,
+			value:Variant ) -> void:
 	if _shutting_down or id != _session_id or not _settings_live or _rehosting:
 		return
-	var prev_raise:bool = _auto_raise
-	var prev_h:float = _panel_min_height
-	var desired:int = SettingsScript.read_host_mode()
-	_auto_raise = SettingsScript.read_auto_raise()
-	_panel_min_height = SettingsScript.read_panel_min_height()
-
-	if _session != null and desired != _session_kind():
-		# Persist so a later unload does not drop the choice mid-rehost.
-		_save_project_settings( "rehost desired host" )
-		_rehost()
+	if opts == null:
 		return
-
-	if not is_equal_approx( prev_h, _panel_min_height ):
-		var panel:InputMapEditor = _session_panel()
-		if is_instance_valid( panel ):
-			_apply_panel_defaults( panel )
-		if is_instance_valid( _inspector_editor ):
-			_apply_panel_defaults( _inspector_editor )
-		_save_project_settings( "panel_min_height" )
-	elif prev_raise != _auto_raise:
-		_save_project_settings( "auto_raise" )
+	match prop_name:
+		&"host_mode":
+			_save_project_settings( "rehost desired host" )
+			_rehost()
+		&"auto_raise":
+			if value is bool:
+				_auto_raise = value
+			_save_project_settings( "auto_raise" )
+		&"panel_min_height":
+			if value is float:
+				_panel_min_height = value
+			elif value is int:
+				_panel_min_height = value
+			var panel:InputMapEditor = _session_panel()
+			if is_instance_valid( panel ):
+				_apply_panel_defaults( panel )
+			if is_instance_valid( _inspector_editor ):
+				_apply_panel_defaults( _inspector_editor )
+			_save_project_settings( "panel_min_height" )
+		&"default_deadzone":
+			_save_project_settings( "default_deadzone" )
+		_:
+			pass
 
 #endregion Settings sync
 
