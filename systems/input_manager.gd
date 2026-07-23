@@ -29,9 +29,9 @@ extends Node
 ## [InputAction] via [code]default_input_map.tres[/code].
 
 
-## Path to the stock root layer; loaded only via [method get_default_input_map].
-const DEFAULT_INPUT_MAP_PATH:String = (
-		"res://addons/enetheru.layered-input/systems/default_input_map.tres" )
+## Stock root layer ([code]default_input_map.tres[/code] beside this script).
+## Prefer [code]uid://[/code] so the addon stays relocatable.
+const DEFAULT_INPUT_MAP_UID:StringName = &"uid://6hh6cxvfe0kf"
 
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
@@ -54,7 +54,7 @@ var undo_stack:Array[Responder] = []
 var _want_rebuild:bool = false
 var _rebuilding:bool = false
 
-## Cached stock map from [constant DEFAULT_INPUT_MAP_PATH] (null until first load).
+## Cached stock map from [constant DEFAULT_INPUT_MAP_UID] (null until first load).
 static var _default_input_map:CustomInputMap
 
 
@@ -236,15 +236,16 @@ func                        _________STATIC__________              ()->void:pass
 static func get_default_input_map() -> CustomInputMap:
 	if is_instance_valid( _default_input_map ):
 		return _default_input_map
+	var path:String = String( DEFAULT_INPUT_MAP_UID )
 	var loaded:Resource = ResourceLoader.load(
-			DEFAULT_INPUT_MAP_PATH,
+			path,
 			"",
 			ResourceLoader.CACHE_MODE_IGNORE )
 	if loaded is CustomInputMap:
 		_default_input_map = loaded as CustomInputMap
 		return _default_input_map
 	push_error( "InputManager.get_default_input_map: failed to load '%s'"
-			% DEFAULT_INPUT_MAP_PATH )
+			% path )
 	_default_input_map = CustomInputMap.new()
 	return _default_input_map
 
