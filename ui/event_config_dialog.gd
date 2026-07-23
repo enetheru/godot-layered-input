@@ -300,7 +300,7 @@ func _ready() -> void:
 	error_lbl.hide()
 
 
-func _notification(what:int) -> void:
+func _notification( what:int ) -> void:
 	match what:
 		NOTIFICATION_VISIBILITY_CHANGED when visible:
 			_focus_listener()

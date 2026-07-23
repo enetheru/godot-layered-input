@@ -190,25 +190,21 @@ func _make_visible( visible:bool ) -> void:
 
 
 func _get_unsaved_status( for_scene:String ) -> String:
-	_prune_dirty_maps()
 	if not for_scene.is_empty():
 		return ""
-	if _dirty_maps.is_empty():
+	var maps:Array[CustomInputMap] = _prune_dirty_maps()
+	if maps.is_empty():
 		return ""
-	var lines:PackedStringArray = PackedStringArray()
-	for m:CustomInputMap in _dirty_maps:
-		if m != null and not m.resource_path.is_empty():
-			lines.append( m.resource_path )
-	if lines.is_empty():
-		return ""
-	return "Save changes to Input Map resource(s):\n%s" % "\n".join( lines )
+	var paths:PackedStringArray = PackedStringArray(
+			maps.map( func( m:CustomInputMap ) -> String:
+				return m.resource_path ) )
+	return "Save changes to Input Map resource(s):\n%s" % "\n".join( paths )
 
 
 func _save_external_data() -> void:
-	_prune_dirty_maps()
-	for m:CustomInputMap in _dirty_maps:
-		if m == null or m.resource_path.is_empty():
-			continue
+	# Sequential I/O: plain loop is intentional (not a pure projection).
+	var maps:Array[CustomInputMap] = _prune_dirty_maps()
+	for m:CustomInputMap in maps:
 		var err:Error = ResourceSaver.save( m ) as Error
 		if err != OK:
 			push_error(
@@ -546,12 +542,12 @@ func _mark_map_needs_save( map:CustomInputMap ) -> void:
 		_dirty_maps.append( map )
 
 
-func _prune_dirty_maps() -> void:
-	var kept:Array[CustomInputMap] = []
-	for m:CustomInputMap in _dirty_maps:
-		if m != null and not m.resource_path.is_empty():
-			kept.append( m )
-	_dirty_maps = kept
+# Drop null / unsaved (empty path) maps. Returns the cleaned list (also stored).
+func _prune_dirty_maps() -> Array[CustomInputMap]:
+	_dirty_maps.assign( _dirty_maps.filter(
+			func( m:CustomInputMap ) -> bool:
+				return m != null and not m.resource_path.is_empty() ) )
+	return _dirty_maps
 
 
 func _connect_sig( sig:Signal, callable:Callable, flags:int = 0 ) -> void:

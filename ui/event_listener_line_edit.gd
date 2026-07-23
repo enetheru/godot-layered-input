@@ -32,7 +32,7 @@ const ALL_INPUT_TYPES:int = (
 )
 
 ## Joy axis descriptions matching engine EventListenerLineEdit (axis*2 + direction).
-const _JOY_AXIS_DESCRIPTIONS: PackedStringArray = [
+const _JOY_AXIS_DESCRIPTIONS:PackedStringArray = [
 	"Left Stick Left, Joystick 0 Left",
 	"Left Stick Right, Joystick 0 Right",
 	"Left Stick Up, Joystick 0 Up",
@@ -94,7 +94,7 @@ func _on_focus_entered() -> void:
 	placeholder_text = "Listening for Input"
 
 
-func _on_text_changed(new_text: String) -> void:
+func _on_text_changed( new_text:String ) -> void:
 	if new_text.is_empty():
 		clear_event()
 
@@ -106,15 +106,15 @@ func _on_text_changed(new_text: String) -> void:
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
-func _notification(what: int) -> void:
+func _notification( what:int ) -> void:
 	match what:
 		NOTIFICATION_FOCUS_ENTER:
-			var window: Window = get_window()
+			var window:Window = get_window()
 			if window is AcceptDialog:
 				(window as AcceptDialog).dialog_close_on_escape = false
 			placeholder_text = "Listening for Input"
 		NOTIFICATION_FOCUS_EXIT:
-			var window: Window = get_window()
+			var window:Window = get_window()
 			if window is AcceptDialog:
 				(window as AcceptDialog).dialog_close_on_escape = true
 			# Only ignore the focusing click when the user focuses by mouse.
@@ -143,13 +143,13 @@ func manual_grab_focus() -> void:
 	grab_focus()
 
 
-func _gui_input(event: InputEvent) -> void:
+func _gui_input( event:InputEvent ) -> void:
 	if event is InputEventMouseMotion:
 		return
 
 	# Allow clear-button interaction without capturing as a bind.
 	if event is InputEventMouseButton and clear_button_enabled and text.length() > 0:
-		var mb := event as InputEventMouseButton
+		var mb:InputEventMouseButton = event as InputEventMouseButton
 		# Rough right-edge hit; exact clear button rect is not exposed.
 		if mb.position.x > size.x - size.y:
 			return
@@ -162,14 +162,14 @@ func _gui_input(event: InputEvent) -> void:
 			return
 		# Key/joy that arrived while ignore was set (e.g. focus race): treat as bind.
 
-	var event_to_check: InputEvent = event
+	var event_to_check:InputEvent = event
 
 	# Hold ui_cancel to release focus (see [member hold_to_unfocus_ms]).
 	if event.is_action_pressed( &"ui_cancel", true, true ):
 		var now:int = Time.get_ticks_msec()
 		if _hold_next_ms > 0 and ( now - _hold_next_ms ) < hold_to_unfocus_ms:
 			_hold_next_ms = 0
-			var next := find_next_valid_focus()
+			var next:Control = find_next_valid_focus()
 			if next:
 				next.grab_focus()
 		else:
@@ -245,8 +245,8 @@ static func get_event_text(
 
 	var event_text:String = ""
 	if event is InputEventKey:
-		var key := event as InputEventKey
-		var mods_text := _modifiers_text(key)
+		var key:InputEventKey = event as InputEventKey
+		var mods_text:String = _modifiers_text( key )
 		if not mods_text.is_empty():
 			mods_text += "+"
 
@@ -266,13 +266,13 @@ static func get_event_text(
 		if event_text.is_empty():
 			event_text = "(unset)"
 	elif event is InputEventJoypadMotion:
-		var jm := event as InputEventJoypadMotion
-		var desc := "Unknown Joypad Axis"
-		var axis_i := int(jm.axis)
-		var idx := 2 * axis_i + (0 if jm.axis_value < 0.0 else 1)
+		var jm:InputEventJoypadMotion = event as InputEventJoypadMotion
+		var desc:String = "Unknown Joypad Axis"
+		var axis_i:int = int( jm.axis )
+		var idx:int = 2 * axis_i + ( 0 if jm.axis_value < 0.0 else 1 )
 		if idx >= 0 and idx < _JOY_AXIS_DESCRIPTIONS.size():
 			desc = _JOY_AXIS_DESCRIPTIONS[idx]
-		var sign_s := "-" if jm.axis_value < 0.0 else "+"
+		var sign_s:String = "-" if jm.axis_value < 0.0 else "+"
 		event_text = "Joypad Axis %d %s (%s)" % [axis_i, sign_s, desc]
 	else:
 		event_text = event.as_text()
@@ -287,7 +287,7 @@ static func get_event_text(
 
 
 ## Label for [param device] index ([code]-1[/code] → all devices).
-static func get_device_string(device: int) -> String:
+static func get_device_string( device:int ) -> String:
 	if device < 0:
 		return "All Devices"
 	return "Device %d" % device
@@ -300,7 +300,7 @@ static func get_device_string(device: int) -> String:
 #       ██ ██   ████    ██    ███████ ██   ██ ██   ████ ██   ██ ███████        #
 func                        ________INTERNAL_________              ()->void:pass
 
-static func _modifiers_text(key: InputEventWithModifiers) -> String:
+static func _modifiers_text( key:InputEventWithModifiers ) -> String:
 	var parts:Array = []
 	if key.command_or_control_autoremap:
 		parts.append("Command/Ctrl")

@@ -61,13 +61,13 @@ enum OperationMode {
 
 ## One row in the action list (mirrors ActionMapEditor::ActionInfo).
 class ActionInfo:
-	var name: String = ""
+	var name:String = ""
 	## [code]{"events": Array[InputEvent], "deadzone": float}[/code]
-	var action: Dictionary = {}
-	var has_initial: bool = false
-	var action_initial: Dictionary = {}
-	var icon: Texture2D
-	var editable: bool = true
+	var action:Dictionary = {}
+	var has_initial:bool = false
+	var action_initial:Dictionary = {}
+	var icon:Texture2D
+	var editable:bool = true
 
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
@@ -81,43 +81,43 @@ func                        ________PROPERTIES_______              ()->void:pass
 @onready var event_listener_edit:EventListenerLineEdit = $VBoxContainer/EditorEventSearchBar/EventListenerLineEdit
 @onready var clear_all_btn:Button = $VBoxContainer/EditorEventSearchBar/ClearAllButton
 
-@onready var add_action_le: LineEdit = $VBoxContainer/HBoxContainer/LineEdit
-@onready var add_btn: Button = $VBoxContainer/HBoxContainer/AddButton
+@onready var add_action_le:LineEdit = $VBoxContainer/HBoxContainer/LineEdit
+@onready var add_btn:Button = $VBoxContainer/HBoxContainer/AddButton
 
-@onready var root_cb: CheckButton = $VBoxContainer/ViewToggles/RootCheckButton
-@onready var effective_cb: CheckButton = $VBoxContainer/ViewToggles/EffectiveCheckButton
-@onready var loaded_cb: CheckButton = $VBoxContainer/ViewToggles/LoadedCheckButton
+@onready var root_cb:CheckButton = $VBoxContainer/ViewToggles/RootCheckButton
+@onready var effective_cb:CheckButton = $VBoxContainer/ViewToggles/EffectiveCheckButton
+@onready var loaded_cb:CheckButton = $VBoxContainer/ViewToggles/LoadedCheckButton
 
-@onready var action_tree: Tree = $VBoxContainer/MarginContainer/Tree
-@onready var event_config_dlg: EventConfigDialog = $InputEventConfigurationDialog
+@onready var action_tree:Tree = $VBoxContainer/MarginContainer/Tree
+@onready var event_config_dlg:EventConfigDialog = $InputEventConfigurationDialog
 
 ## Optional map override. When null (and not MONITOR), edits InputManager root map.
 ## In multi-map EDITOR mode this is the active/context map (add-action target).
-@export var edit_map: CustomInputMap
+@export var edit_map:CustomInputMap
 
 ## When true, after writing to the target map, also call
 ## [method CustomInputMap.apply_to_engine]. Prefer rebuild via InputManager instead.
-@export var apply_edit_map_to_engine: bool = false
+@export var apply_edit_map_to_engine:bool = false
 
 ## Preferred minimum height when hosted as an editor bottom panel.
 @export var panel_min_height:float = 280.0
 
 ## Current panel mode. EDITOR = resource tooling; MONITOR = running-game inspection.
-@export var operation_mode: OperationMode = OperationMode.EDITOR:
+@export var operation_mode:OperationMode = OperationMode.EDITOR:
 	set = set_operation_mode
 
 ## Pure resource editing (editor plugin). Hides runtime view toggles
 ## and never touches [InputManager]. Prefer [member operation_mode] == EDITOR.
-var resource_edit_mode: bool = false:
+var resource_edit_mode:bool = false:
 	set(v):
 		resource_edit_mode = v
 		if v:
 			operation_mode = OperationMode.EDITOR
 
 ## Maps open in the action_tree (each gets a path root). Empty falls back to [member edit_map].
-var open_maps: Array[CustomInputMap] = []
+var open_maps:Array[CustomInputMap] = []
 
-var _refreshing: bool = false
+var _refreshing:bool = false
 ## True while [method _host_refresh] mutates a map (skip self-driven changed refresh).
 var _host_mutating:bool = false
 ## Maps whose [signal Resource.changed] we listen to for inspector → panel sync.
@@ -125,25 +125,25 @@ var _maps_listening:Array[CustomInputMap] = []
 ## Nested [InputAction] resources under open maps (deadzone / events edits).
 var _actions_listening:Array[InputAction] = []
 
-var _show_root: bool = true
-var _show_effective: bool = false
-var _show_loaded: bool = false
+var _show_root:bool = true
+var _show_effective:bool = false
+var _show_loaded:bool = false
 
-var _current_action: Dictionary = {}
-var _current_action_name: String = ""
-var _current_action_event_index: int = -1
+var _current_action:Dictionary = {}
+var _current_action_name:String = ""
+var _current_action_event_index:int = -1
 ## Map that owns the action currently being edited (event dialog / host mutations).
-var _current_map: CustomInputMap
+var _current_map:CustomInputMap
 
-var _message: AcceptDialog
-var _button_icon_add: Texture2D
-var _button_icon_edit: Texture2D
-var _button_icon_remove: Texture2D
-var _button_icon_revert: Texture2D
+var _message:AcceptDialog
+var _button_icon_add:Texture2D
+var _button_icon_edit:Texture2D
+var _button_icon_remove:Texture2D
+var _button_icon_revert:Texture2D
 
 ## Joined action-row chrome (engine prop_subsection_stylebox_left/right).
-@export var _sb_subsection_left: StyleBoxFlat = preload("uid://c3k1jnturrkkh")
-@export var _sb_subsection_right: StyleBoxFlat = preload("uid://c2y7w6vs0t42r")
+@export var _sb_subsection_left:StyleBoxFlat = preload("uid://c3k1jnturrkkh")
+@export var _sb_subsection_right:StyleBoxFlat = preload("uid://c2y7w6vs0t42r")
 
 
 #            ███████ ██  ██████  ███    ██  █████  ██      ███████             #
@@ -188,7 +188,7 @@ func _on_search_bar_value_changed() -> void:
 	refresh()
 
 
-func _on_search_event_changed(event: InputEvent) -> void:
+func _on_search_event_changed( event:InputEvent ) -> void:
 	if event != null and (not event.is_pressed() or event.is_echo()):
 		return
 	_on_search_bar_value_changed()
@@ -243,7 +243,7 @@ func _on_add_action_submitted( submitted:String ) -> void:
 #endregion Add Action
 
 func _on_action_edited() -> void:
-	var ti := action_tree.get_edited()
+	var ti:TreeItem = action_tree.get_edited()
 	if ti == null or not _item_is_editable(ti):
 		return
 	_set_mutation_context(ti)
@@ -278,7 +278,7 @@ func _on_action_edited() -> void:
 
 
 func _on_tree_item_selected() -> void:
-	var item := action_tree.get_selected()
+	var item:TreeItem = action_tree.get_selected()
 	if item == null:
 		return
 	_set_mutation_context(item)
@@ -319,7 +319,7 @@ func                        __Tree_Item_Events_______              ()->void:pass
 ##│  |_||_| \___\___| |___|\__\___|_|_|_| |___|\_/\___|_||_\__/__/
 ##╰─────────────────────────────────────────────────────────────────
 
-func _on_tree_button_pressed(item: TreeItem, _column: int, id: int, mouse_button: int) -> void:
+func _on_tree_button_pressed( item:TreeItem, _column:int, id:int, mouse_button:int ) -> void:
 	if mouse_button != MOUSE_BUTTON_LEFT:
 		return
 	if item == null:
@@ -338,12 +338,12 @@ func _on_tree_button_pressed(item: TreeItem, _column: int, id: int, mouse_button
 		ItemButton.EDIT_EVENT:
 			if not _item_is_editable(item):
 				return
-			var parent := item.get_parent()
+			var parent:TreeItem = item.get_parent()
 			_set_mutation_context(parent)
 			_current_action = parent.get_meta(&"__action")
 			_current_action_name = parent.get_meta(&"__name")
 			_current_action_event_index = item.get_meta(&"__index")
-			var ie: InputEvent = item.get_meta(&"__event")
+			var ie:InputEvent = item.get_meta(&"__event")
 			if ie:
 				event_config_dlg.popup_and_configure(ie, _current_action_name, _current_action)
 
@@ -356,14 +356,14 @@ func _on_tree_button_pressed(item: TreeItem, _column: int, id: int, mouse_button
 		ItemButton.REMOVE_EVENT:
 			if not _item_is_editable(item):
 				return
-			var parent := item.get_parent()
+			var parent:TreeItem = item.get_parent()
 			_set_mutation_context(parent)
-			var parent_action: Dictionary = parent.get_meta(&"__action")
-			var action: Dictionary = parent_action.duplicate(true)
-			var action_name: String = parent.get_meta(&"__name")
-			var event_index: int = item.get_meta(&"__index")
-			var action_events: Array = action.get("events", [])
-			var events: Array = action_events.duplicate()
+			var parent_action:Dictionary = parent.get_meta(&"__action")
+			var action:Dictionary = parent_action.duplicate(true)
+			var action_name:String = parent.get_meta(&"__name")
+			var event_index:int = item.get_meta(&"__index")
+			var action_events:Array = action.get("events", [])
+			var events:Array = action_events.duplicate()
 			events.remove_at(event_index)
 			action["events"] = events
 			action_edited.emit(action_name, action)
@@ -375,14 +375,14 @@ func _on_tree_button_pressed(item: TreeItem, _column: int, id: int, mouse_button
 				push_error("Revert requested without __action_initial meta.")
 				return
 			_set_mutation_context(item)
-			var initial: Dictionary = item.get_meta(&"__action_initial")
-			var action: Dictionary = initial.duplicate(true)
-			var action_name: String = item.get_meta(&"__name")
+			var initial:Dictionary = item.get_meta(&"__action_initial")
+			var action:Dictionary = initial.duplicate(true)
+			var action_name:String = item.get_meta(&"__name")
 			action_edited.emit(action_name, action)
 
 
 func _on_tree_item_activated() -> void:
-	var item := action_tree.get_selected()
+	var item:TreeItem = action_tree.get_selected()
 	if item == null or not item.has_meta(&"__event"):
 		return
 	if not _item_is_editable(item):
@@ -502,7 +502,7 @@ func _on_host_action_reordered(
 #endregion Host Actions
 
 
-func _on_input_map_changed(_effective: CustomInputMap) -> void:
+func _on_input_map_changed( _effective:CustomInputMap ) -> void:
 	# Root map is the live resource; effective/loaded need a rebuild redraw.
 	if _show_effective or _show_loaded or _show_root:
 		refresh()
@@ -617,38 +617,38 @@ func refresh() -> void:
 
 
 func _refresh_tree() -> void:
-	var selected_key: String = ""
+	var selected_key:String = ""
 	var selected_col:int = Column.ACTION
 	var selected:TreeItem = action_tree.get_selected()
 	if selected:
 		selected_key = str( selected.get_meta( &"__select_key", selected.get_text( Column.ACTION ) ) )
 		selected_col = action_tree.get_selected_column()
 
-	var collapsed: Dictionary = {}
+	var collapsed:Dictionary = {}
 	_collect_collapsed(action_tree.get_root(), collapsed)
 
 	action_tree.clear()
-	var root: TreeItem = action_tree.create_item()
+	var root:TreeItem = action_tree.create_item()
 
 	# Resource / multi-file editor: one path root per open map.
 	if resource_edit_mode or (operation_mode == OperationMode.EDITOR and not _get_open_maps().is_empty()):
 		_populate_open_map_roots(root, collapsed, selected_key, selected_col)
 		return
 
-	var section_count: int = 0
+	var section_count:int = 0
 	if _show_root:
 		section_count += 1
 	if _show_effective:
 		section_count += 1
 	if _show_loaded:
 		section_count += 1
-	var multi_section: bool = section_count > 1
+	var multi_section:bool = section_count > 1
 
 	if _show_root:
-		var parent: TreeItem = root
+		var parent:TreeItem = root
 		if multi_section:
 			parent = _make_section_item(root, "Root Actions", &"section_root")
-		var target := _get_target_map()
+		var target:CustomInputMap = _get_target_map()
 		# Path header for the file being edited (actions nest under it).
 		if target != null:
 			parent = _make_map_root_item(parent, target, collapsed, selected_key)
@@ -666,10 +666,10 @@ func _refresh_tree() -> void:
 			_apply_map_root_collapsed(parent, collapsed)
 
 	if _show_effective:
-		var parent: TreeItem = root
+		var parent:TreeItem = root
 		if multi_section or not _show_root:
 			parent = _make_section_item(root, "Effective Actions (read-only)", &"section_effective")
-		var effective := _get_effective_map()
+		var effective:CustomInputMap = _get_effective_map()
 		_populate_map_actions(
 				parent,
 				effective,
@@ -682,10 +682,10 @@ func _refresh_tree() -> void:
 		)
 
 	if _show_loaded:
-		var parent: TreeItem = root
+		var parent:TreeItem = root
 		if multi_section or not _show_root:
 			parent = _make_section_item(root, "Loaded Actions (read-only)", &"section_loaded")
-		var responder_root := _get_responder_root()
+		var responder_root:Responder = _get_responder_root()
 		if responder_root:
 			_populate_responder_branch(
 					parent,
@@ -696,28 +696,28 @@ func _refresh_tree() -> void:
 					selected_col
 			)
 		else:
-			var empty: TreeItem = action_tree.create_item(parent)
+			var empty:TreeItem = action_tree.create_item(parent)
 			empty.set_text( Column.ACTION, "(InputManager responder action_tree not available)" )
 			empty.set_selectable( Column.ACTION, false )
 
 
 func _populate_open_map_roots(
-		root: TreeItem,
-		collapsed: Dictionary,
-		selected_key: String,
-		selected_col: int
+		root:TreeItem,
+		collapsed:Dictionary,
+		selected_key:String,
+		selected_col:int
 ) -> void:
-	var maps := _get_open_maps()
+	var maps:Array[CustomInputMap] = _get_open_maps()
 	if maps.is_empty():
-		var empty: TreeItem = action_tree.create_item(root)
+		var empty:TreeItem = action_tree.create_item(root)
 		empty.set_text( Column.ACTION, "(no CustomInputMap selected)" )
 		empty.set_selectable( Column.ACTION, false )
 		return
-	for map: CustomInputMap in maps:
+	for map:CustomInputMap in maps:
 		if map == null:
 			continue
-		var map_item := _make_map_root_item(root, map, collapsed, selected_key)
-		var key_prefix := str(map_item.get_meta(&"__select_key"))
+		var map_item:TreeItem = _make_map_root_item( root, map, collapsed, selected_key )
+		var key_prefix:String = str( map_item.get_meta( &"__select_key" ) )
 		_populate_map_actions(
 				map_item,
 				map,
@@ -733,7 +733,7 @@ func _populate_open_map_roots(
 
 
 ## Compatibility: load a flat editable list from a map (forces root view data).
-func load_from_custom_map(map: CustomInputMap, _builtins_prefix: String = "ui_") -> void:
+func load_from_custom_map( map:CustomInputMap, _builtins_prefix:String = "ui_" ) -> void:
 	_set_open_maps([map] if map != null else [])
 	edit_map = map
 	_current_map = map
@@ -745,7 +745,7 @@ func load_from_custom_map(map: CustomInputMap, _builtins_prefix: String = "ui_")
 
 
 ## Property setter for [member operation_mode]; updates view toggles and rebuilds.
-func set_operation_mode(mode: OperationMode) -> void:
+func set_operation_mode( mode:OperationMode ) -> void:
 	if operation_mode == mode:
 		return
 	operation_mode = mode
@@ -771,7 +771,7 @@ func set_operation_mode(mode: OperationMode) -> void:
 
 ## Configure for editing a [CustomInputMap] asset (editor plugin bottom panel).
 ## Replaces the open list with [param map] only. Use [method open_map] to add more.
-func configure_for_resource(map: CustomInputMap) -> void:
+func configure_for_resource( map:CustomInputMap ) -> void:
 	resource_edit_mode = true
 	operation_mode = OperationMode.EDITOR
 	apply_edit_map_to_engine = false
@@ -790,7 +790,7 @@ func configure_for_resource(map: CustomInputMap) -> void:
 
 
 ## Add [param map] as another editable root (multi-file). No-op if already open.
-func open_map(map: CustomInputMap) -> void:
+func open_map( map:CustomInputMap ) -> void:
 	if map == null:
 		return
 	resource_edit_mode = true
@@ -806,7 +806,7 @@ func open_map(map: CustomInputMap) -> void:
 
 
 ## Replace the full open-map list (multi-file editor).
-func set_open_maps(maps: Array[CustomInputMap]) -> void:
+func set_open_maps( maps:Array[CustomInputMap] ) -> void:
 	resource_edit_mode = true
 	operation_mode = OperationMode.EDITOR
 	_set_open_maps(maps)
@@ -824,7 +824,7 @@ func configure_for_monitor() -> void:
 
 
 func _apply_mode_ui() -> void:
-	var toggles: Node = get_node_or_null(^"VBoxContainer/ViewToggles")
+	var toggles:Node = get_node_or_null(^"VBoxContainer/ViewToggles")
 	if toggles is CanvasItem:
 		# EDITOR resource tooling: hide toggles. MONITOR: show effective/loaded.
 		(toggles as CanvasItem).visible = (operation_mode == OperationMode.MONITOR)
@@ -841,7 +841,7 @@ func _apply_resource_edit_ui() -> void:
 
 
 ## Show the effective (engine) map view and refresh the tree.
-func load_from_engine(_builtins_prefix: String = "ui_") -> void:
+func load_from_engine( _builtins_prefix:String = "ui_" ) -> void:
 	# Snapshot engine into a temporary display via effective view.
 	_show_effective = true
 	if is_instance_valid(effective_cb):
@@ -850,7 +850,7 @@ func load_from_engine(_builtins_prefix: String = "ui_") -> void:
 
 
 ## Modal [AcceptDialog] with [param message] (created on first use).
-func show_message(message: String) -> void:
+func show_message( message:String ) -> void:
 	if _message == null:
 		_message = AcceptDialog.new()
 		add_child(_message)
@@ -890,9 +890,9 @@ func _subsection_fill() -> Color:
 	return Color(0.196, 0.196, 0.196, 1.0)
 
 
-func _apply_action_row_chrome(item: TreeItem) -> void:
+func _apply_action_row_chrome( item:TreeItem ) -> void:
 	# Transparent bg colour (engine prop_subsection is alpha 0); StyleBoxes paint the bar.
-	var transparent := Color(1, 1, 1, 0)
+	var transparent:Color = Color( 1, 1, 1, 0 )
 	item.set_custom_bg_color( Column.ACTION, transparent )
 	item.set_custom_bg_color( Column.DEADZONE, transparent )
 	item.set_custom_stylebox( Column.ACTION, _sb_subsection_left )
@@ -949,7 +949,7 @@ func _format_input_event_text( event:InputEvent, include_device:bool = true ) ->
 #                          ██    ██   ██ ███████ ███████                       #
 func                        __________TREE___________              ()->void:pass
 
-func _make_section_item(parent: TreeItem, title: String, key: StringName) -> TreeItem:
+func _make_section_item( parent:TreeItem, title:String, key:StringName ) -> TreeItem:
 	var item:TreeItem = action_tree.create_item(parent)
 	item.set_text( Column.ACTION, title )
 	item.set_selectable( Column.ACTION, false )
@@ -961,14 +961,14 @@ func _make_section_item(parent: TreeItem, title: String, key: StringName) -> Tre
 
 
 func _make_map_root_item(
-			parent: TreeItem,
-			map: CustomInputMap,
-			_collapsed: Dictionary,
-			selected_key: String ) -> TreeItem:
-	var item: TreeItem = action_tree.create_item(parent)
-	var path := _map_display_path(map)
+			parent:TreeItem,
+			map:CustomInputMap,
+			_collapsed:Dictionary,
+			selected_key:String ) -> TreeItem:
+	var item:TreeItem = action_tree.create_item(parent)
+	var path:String = _map_display_path( map )
 	# Prefer stable path key over instance id (ids change across reloads).
-	var select_key := "map:%s" % path
+	var select_key:String = "map:%s" % path
 	item.set_text( Column.ACTION, path )
 	item.set_tooltip_text( Column.ACTION, path )
 	item.set_meta( &"__map", map )
@@ -985,15 +985,15 @@ func _make_map_root_item(
 	return item
 
 
-func _apply_map_root_collapsed(map_item: TreeItem, collapsed: Dictionary) -> void:
+func _apply_map_root_collapsed( map_item:TreeItem, collapsed:Dictionary ) -> void:
 	if map_item == null:
 		return
-	var select_key := str(map_item.get_meta(&"__select_key", ""))
+	var select_key:String = str( map_item.get_meta( &"__select_key", "" ) )
 	# File roots default to expanded so nested actions are never hidden on first open.
 	map_item.collapsed = collapsed.get(select_key, false)
 
 
-func _map_display_path(map: CustomInputMap) -> String:
+func _map_display_path( map:CustomInputMap ) -> String:
 	if map == null:
 		return "(no map)"
 	if not map.resource_path.is_empty():
@@ -1003,30 +1003,30 @@ func _map_display_path(map: CustomInputMap) -> String:
 	return "(unsaved CustomInputMap)"
 
 
-func _collect_collapsed(item: TreeItem, out: Dictionary) -> void:
+func _collect_collapsed( item:TreeItem, out:Dictionary ) -> void:
 	if item == null:
 		return
 	if item.collapsed and item.has_meta(&"__select_key"):
 		out[item.get_meta(&"__select_key")] = true
-	var child := item.get_first_child()
+	var child:TreeItem = item.get_first_child()
 	while child:
 		_collect_collapsed(child, out)
 		child = child.get_next()
 
 
-func _item_is_editable(item: TreeItem) -> bool:
+func _item_is_editable( item:TreeItem ) -> bool:
 	return item != null and item.get_meta(&"__editable", false)
 
 
 func _populate_map_actions(
-		parent: TreeItem,
-		map: CustomInputMap,
-		editable: bool,
-		key_prefix: String,
-		collapsed: Dictionary,
-		selected_key: String,
-		selected_col: int,
-		owner_map: CustomInputMap = null
+		parent:TreeItem,
+		map:CustomInputMap,
+		editable:bool,
+		key_prefix:String,
+		collapsed:Dictionary,
+		selected_key:String,
+		selected_col:int,
+		owner_map:CustomInputMap = null
 ) -> void:
 	if parent == null:
 		return
@@ -1071,16 +1071,16 @@ func _populate_map_actions(
 
 
 func _populate_responder_branch(
-		parent: TreeItem,
-		responder: Responder,
-		key_prefix: String,
-		collapsed: Dictionary,
-		selected_key: String,
-		selected_col: int
+		parent:TreeItem,
+		responder:Responder,
+		key_prefix:String,
+		collapsed:Dictionary,
+		selected_key:String,
+		selected_col:int
 ) -> void:
-	var node_key := "%s/%s" % [key_prefix, responder.name]
-	var node_item := action_tree.create_item(parent)
-	var label := String(responder.name)
+	var node_key:String = "%s/%s" % [key_prefix, responder.name]
+	var node_item:TreeItem = action_tree.create_item( parent )
+	var label:String = String( responder.name )
 	if not responder.active:
 		label += " (inactive)"
 	if responder.input_map == null:
@@ -1107,9 +1107,9 @@ func _populate_responder_branch(
 				responder.input_map
 		)
 
-	for child: Node in responder.get_children():
+	for child:Node in responder.get_children():
 		if child is Responder:
-			var child_resp: Responder = child
+			var child_resp:Responder = child
 			_populate_responder_branch(
 					node_item,
 					child_resp,
@@ -1121,17 +1121,17 @@ func _populate_responder_branch(
 
 
 func _add_action_item(
-		parent: TreeItem,
-		action_info: ActionInfo,
-		select_key: String,
-		collapsed: Dictionary,
-		selected_key: String,
-		selected_col: int,
-		owner_map: CustomInputMap = null
+		parent:TreeItem,
+		action_info:ActionInfo,
+		select_key:String,
+		collapsed:Dictionary,
+		selected_key:String,
+		selected_col:int,
+		owner_map:CustomInputMap = null
 ) -> void:
-	var events: Array = action_info.action.get("events", [])
-	var deadzone: float = action_info.action.get("deadzone", 0.5)
-	var action_item := action_tree.create_item(parent)
+	var events:Array = action_info.action.get("events", [])
+	var deadzone:float = action_info.action.get("deadzone", 0.5)
+	var action_item:TreeItem = action_tree.create_item( parent )
 	action_item.set_meta(&"__action", action_info.action)
 	action_item.set_meta(&"__name", action_info.name)
 	action_item.set_meta(&"__editable", action_info.editable)
@@ -1183,8 +1183,8 @@ func _add_action_item(
 	if selected_key == select_key:
 		action_item.select(selected_col)
 
-	for evnt_idx: int in range(events.size()):
-		var event: InputEvent = events[evnt_idx]
+	for evnt_idx:int in range(events.size()):
+		var event:InputEvent = events[evnt_idx]
 		if event == null: continue
 		var event_key:String = "%s#%d" % [select_key, evnt_idx]
 		var event_item:TreeItem = _add_action_event(
@@ -1199,9 +1199,9 @@ func _add_action_event(
 			event:InputEvent,
 			evnt_idx:int,
 			event_key:String,
-			owner_map: CustomInputMap = null,
+			owner_map:CustomInputMap = null,
 ) -> TreeItem:
-	var event_item := action_tree.create_item(action_item)
+	var event_item:TreeItem = action_tree.create_item( action_item )
 	event_item.set_meta(&"__event", event)
 	event_item.set_meta(&"__index", evnt_idx)
 	event_item.set_meta(&"__editable", action_info.editable)
@@ -1234,8 +1234,8 @@ func _add_action_event(
 # ██████  ██   ██ ██   ██  ██████  ██████   ██████  ██   ██  ██████  ██        #
 func                        ________DRAG_DROP________              ()->void:pass
 
-func _get_drag_data_fw(at_position: Vector2) -> Variant:
-	var selected := action_tree.get_item_at_position(at_position)
+func _get_drag_data_fw( at_position:Vector2 ) -> Variant:
+	var selected:TreeItem = action_tree.get_item_at_position( at_position )
 	if selected == null:
 		selected = action_tree.get_selected()
 	if selected == null or not _item_is_editable(selected):
@@ -1243,11 +1243,11 @@ func _get_drag_data_fw(at_position: Vector2) -> Variant:
 	if not selected.has_meta(&"__action") and not selected.has_meta(&"__event"):
 		return null
 
-	var label := Label.new()
+	var label:Label = Label.new()
 	label.text = selected.get_text( Column.ACTION )
 	action_tree.set_drag_preview(label)
 
-	var drag_data := {}
+	var drag_data:Dictionary = {}
 	if selected.has_meta(&"__action"):
 		drag_data["input_type"] = "action"
 	if selected.has_meta(&"__event"):
@@ -1257,14 +1257,14 @@ func _get_drag_data_fw(at_position: Vector2) -> Variant:
 	return drag_data
 
 
-func _can_drop_data_fw(at_position: Vector2, data: Variant) -> bool:
+func _can_drop_data_fw( at_position:Vector2, data:Variant ) -> bool:
 	if typeof(data) != TYPE_DICTIONARY: return false
-	var d: Dictionary = data
+	var d:Dictionary = data
 	if not d.has("input_type"): return false
-	var source_id: int = d.get("source", 0)
-	var source: TreeItem = instance_from_id(source_id)
-	var selected := action_tree.get_selected()
-	var item := action_tree.get_item_at_position(at_position)
+	var source_id:int = d.get("source", 0)
+	var source:TreeItem = instance_from_id(source_id)
+	var selected:TreeItem = action_tree.get_selected()
+	var item:TreeItem = action_tree.get_item_at_position( at_position )
 	if selected == null or item == null or item == source:
 		return false
 	if not _item_is_editable(selected) or not _item_is_editable(item):
@@ -1279,31 +1279,31 @@ func _can_drop_data_fw(at_position: Vector2, data: Variant) -> bool:
 	return true
 
 
-func _drop_data_fw(at_position: Vector2, data: Variant) -> void:
+func _drop_data_fw( at_position:Vector2, data:Variant ) -> void:
 	if not _can_drop_data_fw(at_position, data):
 		return
-	var selected := action_tree.get_selected()
-	var target := action_tree.get_item_at_position(at_position)
+	var selected:TreeItem = action_tree.get_selected()
+	var target:TreeItem = action_tree.get_item_at_position( at_position )
 	if target == null:
 		return
-	var drop_section := action_tree.get_drop_section_at_position(at_position)
-	var drop_above := drop_section == -1
-	var d: Dictionary = data
+	var drop_section:int = action_tree.get_drop_section_at_position( at_position )
+	var drop_above:bool = drop_section == -1
+	var d:Dictionary = data
 
 	if d["input_type"] == "action":
 		_set_mutation_context(selected)
-		var relative_to: String = target.get_meta(&"__name")
-		var action_name: String = selected.get_meta(&"__name")
+		var relative_to:String = target.get_meta(&"__name")
+		var action_name:String = selected.get_meta(&"__name")
 		action_reordered.emit(action_name, relative_to, drop_above)
 	elif d["input_type"] == "event":
 		_set_mutation_context(selected.get_parent())
-		var current_index: int = selected.get_meta(&"__index")
-		var target_index: int = target.get_meta(&"__index")
-		var parent_action: Dictionary = selected.get_parent().get_meta(&"__action")
-		var new_action: Dictionary = parent_action.duplicate(true)
-		var events: Array = new_action.get("events", [])
-		var new_events: Array = []
-		for i: int in range(events.size()):
+		var current_index:int = selected.get_meta(&"__index")
+		var target_index:int = target.get_meta(&"__index")
+		var parent_action:Dictionary = selected.get_parent().get_meta(&"__action")
+		var new_action:Dictionary = parent_action.duplicate(true)
+		var events:Array = new_action.get("events", [])
+		var new_events:Array = []
+		for i:int in range(events.size()):
 			if i == current_index:
 				continue
 			elif i == target_index:
@@ -1327,10 +1327,10 @@ func _drop_data_fw(at_position: Vector2, data: Variant) -> void:
 func                        ________INPUT_MAP________              ()->void:pass
 
 func _get_open_maps() -> Array[CustomInputMap]:
-	var out: Array[CustomInputMap] = []
+	var out:Array[CustomInputMap] = []
 	# Do not use is_instance_valid on Resources — editor proxies can fail that check
 	# (or pass it without a usable script), same class of bug as InputManager.
-	for m: CustomInputMap in open_maps:
+	for m:CustomInputMap in open_maps:
 		if m != null and not out.has(m):
 			out.append(m)
 	if out.is_empty() and edit_map != null:
@@ -1338,28 +1338,28 @@ func _get_open_maps() -> Array[CustomInputMap]:
 	return out
 
 
-func _set_open_maps(maps: Array) -> void:
+func _set_open_maps( maps:Array ) -> void:
 	open_maps.clear()
-	for v: Variant in maps:
+	for v:Variant in maps:
 		if v is CustomInputMap:
-			var m: CustomInputMap = v
+			var m:CustomInputMap = v
 			if m != null and not open_maps.has(m):
 				open_maps.append(m)
 
 
-func _map_from_item(item: TreeItem) -> CustomInputMap:
-	var walk := item
+func _map_from_item( item:TreeItem ) -> CustomInputMap:
+	var walk:TreeItem = item
 	while walk != null:
 		if walk.has_meta(&"__map"):
-			var m: Variant = walk.get_meta(&"__map")
+			var m:Variant = walk.get_meta(&"__map")
 			if m is CustomInputMap:
 				return m
 		walk = walk.get_parent()
 	return null
 
 
-func _set_mutation_context(item: TreeItem) -> void:
-	var map := _map_from_item(item)
+func _set_mutation_context( item:TreeItem ) -> void:
+	var map:CustomInputMap = _map_from_item( item )
 	if map != null:
 		_current_map = map
 		edit_map = map
@@ -1403,12 +1403,12 @@ func _get_target_map() -> CustomInputMap:
 		return _current_map
 	if edit_map != null:
 		return edit_map
-	var opened := _get_open_maps()
+	var opened:Array[CustomInputMap] = _get_open_maps()
 	if not opened.is_empty():
 		return opened[0]
 	if resource_edit_mode:
 		return null
-	var rr := _get_responder_root()
+	var rr:Responder = _get_responder_root()
 	if rr != null and rr.input_map != null:
 		return rr.input_map
 	return null
@@ -1531,7 +1531,7 @@ func _host_refresh(
 		map.apply_to_engine()
 	# Runtime only: rebuild merged engine map when we edited the live root layer.
 	if not resource_edit_mode and not Engine.is_editor_hint():
-		var rr := _get_responder_root()
+		var rr:Responder = _get_responder_root()
 		if rr != null and is_instance_valid(InputManager):
 			if map == rr.input_map or edit_map == null:
 				InputManager.request_rebuild()
@@ -1608,8 +1608,7 @@ static func _invalid_action_name_chars( action_name:String ) -> String:
 		var reject:bool = c < 32
 		if not reject:
 			match c:
-				0x2F, 0x3A, 0x22, 0x3D, 0x5C:
-					reject = true
+				0x2F, 0x3A, 0x22, 0x3D, 0x5C:reject = true
 		if not reject:
 			continue
 		var ch:String = String.chr( c ) if c >= 32 else "\\x%02x" % c
