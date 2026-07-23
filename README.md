@@ -1,5 +1,7 @@
 # Layered Input Addon for Godot
 
+![screenshot.jpg](docs/screenshot.jpg)
+
 I was working away on my game, and ran into a puzzle on how to manage the input.
 
 It came about because the escape key has many many different purposes. Depending
@@ -14,12 +16,12 @@ the single graph for multiple cross purposes.
 So I created an `InputManager` auto load, ensured it was the last child or the root
 and that guarantees that it will process events before the rest of the tree.
 
-The `InputManager` has a `Responder` node child which is a root node of a tree of 
+The `InputManager` has a `Responder` node child which is a root node of a tree of
 `Responder` nodes.
 
 Each `Responder` node has a reference to a `CustomInputMap` resource
 
-The `CustomInputMap` resource contains a dictionary of action names, and 
+The `CustomInputMap` resource contains a dictionary of action names, and
 `InputAction` resources. which is a 1:1 representation of what the editor provides.
 
 
@@ -29,7 +31,7 @@ On initialisation, and when the tree is modified, the `InputManager` walks the
 responder-tree merging the `CustomInputMaps` and then replaces the actions in
 the engines `InputMap` singleton.
 
-> [!NOTE] It's important to note that any nodes processing input must only reference 
+> [!NOTE] It's important to note that any nodes processing input must only reference
 actions which are valid, or errors will be recevied in the console.
 
 This gives us a layerable input map which is easily modifiable ar runtime by
@@ -39,11 +41,11 @@ Where this de-couples from the main scene tree is that because the `InputManager
 the last child, it's input processing comes first, so delegating input functionality
 to `Responder` node overrides handles the input before it reaches the main tree.
 
-At the moment I tend to make my `Responder` overrides extra simple, and keep a 
+At the moment I tend to make my `Responder` overrides extra simple, and keep a
 priority list of delegates to forward input to, which keeps the input handling code
 on the objects in the main tree.
 
-I believe this is similar to how other engines do things using pseudo trees, and 
+I believe this is similar to how other engines do things using pseudo trees, and
 whatever.
 
 ## Making it easier:
@@ -107,7 +109,7 @@ InputManager.add_responder(responder)
 
 ```
   plugin.cfg / plugin.gd / export_plugin.gd / .exportignore
-  settings/  # Plugin settings resource, 
+  settings/  # Plugin settings resource,
   systems/   # CustomInputMap, InputAction, InputManager, Responder
   ui/        # InputMapEditor scene + event config dialog + icons
   test/      # Headless smoke (excluded from export)
