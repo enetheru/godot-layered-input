@@ -1,15 +1,68 @@
-# Custom Input Map Editor
+# Layered Input Addon for Godot
 
-Self-contained Godot 4 addon for layered input maps and an editor UI.
+I was working away on my game, and ran into a puzzle on how to manage the input.
+
+It came about because the escape key has many many different purposes. Depending
+on which nodes are visible, I wanted to change what happens when I press the key.
+
+It could be asking to quit, toggle the menus, or go back through the menus.
+
+The existing node tree heirarchy was not an appropriate abstraction for what I
+was wanting, and its not the first time I have run into problems trying to use
+the single graph for multiple cross purposes.
+
+So I created an `InputManager` auto load, ensured it was the last child or the root
+and that guarantees that it will process events before the rest of the tree.
+
+The `InputManager` has a `Responder` node child which is a root node of a tree of 
+`Responder` nodes.
+
+Each `Responder` node has a reference to a `CustomInputMap` resource
+
+The `CustomInputMap` resource contains a dictionary of action names, and 
+`InputAction` resources. which is a 1:1 representation of what the editor provides.
+
+
+## How it works:
+
+On initialisation, and when the tree is modified, the `InputManager` walks the
+responder-tree merging the `CustomInputMaps` and then replaces the actions in
+the engines `InputMap` singleton.
+
+> [!NOTE] It's important to note that any nodes processing input must only reference 
+actions which are valid, or errors will be recevied in the console.
+
+This gives us a layerable input map which is easily modifiable ar runtime by
+re-arranging and managing the responder-tree.
+
+Where this de-couples from the main scene tree is that because the `InputManager` is
+the last child, it's input processing comes first, so delegating input functionality
+to `Responder` node overrides handles the input before it reaches the main tree.
+
+At the moment I tend to make my `Responder` overrides extra simple, and keep a 
+priority list of delegates to forward input to, which keeps the input handling code
+on the objects in the main tree.
+
+I believe this is similar to how other engines do things using pseudo trees, and 
+whatever.
+
+## Making it easier:
+
+Editing the `CustomInputMap` resource in the inspector was a real PITA, there is no
+way I was going to spend the time to replicate the engine UI, so I got Grok to
+port it from the engine code, and spent far too much time making it nicer.
+
+The `InputMapEditor` plugin can be a dock, custom inspector, or a main screen plugin.
+
+It's been a day so I'm sure there will be bugs, but the interface code is secondary
+to the functionality. I just wanted the same experience as what the editor provides.
 
 ## Features
 
 - **`CustomInputMap` / `InputAction`** — serializable action-layer resources
 - **`InputManager` + `Responder`** — runtime merge of active maps onto the engine `InputMap`
-- **`InputMapEditor`** — tree UI with two operation modes:
-  - **EDITOR** — edit a `CustomInputMap` asset (writable)
-  - **MONITOR** — inspect live effective / loaded maps from a running game (read-only host)
-- **Editor plugin** — default **bottom panel** "Input Map"; optional main screen or inspector host
+- **`InputMapEditor`** — a control for editing the `CustomInputMap`
+- **Editor plugin** — as either a dock panel, a main screen, or an inspector. requires enable/disable
 
 ## Project Settings
 
@@ -22,30 +75,15 @@ Prefix: `input_map_editor/` (Project → Project Settings → General, search �
 | `default_deadzone` | `0.2` | Authoring default (more wiring later). |
 | `panel_min_height` | `280` | Min height for dock / inspector editors. |
 
-**Desired vs applied host:** ProjectSettings stores the *desired* host. The plugin keeps an *applied* session for whatever is actually in the tree. Detach never re-reads settings.
-
-| Change | Behaviour |
-|--------|-----------|
-| Dock ↔ Inspector while enabled | In-process **rehost** (no plugin toggle). |
-| Any change involving **Main screen** | Save setting; **disable & re-enable** the plugin (engine builds main tabs only at enable). |
-
-Settings use `set_initial_value` + `ProjectSettings.save()` so they survive plugin unload.
+## Requirements
 
 **Dock** uses Godot 4.7+ `EditorDock` + `add_dock` with vertical, horizontal, and floating layouts (not the older bottom-panel-only API).
 
-**Main screen** = main-screen plugin tab (`get_editor_main_screen().add_child`, `_has_main_screen`, `_make_visible`).
-
-**Inspector** mode does not create a hidden dock/main panel; only the inspector embed is used.
-
 ## Install
 
-1. Copy `addons/enetheru.layered-input` into your project.
-2. Enable **Custom Input Map Editor** under Project → Project Settings → Plugins.
-3. (Optional) Autoload the manager:
-
-   ```
-   InputManager = *res://addons/enetheru.layered-input/systems/input_manager.gd
-   ```
+1. This repository can be cloned into the addons folder, and names whatever, all internal references are relative.
+2. Enable **Layered Input** under Project → Project Settings → Plugins.
+3. (Optional) Add the InputManager to global autoloads `/systems/input_manager.gd`
 
 ## Usage
 
@@ -65,29 +103,15 @@ responder.input_map = layer
 InputManager.add_responder(responder)
 ```
 
-### Embed the UI in-game
-
-```gdscript
-var editor := preload("res://addons/enetheru.layered-input/ui/input_map_editor.tscn").instantiate()
-editor.edit_map = my_map
-add_child(editor)
-# or editor.configure_for_resource(my_map) for pure resource mode
-```
-
 ## Layout
 
 ```
-addons/enetheru.layered-input/
   plugin.cfg / plugin.gd / export_plugin.gd / .exportignore
-  docs/      # Host session redesign plan (desired vs applied)
+  settings/  # Plugin settings resource, 
   systems/   # CustomInputMap, InputAction, InputManager, Responder
   ui/        # InputMapEditor scene + event config dialog + icons
   test/      # Headless smoke (excluded from export)
 ```
-
-Host attach/detach redesign: [docs/host_session_plan.md](docs/host_session_plan.md).
-
-No dependency on project-specific bases (`ENode`, `ERes`, `Core`, `EneLog`).
 
 ## Export
 
