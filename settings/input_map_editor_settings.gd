@@ -82,18 +82,21 @@ static func read_host_mode() -> int:
 	return HostMode.DOCK
 
 
+## [code]auto_raise[/code] from ProjectSettings (default [code]true[/code]).
 static func read_auto_raise() -> bool:
 	if ProjectSettings.has_setting( KEY_AUTO_RAISE ):
 		return bool( ProjectSettings.get_setting( KEY_AUTO_RAISE ) )
 	return true
 
 
+## [code]panel_min_height[/code] from ProjectSettings (default [code]280[/code]).
 static func read_panel_min_height() -> float:
 	if ProjectSettings.has_setting( KEY_PANEL_MIN_HEIGHT ):
 		return float( ProjectSettings.get_setting( KEY_PANEL_MIN_HEIGHT ) )
 	return 280.0
 
 
+## [code]default_deadzone[/code] from ProjectSettings (default [code]0.2[/code]).
 static func read_default_deadzone() -> float:
 	if ProjectSettings.has_setting( KEY_DEFAULT_DEADZONE ):
 		return float( ProjectSettings.get_setting( KEY_DEFAULT_DEADZONE ) )

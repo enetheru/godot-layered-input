@@ -409,16 +409,19 @@ func _sync_settings_from_project( id:int ) -> void:
 #region Inspector plugin API
 #MARK: Inspector plugin API
 
+## True when inspector host is applied and [param object] is a [CustomInputMap].
 func inspector_can_handle( object:Object ) -> bool:
 	if not _is_host_inspector():
 		return false
 	return object is CustomInputMap
 
 
+## Cached [code]panel_min_height[/code] setting for inspector embeds.
 func get_settings_panel_min_height() -> float:
 	return _panel_min_height
 
 
+## Register an inspector-hosted [InputMapEditor] for dirty tracking and defaults.
 func bind_inspector_editor( editor:InputMapEditor ) -> void:
 	if editor == null or _shutting_down:
 		return
@@ -431,6 +434,7 @@ func bind_inspector_editor( editor:InputMapEditor ) -> void:
 		_connect_sig( editor.resource_modified, _on_resource_modified )
 
 
+## Drop [param editor] if it is the bound inspector instance.
 func unbind_inspector_editor( editor:InputMapEditor ) -> void:
 	if editor == null:
 		return
@@ -449,6 +453,7 @@ func _unbind_inspector_editor_any() -> void:
 	_inspector_editor = null
 
 
+## First open map (panel or inspector) that contains [param action], or null.
 func inspector_map_for_action( action:InputAction ) -> CustomInputMap:
 	var maps:Array[CustomInputMap] = []
 	var panel:InputMapEditor = _session_panel()

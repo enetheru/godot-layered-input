@@ -125,6 +125,7 @@ func duplicate_action() -> InputAction:
 	return out
 
 
+## True if [param event] matches any stored entry ([method compare_event]).
 func has_event( event:InputEvent ) -> bool:
 	assert( event, "InputAction.has_event: event is invalid" )
 	for ev:InputEvent in self:
@@ -142,6 +143,7 @@ func refresh_events_inspector() -> void:
 	notify_property_list_changed()
 
 
+## Append [param event] if not already present; refreshes the Inspector array.
 func add_event( event:InputEvent ) -> void:
 	assert( event, "InputAction.add_event: invalid event" )
 	if has_event( event ):
@@ -151,6 +153,7 @@ func add_event( event:InputEvent ) -> void:
 	refresh_events_inspector()
 
 
+## Remove entries matching [param event] (and null slots); refreshes Inspector.
 func erase_event( event:InputEvent ) -> void:
 	if not is_instance_valid( event ):
 		return
@@ -168,6 +171,7 @@ func erase_event( event:InputEvent ) -> void:
 		refresh_events_inspector()
 
 
+## Remove every stored event and refresh the Inspector array editor.
 func clear_events() -> void:
 	if events.is_empty():
 		return

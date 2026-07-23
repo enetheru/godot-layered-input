@@ -153,13 +153,18 @@ var _button_icon_revert: Texture2D
 #            ███████ ██  ██████  ██   ████ ██   ██ ███████ ███████             #
 func                        _________SIGNALS_________              ()->void:pass
 
-signal action_added(name: String)
-signal action_edited(name: String, new_action: Dictionary)
-signal action_removed(name: String)
-signal action_renamed(old_name: String, new_name: String)
-signal action_reordered(action_name: String, relative_to: String, before: bool)
+## New action name added to the active map.
+signal action_added( name:String )
+## Action [param name] mutated; [param new_action] is a snapshot dict.
+signal action_edited( name:String, new_action:Dictionary )
+## Action [param name] removed from the map.
+signal action_removed( name:String )
+## Action renamed from [param old_name] to [param new_name].
+signal action_renamed( old_name:String, new_name:String )
+## Drag reorder: [param action_name] placed relative to [param relative_to].
+signal action_reordered( action_name:String, relative_to:String, before:bool )
 ## Emitted after the target [CustomInputMap] is mutated (for editor dirty/save).
-signal resource_modified(map: CustomInputMap)
+signal resource_modified( map:CustomInputMap )
 
 
 #             ███████ ██    ██ ███████ ███    ██ ████████ ███████              #
@@ -739,6 +744,7 @@ func load_from_custom_map(map: CustomInputMap, _builtins_prefix: String = "ui_")
 	refresh()
 
 
+## Property setter for [member operation_mode]; updates view toggles and rebuilds.
 func set_operation_mode(mode: OperationMode) -> void:
 	if operation_mode == mode:
 		return
@@ -834,6 +840,7 @@ func _apply_resource_edit_ui() -> void:
 	_apply_mode_ui()
 
 
+## Show the effective (engine) map view and refresh the tree.
 func load_from_engine(_builtins_prefix: String = "ui_") -> void:
 	# Snapshot engine into a temporary display via effective view.
 	_show_effective = true
@@ -842,6 +849,7 @@ func load_from_engine(_builtins_prefix: String = "ui_") -> void:
 	refresh()
 
 
+## Modal [AcceptDialog] with [param message] (created on first use).
 func show_message(message: String) -> void:
 	if _message == null:
 		_message = AcceptDialog.new()

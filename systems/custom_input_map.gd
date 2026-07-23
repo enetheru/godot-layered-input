@@ -221,6 +221,11 @@ func ensure_action(
 	return ia
 
 
+## Add or update action [param action_name].
+## [br]New name with empty [param events] and default [param deadzone] stores a
+## [code]null[/code] placeholder (returns [code]null[/code]).
+## [br]Existing non-null defs are not wiped: deadzone/events merge in; returns
+## the live [InputAction].
 func add_action(
 			action_name:StringName,
 			deadzone:float = DEFAULT_DEADZONE,
@@ -254,6 +259,7 @@ func add_action(
 	return ia
 
 
+## Remove [param action_name] and its definition. Warns if the name is missing.
 func erase_action( action_name:StringName ) -> void:
 	assert( not String( action_name ).is_empty(),
 			"CustomInputMap.erase_action: empty action_name" )
@@ -308,12 +314,14 @@ func reorder_actions( ordered_names:Array[StringName] ) -> void:
 	notify_property_list_changed()
 
 
+## Set deadzone on [param action_name], materializing a def if needed.
 func set_action_deadzone( action_name:StringName, deadzone:float ) -> void:
 	# ensure_action asserts non-empty name.
 	var ia:InputAction = ensure_action( action_name, deadzone )
 	ia.deadzone = deadzone
 
 
+## Append a duplicate-safe [param event] to [param action_name] (materializes def).
 func add_action_event( action_name:StringName, event:InputEvent ) -> void:
 	assert( not String( action_name ).is_empty(),
 			"CustomInputMap.add_action_event: empty action_name" )
@@ -323,6 +331,8 @@ func add_action_event( action_name:StringName, event:InputEvent ) -> void:
 	ia.add_event( event )
 
 
+## Remove [param event] from [param action_name] via [method InputAction.erase_event].
+## No-op (warning) when the name has no [InputAction] def.
 func erase_action_event( action_name:StringName, event:InputEvent ) -> void:
 	assert( not String( action_name ).is_empty(),
 			"CustomInputMap.erase_action_event: empty action_name" )
@@ -337,6 +347,8 @@ func erase_action_event( action_name:StringName, event:InputEvent ) -> void:
 	ia.erase_event( event )
 
 
+## Clear all events on [param action_name] without removing the name or def.
+## No-op (warning) when the name has no [InputAction] def.
 func clear_action_events( action_name:StringName ) -> void:
 	assert( not String( action_name ).is_empty(),
 			"CustomInputMap.clear_action_events: empty action_name" )

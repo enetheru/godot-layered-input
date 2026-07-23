@@ -49,6 +49,7 @@ static var _sized_cache:Dictionary = {}
 #        ███████    ██    ██   ██    ██    ██  ██████                          #
 func                        _________STATIC__________              ()->void:pass
 
+## Cached SVG icon for [param cache_key] (see [member SVG] keys).
 static func get_icon( cache_key:StringName ) -> Texture2D:
 	if _cache.has( cache_key ):
 		return _cache[cache_key]
@@ -97,6 +98,7 @@ static func at_size( source:Texture2D, size:Vector2i ) -> Texture2D:
 	return tex
 
 
+## Icon texture appropriate for [param event]'s concrete [InputEvent] type.
 static func for_event( event:InputEvent ) -> Texture2D:
 	if event is InputEventKey:
 		var key:InputEventKey = event

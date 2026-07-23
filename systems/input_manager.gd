@@ -156,11 +156,12 @@ func pop_state() -> void:
 	request_rebuild()
 
 
+## Attach [param node] under [member responder_root] (undo snapshot + rebuild).
 func add_responder( node:Responder ) -> void:
 	responder_root.add_responder( node )
 
 
-## free is not called on the node removed from the tree.
+## Detach [param node] from the responder tree without freeing it.
 func remove_responder( node:Responder ) -> void:
 	if not is_instance_valid( node ):
 		return

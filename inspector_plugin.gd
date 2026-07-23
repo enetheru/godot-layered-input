@@ -16,6 +16,7 @@ var _editor:InputMapEditor
 var _insp_resized_cb:Callable = Callable()
 
 
+## Bind the owning [EditorPlugin] (host session) for can-handle and height APIs.
 func setup( plugin:EditorPlugin ) -> void:
 	_plugin = plugin
 

@@ -20,14 +20,17 @@ var dock:EditorDock = null
 var inspector_plugin:EditorInspectorPlugin = null
 
 
+## True when this session's applied host is main-screen.
 func is_main_screen() -> bool:
 	return kind == SettingsScript.HostMode.MAIN_SCREEN
 
 
+## True when this session's applied host is the inspector plugin.
 func is_inspector() -> bool:
 	return kind == SettingsScript.HostMode.INSPECTOR
 
 
+## True when this session's applied host is an [EditorDock].
 func is_dock() -> bool:
 	return kind == SettingsScript.HostMode.DOCK
 

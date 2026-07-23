@@ -79,6 +79,7 @@ var _hold_event:InputEvent
 #            ███████ ██  ██████  ██   ████ ██   ██ ███████ ███████             #
 func                        _________SIGNALS_________              ()->void:pass
 
+## Captured bind changed (listen accept, clear, or programmatic set).
 signal event_changed( event:InputEvent )
 
 
@@ -204,10 +205,12 @@ func _gui_input(event: InputEvent) -> void:
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
+## Last captured bind, or [code]null[/code] if cleared / never set.
 func get_event() -> InputEvent:
 	return _event
 
 
+## Clear the captured bind, display text, and emit [signal event_changed].
 func clear_event() -> void:
 	if _event == null:
 		return
@@ -216,10 +219,12 @@ func clear_event() -> void:
 	event_changed.emit( null )
 
 
+## Bitmask of [enum InputType] values accepted while listening.
 func set_allowed_input_types( type_masks:int ) -> void:
 	allowed_input_types = type_masks
 
 
+## Current [member allowed_input_types] bitmask.
 func get_allowed_input_types() -> int:
 	return allowed_input_types
 
@@ -281,6 +286,7 @@ static func get_event_text(
 	return event_text
 
 
+## Label for [param device] index ([code]-1[/code] → all devices).
 static func get_device_string(device: int) -> String:
 	if device < 0:
 		return "All Devices"

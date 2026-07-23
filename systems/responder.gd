@@ -52,6 +52,7 @@ func _enter_tree() -> void:
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
+## Property setter for [member input_map]; rebuilds the manager when in tree.
 func set_input_map( value:CustomInputMap ) -> void:
 	if input_map == value:
 		return
@@ -59,6 +60,7 @@ func set_input_map( value:CustomInputMap ) -> void:
 	_notify_map_dirty()
 
 
+## Property setter for [member active]; toggles process flags and map contribution.
 func set_active( value:bool ) -> void:
 	if active == value:
 		return
@@ -93,6 +95,8 @@ func remove_responder( node:Responder ) -> void:
 	InputManager.request_rebuild()
 
 
+## Detach and return the last child [Responder] (does not free). [code]null[/code]
+## if this node has no children.
 func pop_responder() -> Node:
 	var layers:Array = get_children()
 	if layers.is_empty():
