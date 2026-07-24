@@ -27,6 +27,11 @@ extends Node
 ## Default root map is [method get_default_input_map] (lazy [method @GlobalScope.load],
 ## not [code]preload[/code]) so this script does not form a cycle with
 ## [InputAction] via [code]default_input_map.tres[/code].
+##[br]
+##[br][color=goldenrod]TODO[/color]: I have a major problem with the responder
+## tree in that when its history is modified, it invalidates the references to
+## the nodes. This makes dealing with unpredictable.
+
 
 
 ## Stock root layer ([code]default_input_map.tres[/code] beside this script).
