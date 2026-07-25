@@ -149,7 +149,8 @@ func remove_responder( node:Responder ) -> void:
 		return
 	var parent:Node = node.get_parent()
 	if parent is Responder:
-		(parent as Responder).remove_responder( node )
+		var parent_responder:Responder = parent
+		parent_responder.remove_responder( node )
 
 
 ## True when [param node] or any descendant [Responder] would contribute a layer

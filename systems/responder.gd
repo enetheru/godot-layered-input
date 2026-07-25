@@ -99,7 +99,7 @@ func add_responder( node:Responder ) -> void:
 ## Detach [param node] from this branch without freeing it. Rebuilds when the
 ## detached branch could have contributed to the merged map.
 func remove_responder( node:Responder ) -> void:
-	if node == null or node.get_parent() != self:
+	if not is_instance_valid( node ) or node.get_parent() != self:
 		return
 	var affects:bool = _branch_affects_map( node )
 	remove_child( node )
@@ -108,13 +108,14 @@ func remove_responder( node:Responder ) -> void:
 
 
 ## Detach and return the last child [Responder] (does not free). [code]null[/code]
-## if this node has no children.
-func pop_responder() -> Node:
-	var layers:Array = get_children()
+## if this node has no children or the last child is not a [Responder].
+func pop_responder() -> Responder:
+	var layers:Array[Node] = get_children()
 	if layers.is_empty():
 		return null
+	# Typed assign after `is` still emits UNSAFE_CAST; `as` is the safe form.
 	var node:Responder = layers[-1] as Responder
-	if node == null:
+	if not is_instance_valid( node ):
 		return null
 	var affects:bool = _branch_affects_map( node )
 	remove_child( node )
@@ -155,8 +156,9 @@ func _request_rebuild() -> void:
 func _branch_affects_map( node:Node ) -> bool:
 	if is_instance_valid( InputManager ) \
 	and InputManager.has_method( &"branch_affects_map" ):
-		return InputManager.branch_affects_map( node ) as bool
+		return InputManager.branch_affects_map( node )
 	# Fallback before autoload is ready: local contribution only.
 	if node is Responder:
-		return (node as Responder).contributes_map()
+		var responder:Responder = node
+		return responder.contributes_map()
 	return false
