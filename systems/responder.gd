@@ -53,21 +53,24 @@ func _enter_tree() -> void:
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
-## Property setter for [member input_map]; rebuilds the manager when in tree.
+## Property setter for [member input_map]; rebuilds when contribution changes.
 func set_input_map( value:CustomInputMap ) -> void:
 	if input_map == value:
 		return
+	var was_contributing:bool = contributes_map()
 	input_map = value
-	_notify_map_dirty()
+	if was_contributing or contributes_map():
+		_notify_map_dirty()
 
 
 ## Property setter for [member active]; toggles process flags and map contribution.
 func set_active( value:bool ) -> void:
 	if active == value:
 		return
+	var was_contributing:bool = contributes_map()
 	active = value
 	_sync_process_flags()
-	if contributes_map():
+	if was_contributing or contributes_map():
 		_notify_map_dirty()
 
 
@@ -76,24 +79,32 @@ func contributes_map() -> bool:
 	return active and input_map != null
 
 
-## Add a responder node to this branch.
+## Add a responder node to this branch. Does not free or replace existing
+## siblings. Requests a map rebuild when the new branch can contribute layers.
 func add_responder( node:Responder ) -> void:
 	if not is_instance_valid( node ):
 		push_warning( "Responder.add_responder: invalid node" )
 		return
-	InputManager.push_state()
+	if node.get_parent() == self:
+		return
+	if is_instance_valid( node.get_parent() ):
+		push_warning( "Responder.add_responder: node already has a parent" )
+		return
+	var affects:bool = _branch_affects_map( node )
 	add_child( node )
-	if node.contributes_map():
-		InputManager.request_rebuild()
+	if affects:
+		_request_rebuild()
 
 
-## Removing a responder does not free the node.
+## Detach [param node] from this branch without freeing it. Rebuilds when the
+## detached branch could have contributed to the merged map.
 func remove_responder( node:Responder ) -> void:
 	if node == null or node.get_parent() != self:
 		return
-	InputManager.push_state()
+	var affects:bool = _branch_affects_map( node )
 	remove_child( node )
-	InputManager.request_rebuild()
+	if affects:
+		_request_rebuild()
 
 
 ## Detach and return the last child [Responder] (does not free). [code]null[/code]
@@ -102,10 +113,13 @@ func pop_responder() -> Node:
 	var layers:Array = get_children()
 	if layers.is_empty():
 		return null
-	InputManager.push_state()
-	var node:Responder = layers[-1]
+	var node:Responder = layers[-1] as Responder
+	if node == null:
+		return null
+	var affects:bool = _branch_affects_map( node )
 	remove_child( node )
-	InputManager.request_rebuild()
+	if affects:
+		_request_rebuild()
 	return node
 
 
@@ -125,9 +139,24 @@ func _sync_process_flags() -> void:
 func _notify_map_dirty() -> void:
 	if not is_inside_tree():
 		return
+	_request_rebuild()
+
+
+func _request_rebuild() -> void:
 	# Autoload can be a placeholder while the editor plugin reloads.
 	if not is_instance_valid( InputManager ):
 		return
 	if not InputManager.has_method( &"request_rebuild" ):
 		return
 	InputManager.request_rebuild()
+
+
+## Whether this node or a descendant can change the merged engine map.
+func _branch_affects_map( node:Node ) -> bool:
+	if is_instance_valid( InputManager ) \
+	and InputManager.has_method( &"branch_affects_map" ):
+		return InputManager.branch_affects_map( node ) as bool
+	# Fallback before autoload is ready: local contribution only.
+	if node is Responder:
+		return (node as Responder).contributes_map()
+	return false

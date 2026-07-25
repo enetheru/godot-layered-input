@@ -19,19 +19,17 @@ extends Node
 ##[br][br]
 ## Merge order is tree order (depth-first, children first-to-last) so later
 ## siblings both receive input first and win action-name conflicts.
-## [br]Full responder-tree undo lives here ([member undo_stack],
-## [method push_state], [method pop_state]) because this node owns
-## [member responder_root] — not a separate UndoRedo service or per-map editor
-## history.
+##[br][br]
+## Layer lifecycle is operation-based only: [method add_responder],
+## [method remove_responder], and [method Responder] mutators attach or detach
+## nodes without snapshot undo. Game systems (context, UI, agents) own when
+## layers appear; this node only projects the live tree onto the engine map.
+## Structural ops call [method request_rebuild] when the branch can change the
+## merge (see [method branch_affects_map]).
 ##
 ## Default root map is [method get_default_input_map] (lazy [method @GlobalScope.load],
 ## not [code]preload[/code]) so this script does not form a cycle with
 ## [InputAction] via [code]default_input_map.tres[/code].
-##[br]
-##[br][color=goldenrod]TODO[/color]: I have a major problem with the responder
-## tree in that when its history is modified, it invalidates the references to
-## the nodes. This makes dealing with unpredictable.
-
 
 
 ## Stock root layer ([code]default_input_map.tres[/code] beside this script).
@@ -49,12 +47,8 @@ func                        ________PROPERTIES_______              ()->void:pass
 ## Root of the responder tree (created in [method _enter_tree]).
 var responder_root:Responder
 
-## Last effective map pushed to the engine (for inspection and snapshots).
+## Last effective map pushed to the engine (for inspection).
 var effective_map:CustomInputMap
-
-## Full deep copies of [member responder_root] for [method push_state] /
-## [method pop_state] (whole-tree snapshots only).
-var undo_stack:Array[Responder] = []
 
 var _want_rebuild:bool = false
 var _rebuilding:bool = false
@@ -134,48 +128,43 @@ func _exit_tree() -> void:
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
-## Push a deep copy of [member responder_root] onto [member undo_stack].
-## [br][method Responder.add_responder], [method Responder.remove_responder], and
-## [method Responder.pop_responder] call this before mutating the tree so
-## [method pop_state] can restore the prior branch.
-func push_state() -> void:
-	assert( is_instance_valid( responder_root ),
-			"InputManager.push_state: responder_root missing" )
-	var copy:Responder = responder_root.duplicate() as Responder
-	assert( is_instance_valid( copy ), "InputManager.push_state: duplicate failed" )
-	undo_stack.push_back( copy )
-
-
-## Pop [member undo_stack] and replace [member responder_root] with that snapshot,
-## then [method request_rebuild]. No-op (warning) if the stack is empty.
-func pop_state() -> void:
-	if undo_stack.is_empty():
-		push_warning( "InputManager.pop_state: undo stack empty" )
-		return
-	var last_state:Responder = undo_stack.pop_back()
-	var old_root:Responder = responder_root
-	if old_root.child_order_changed.is_connected( _on_responder_tree_changed ):
-		old_root.child_order_changed.disconnect( _on_responder_tree_changed )
-	old_root.replace_by( last_state )
-	responder_root = last_state
-	if not responder_root.child_order_changed.is_connected( _on_responder_tree_changed ):
-		_connect_sig( responder_root.child_order_changed, _on_responder_tree_changed )
-	old_root.queue_free()
-	request_rebuild()
-
-
-## Attach [param node] under [member responder_root] (undo snapshot + rebuild).
+## Attach [param node] under [member responder_root]. Rebuilds the engine map
+## when the new branch can contribute layers.
 func add_responder( node:Responder ) -> void:
+	if not is_instance_valid( responder_root ):
+		push_warning( "InputManager.add_responder: responder_root missing" )
+		return
 	responder_root.add_responder( node )
 
 
-## Detach [param node] from the responder tree without freeing it.
+## Detach [param node] from the responder tree without freeing it. Rebuilds when
+## the detached branch could have contributed to the merge.
 func remove_responder( node:Responder ) -> void:
-	if not is_instance_valid( node ):
+	if not is_instance_valid( node ) or not is_instance_valid( responder_root ):
 		return
-	if node.is_ancestor_of( responder_root ):
-		var parent:Responder = node.get_parent()
-		parent.remove_responder( node )
+	if node == responder_root:
+		push_warning( "InputManager.remove_responder: cannot remove responder_root" )
+		return
+	if not responder_root.is_ancestor_of( node ):
+		return
+	var parent:Node = node.get_parent()
+	if parent is Responder:
+		(parent as Responder).remove_responder( node )
+
+
+## True when [param node] or any descendant [Responder] would contribute a layer
+## to the merge ([method Responder.contributes_map]).
+func branch_affects_map( node:Node ) -> bool:
+	if not is_instance_valid( node ):
+		return false
+	if node is Responder:
+		var responder:Responder = node as Responder
+		if responder.contributes_map():
+			return true
+	for child:Node in node.get_children():
+		if branch_affects_map( child ):
+			return true
+	return false
 
 
 ## Flag a full map rebuild; at most one [method Object.call_deferred] is queued.
@@ -188,8 +177,8 @@ func request_rebuild() -> void:
 	_rebuild_input_map.call_deferred()
 
 
-## Tear down responder tree, undo snapshots, effective map, and the static
-## default-map cache. Idempotent — safe from [method _exit_tree] and tests.
+## Tear down responder tree, effective map, and the static default-map cache.
+## Idempotent — safe from [method _exit_tree] and tests.
 ## [br]Does not erase engine [InputMap] actions (those may still hold events
 ## that were [method CustomInputMap.apply_to_engine]'d).
 func shutdown() -> void:
@@ -200,17 +189,6 @@ func shutdown() -> void:
 	if is_instance_valid( parent ) \
 	and parent.child_order_changed.is_connected( _on_parent_child_order_changed ):
 		parent.child_order_changed.disconnect( _on_parent_child_order_changed )
-
-	for snapshot:Responder in undo_stack:
-		if not is_instance_valid( snapshot ):
-			continue
-		_release_map( snapshot.input_map )
-		snapshot.input_map = null
-		if snapshot.is_inside_tree():
-			snapshot.queue_free()
-		else:
-			snapshot.free()
-	undo_stack.clear()
 
 	if is_instance_valid( responder_root ):
 		if responder_root.child_order_changed.is_connected(

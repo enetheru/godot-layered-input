@@ -29,7 +29,11 @@ The `CustomInputMap` resource contains a dictionary of action names, and
 
 On initialisation, and when the tree is modified, the `InputManager` walks the
 responder-tree merging the `CustomInputMaps` and then replaces the actions in
-the engines `InputMap` singleton.
+the engines `InputMap` singleton. Structural ops (`add_responder` /
+`remove_responder` / `pop_responder`) and map contribution changes
+(`input_map`, `active`) flag a deferred rebuild when they can affect the merge.
+There is no snapshot undo on the tree — callers own layer lifetime (context,
+UI, agents).
 
 > [!NOTE] It's important to note that any nodes processing input must only reference
 actions which are valid, or errors will be recevied in the console.
