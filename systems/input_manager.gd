@@ -36,6 +36,18 @@ extends Node
 ## Prefer [code]uid://[/code] so the addon stays relocatable.
 const DEFAULT_INPUT_MAP_UID:StringName = &"uid://6hh6cxvfe0kf"
 
+##[codeblock]
+##│ ___                          _           ___          _
+##│| _ \___ ____ __  ___ _ _  __| |___ _ _  | _ \___  ___| |_
+##│|   / -_|_-< '_ \/ _ \ ' \/ _` / -_) '_| |   / _ \/ _ \  _|
+##│|_|_\___/__/ .__/\___/_||_\__,_\___|_|   |_|_\___/\___/\__|
+##│           |_|
+##╰─────────────────────────────────────────────────────────────
+##[/codeblock]Responder Tree Root Node
+##
+## Base class is abstract, needs a concrete definition to form the root node.
+class ResponderRoot extends Responder:
+	pass
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
 # ██   ██ ██   ██ ██    ██ ██   ██ ██      ██   ██    ██    ██ ██      ██      #
@@ -106,7 +118,7 @@ func _enter_tree() -> void:
 				_on_parent_child_order_changed,
 				CONNECT_DEFERRED )
 
-	responder_root = Responder.new()
+	responder_root = ResponderRoot.new()
 	responder_root.name = &"root"
 	responder_root.input_map = get_default_input_map()
 	add_child( responder_root )

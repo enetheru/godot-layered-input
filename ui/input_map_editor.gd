@@ -144,6 +144,8 @@ var _button_icon_revert:Texture2D
 @export var _sb_subsection_left:StyleBoxFlat = preload("uid://c3k1jnturrkkh")
 @export var _sb_subsection_right:StyleBoxFlat = preload("uid://c2y7w6vs0t42r")
 
+## The InputManager this editor is manipulating, often an autoload.
+var input_manager:_InputManager
 
 #            ███████ ██  ██████  ███    ██  █████  ██      ███████             #
 #            ██      ██ ██       ████   ██ ██   ██ ██      ██                  #
@@ -581,9 +583,9 @@ func _ready() -> void:
 	# editor — on plugin disable it can still pass is_instance_valid as a proxy
 	# without the real script/signals, which errors on .input_map_changed.
 	if not Engine.is_editor_hint() and not resource_edit_mode:
-		if is_instance_valid( InputManager ):
-			if not InputManager.input_map_changed.is_connected( _on_input_map_changed ):
-				_connect_sig( InputManager.input_map_changed, _on_input_map_changed )
+		if is_instance_valid( input_manager ):
+			if not input_manager.input_map_changed.is_connected( _on_input_map_changed ):
+				_connect_sig( input_manager.input_map_changed, _on_input_map_changed )
 
 	refresh()
 
@@ -593,9 +595,9 @@ func _exit_tree() -> void:
 	_disconnect_open_map_changed_signals()
 	if Engine.is_editor_hint():
 		return
-	if is_instance_valid(InputManager):
-		if InputManager.input_map_changed.is_connected(_on_input_map_changed):
-			InputManager.input_map_changed.disconnect(_on_input_map_changed)
+	if is_instance_valid(input_manager):
+		if input_manager.input_map_changed.is_connected(_on_input_map_changed):
+			input_manager.input_map_changed.disconnect(_on_input_map_changed)
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -1417,9 +1419,9 @@ func _get_target_map() -> CustomInputMap:
 
 
 func _get_effective_map() -> CustomInputMap:
-	if Engine.is_editor_hint() or not is_instance_valid(InputManager):
+	if Engine.is_editor_hint() or not is_instance_valid(input_manager):
 		return null
-	return InputManager.effective_map
+	return input_manager.effective_map
 
 
 ## Validate [param action_name] for add/rename.
@@ -1511,9 +1513,9 @@ func _submit_new_action( action_name:String ) -> void:
 func                        ________INPUT_MGR________              ()->void:pass
 
 func _get_responder_root() -> Responder:
-	if Engine.is_editor_hint() or not is_instance_valid(InputManager):
+	if Engine.is_editor_hint() or not is_instance_valid(input_manager):
 		return null
-	return InputManager.responder_root
+	return input_manager.responder_root
 
 
 ## After a panel mutation: refresh the tree and mark the map dirty for save.
@@ -1534,9 +1536,9 @@ func _host_refresh(
 	# Runtime only: rebuild merged engine map when we edited the live root layer.
 	if not resource_edit_mode and not Engine.is_editor_hint():
 		var rr:Responder = _get_responder_root()
-		if rr != null and is_instance_valid(InputManager):
+		if rr != null and is_instance_valid(input_manager):
 			if map == rr.input_map or edit_map == null:
-				InputManager.request_rebuild()
+				input_manager.request_rebuild()
 	# Skip self-driven changed → refresh while we rebuild the tree + dirty list.
 	_host_mutating = true
 	# Structure mutators already refreshed the Inspector dict; avoid a second

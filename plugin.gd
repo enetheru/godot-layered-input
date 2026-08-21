@@ -15,7 +15,7 @@ extends EditorPlugin
 
 const EditorScene = preload( "ui/input_map_editor.tscn" )
 const SettingsScript = preload( "settings/input_map_editor_settings.gd" )
-const SettingsHelperScript = preload( "settings/settings_helper.gd" )
+const SettingsHelperScript = preload( "settings/settings.gd" )
 ## Preload so attach still resolves if class_name is mid-reload.
 const HostSessionScript = preload( "host_session.gd" )
 

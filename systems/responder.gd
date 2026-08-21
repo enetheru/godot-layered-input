@@ -1,3 +1,4 @@
+@abstract
 class_name Responder
 extends Node
 
@@ -7,7 +8,7 @@ extends Node
 ##│|   / -_|_-< '_ \/ _ \ ' \/ _` / -_) '_|
 ##│|_|_\___/__/ .__/\___/_||_\__,_\___|_|
 ##╰───────────|_|────────────────────────────
-##[/codeblock]Node in the [InputManager] responder tree.
+##[/codeblock]Node in the [input_manager] responder tree.
 ##
 ## • [member input_map] — optional layer contributed while [member active].
 ##[br]
@@ -33,6 +34,8 @@ func                        ________PROPERTIES_______              ()->void:pass
 @export var active:bool = true:
 	set = set_active
 
+## The InputManager this Responder belongs to, often an autoload.
+var input_manager:_InputManager
 
 #      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
 #     ██    ██ ██    ██ ██      ██   ██ ██   ██ ██ ██   ██ ██      ██          #
@@ -145,18 +148,18 @@ func _notify_map_dirty() -> void:
 
 func _request_rebuild() -> void:
 	# Autoload can be a placeholder while the editor plugin reloads.
-	if not is_instance_valid( InputManager ):
+	if not is_instance_valid( input_manager ):
 		return
-	if not InputManager.has_method( &"request_rebuild" ):
+	if not input_manager.has_method( &"request_rebuild" ):
 		return
-	InputManager.request_rebuild()
+	input_manager.request_rebuild()
 
 
-## Whether this node or a descendant can change the merged engine map.
+# Whether this node or a descendant can change the merged engine map.
 func _branch_affects_map( node:Node ) -> bool:
-	if is_instance_valid( InputManager ) \
-	and InputManager.has_method( &"branch_affects_map" ):
-		return InputManager.branch_affects_map( node )
+	if is_instance_valid( input_manager ) \
+	and input_manager.has_method( &"branch_affects_map" ):
+		return input_manager.branch_affects_map( node )
 	# Fallback before autoload is ready: local contribution only.
 	if node is Responder:
 		var responder:Responder = node
