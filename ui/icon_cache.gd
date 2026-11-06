@@ -88,7 +88,7 @@ static func at_size( source:Texture2D, size:Vector2i ) -> Texture2D:
 		if img != null and not img.is_empty():
 			fallback.set_image( img )
 		else:
-			var blank:Image = Image.create( size.x, size.y, false, Image.FORMAT_RGBA8 )
+			var blank:Image = Image.create_from_data( size.x, size.y, false, Image.FORMAT_RGBA8, [] )
 			blank.fill( Color( 1, 1, 1, 0.4 ) )
 			fallback.set_image( blank )
 		fallback.set_size_override( size )
