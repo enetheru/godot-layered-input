@@ -4,14 +4,14 @@
 
 I was working away on my game, and ran into a puzzle on how to manage the input.
 
-It came about because the escape key has many many different purposes. Depending
-on which nodes are visible, I wanted to change what happens when I press the key.
+It came about because the escape key has many many different purposes depending
+on which nodes are visible, and I wanted to change what happens when I press the key.
 
 It could be asking to quit, toggle the menus, or go back through the menus.
 
 The existing node tree heirarchy was not an appropriate abstraction for what I
 was wanting, and its not the first time I have run into problems trying to use
-the single graph for multiple cross purposes.
+the `SceneTree`.
 
 So I created an `InputManager` auto load, ensured it was the last child or the root
 and that guarantees that it will process events before the rest of the tree.
@@ -23,7 +23,6 @@ Each `Responder` node has a reference to a `CustomInputMap` resource
 
 The `CustomInputMap` resource contains a dictionary of action names, and
 `InputAction` resources. which is a 1:1 representation of what the editor provides.
-
 
 ## How it works:
 
@@ -111,17 +110,10 @@ InputManager.add_responder(responder)
 
 ## Layout
 
-```
-  plugin.cfg / plugin.gd / export_plugin.gd / .exportignore
-  settings/  # Plugin settings resource,
-  systems/   # CustomInputMap, InputAction, InputManager, Responder
-  ui/        # InputMapEditor scene + event config dialog + icons
-  test/      # Headless smoke (excluded from export)
-  docs/      # Design pages. Start at docs/Addon.md. The file list is docs/Files.md.
-```
+[Files](docs/Files.md) lists which source file belongs to the runtime and which belongs to the editor plugin.
 
 ## Export
 
 `export_plugin.gd` reads `.exportignore` and calls `skip()` so editor-only
-files (plugin entry, smoke tests, README) are not packed into exports.
+files (plugin entry, smoke tests, README, docs) are not packed into exports.
 Runtime `systems/` and in-game `ui/` remain available in the pck.

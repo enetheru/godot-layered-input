@@ -1,19 +1,21 @@
 # Input action
 
-One row inside a [[CustomInputMap]]. A deadzone and an ordered list of `InputEvent`s. The engine action is that same pair. This resource is the pair a layer can carry.
+One row inside a [[CustomInputMap]]. It holds a deadzone and an ordered list of `InputEvent`s, which is the same pair Godot stores on an engine action. The resource exists so a layer can carry that pair. How the inspector saves the row is [[EditorPlugin]].
 
 Build one through `CustomInputMap.add_action`, or author it as a sub-resource inside the map `.tres`.
 
 ## Fields
 
-**Deadzone**
-  Default `0.2`, the same constant the map uses for a new action. The setter emits `changed` when the value actually moves, so the input-map panel and the inspector stay on the same number.
+### Deadzone
 
-**Events**
-  `events` is the binding list, in storage order. `for event in action` walks that list and skips empty slots. `add_event`, `erase_event`, and `clear_events` refresh the inspector's array. Replacing the whole array emits `changed` as well.
+The default is `0.2`, the same constant the map uses for a new action. The setter emits `changed` when the value moves. Writing the same number leaves the resource as it was.
+
+### Events
+
+`events` is the binding list, in storage order. `for event in action` walks that list and yields the stored events, passing over empty slots. `add_event`, `erase_event`, and `clear_events` update that list. Replacing the whole array emits `changed` as well.
 
 ## Where it lives
 
-It is an embedded sub-resource of a map, not its own `.tres`. When a scene shares the map, the inspector shows the action as linked. Make the map unique. Making only the action unique often fails to stick, because a dictionary-value override does not save.
+An action lives embedded in its map `.tres`. The row belongs to that table. An action built in code sets `resource_local_to_scene`, so a scene that makes the map local gets its own action. The inspector's linked-versus-unique behaviour is [[EditorPlugin]].
 
-An action built in code sets `resource_local_to_scene`. A scene that then makes the map local does not keep sharing one action across scenes. `duplicate_action` is the copy `merge` uses, so two layers do not alias one event list.
+`duplicate_action` is the copy `merge` uses, so each layer keeps its own event list. A bind on the later layer stays on that copy.
