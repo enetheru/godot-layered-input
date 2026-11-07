@@ -4,7 +4,7 @@ Godot only has a singular `InputMap` and it is even made as a singleton for some
 I want multiple action maps, and depending on the context I enable/disable them.
 So I created the Layered Input Addon to solve that need.
 
-The addon is `addons/enetheru.layered-input`. The autoload class is `_InputManager`. A layer is a [[Responder]].
+The addon is `addons/enetheru.layered-input`. The autoload class is `_InputManager`. A layer is a [[Responder]]. The package page is [[Addon]]. A layer's table is a [[CustomInputMap]], and a row in it is an [[InputAction]]. [[Files]] lists the tree.
 
 Today the layers are still child nodes. The branch below is the one being built. The move off those nodes is `agent_knowledge/ReplaceSceneTree/responder.md`.
 

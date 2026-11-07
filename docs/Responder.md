@@ -5,7 +5,7 @@ One layer in the input branch. The manager is [[InputManager]].
 A layer delegates to one or more targets. The target stays in the world or the UI. It is not a child of this branch, and mounting a layer does not reparent the target. A priority lets one layer serve several targets. Until that field exists, sibling position is the order. Depth in the branch is how a key changes meaning.
 
 **Map**
-  `input_map` is the one `CustomInputMap` this layer contributes while it is active.
+  `input_map` is the one [[CustomInputMap]] this layer contributes while it is active. Each row of that map is an [[InputAction]].
 
 **Active**
   An inactive layer is skipped by delivery and left out of the merge. Toggling it does not rebuild the order cache.

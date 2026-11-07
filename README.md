@@ -117,6 +117,7 @@ InputManager.add_responder(responder)
   systems/   # CustomInputMap, InputAction, InputManager, Responder
   ui/        # InputMapEditor scene + event config dialog + icons
   test/      # Headless smoke (excluded from export)
+  docs/      # Design pages. Start at docs/Addon.md. The file list is docs/Files.md.
 ```
 
 ## Export
