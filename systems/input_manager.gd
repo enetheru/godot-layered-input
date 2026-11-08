@@ -79,6 +79,9 @@ func                        _________SIGNALS_________              ()->void:pass
 ## Emitted after the engine [InputMap] has been replaced.
 signal input_map_changed( effective:CustomInputMap )
 
+## Emitted when a rebuild has finished and no further rebuild is queued.
+signal rebuild_finished
+
 
 #             ███████ ██    ██ ███████ ███    ██ ████████ ███████              #
 #             ██      ██    ██ ██      ████   ██    ██    ██                   #
@@ -187,7 +190,23 @@ func request_rebuild() -> void:
 	if _want_rebuild:
 		return
 	_want_rebuild = true
+	# The running rebuild queues the follow-up when it finishes.
+	if _rebuilding:
+		return
 	_rebuild_input_map.call_deferred()
+
+
+## Suspend until [signal rebuild_finished] if a rebuild is queued or running.
+## The await resumes inside that emit. Yield once so the caller can free this
+## node after [method until_rebuilt] returns.
+func until_rebuilt() -> void:
+	if not _want_rebuild and not _rebuilding:
+		return
+	while _want_rebuild or _rebuilding:
+		await rebuild_finished
+	var tree := get_tree()
+	if tree != null:
+		await tree.process_frame
 
 
 ## Tear down responder tree, effective map, and the static default-map cache.
@@ -271,12 +290,15 @@ func _collect_maps( node:Node, out:Array[CustomInputMap] ) -> void:
 
 ## Internal rebuild body; schedule via [method request_rebuild].
 func _rebuild_input_map() -> void:
-	if not is_instance_valid( responder_root ):
-		_want_rebuild = false
-		return
-	_want_rebuild = false
+	# A nested flush can enter while the outer call still holds [member _rebuilding].
+	# Leave [member _want_rebuild] set so the outer call does not report finished.
 	if _rebuilding:
 		return
+	if not is_instance_valid( responder_root ):
+		_want_rebuild = false
+		rebuild_finished.emit()
+		return
+	_want_rebuild = false
 	_rebuilding = true
 
 	var layers:Array[CustomInputMap] = []
@@ -294,6 +316,10 @@ func _rebuild_input_map() -> void:
 	effective.apply_to_engine()
 	input_map_changed.emit( effective )
 	_rebuilding = false
+	if _want_rebuild:
+		_rebuild_input_map.call_deferred()
+		return
+	rebuild_finished.emit()
 
 
 # Connect and report failures (Signal.connect returns Error).
