@@ -66,6 +66,7 @@ var _tree:RefCounted
 func                        _________METHODS_________              ()->void:pass
 
 ## Writes the map when [param value] differs from the current map.
+## Requests a rebuild when the contribution changes.
 func set_input_map( value:CustomInputMap ) -> void:
 	if input_map == value:
 		return
@@ -73,7 +74,7 @@ func set_input_map( value:CustomInputMap ) -> void:
 	var was_contributing:bool = contributes_map()
 	input_map = value
 	if was_contributing or contributes_map():
-		return
+		_request_map()
 
 
 ## Writes the process flag when [param value] differs from the current flag.
@@ -86,7 +87,7 @@ func set_active( value:bool ) -> void:
 	active = value
 	_notify_record()
 	if was_contributing or contributes_map():
-		return
+		_request_map()
 
 
 ## Writes [param value] and rewrites the input walk when the slot gains or loses its callable.
@@ -145,6 +146,12 @@ func _notify_record() -> void:
 	_tree.call( &"_rebuild_record", self )
 
 
+func _request_map() -> void:
+	if _tree == null:
+		return
+	_tree.call( &"request_rebuild" )
+
+
 ## True when [member active] is set and [member input_map] is set.
 func contributes_map() -> bool:
 	return active and input_map != null
@@ -182,7 +189,7 @@ func add_responder( record:Variant ) -> void:
 	if _tree == null:
 		return
 	_bind_tree( other, _tree )
-	_tree.call( &"_rebuild_branch", other )
+	_request_branch( _tree, other )
 
 
 ## Detaches [param record] when this responder is its parent. The caller keeps the record.
@@ -197,9 +204,7 @@ func remove_responder( record:Variant ) -> void:
 	other.set( &"parent", null )
 	children.erase( other as RefCounted )
 	_unbind_tree( other )
-	if owner == null:
-		return
-	owner.call( &"_rebuild_branch", other )
+	_request_branch( owner, other )
 
 
 ## Detaches and returns the last child. Returns null when [member children] is empty.
@@ -210,6 +215,15 @@ func pop_responder() -> RefCounted:
 	var record:RefCounted = children[-1]
 	remove_responder( record )
 	return record
+
+
+func _request_branch( owner:RefCounted, branch:Object ) -> void:
+	if owner == null:
+		return
+	owner.call( &"_rebuild_branch", branch )
+	var affects:bool = owner.call( &"branch_affects_map", branch )
+	if affects:
+		owner.call( &"request_rebuild" )
 
 
 func _is_record( record:Variant ) -> bool:

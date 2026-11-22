@@ -14,6 +14,8 @@ extends RefCounted
 ##[br][br]
 ## Each dispatch pass calls the walk and the callables copied at its start, and returns when the viewport is handled.
 ##[br][br]
+## Composes [member effective_map] from the front of that order. A name the front wrote stays.
+##[br][br]
 ## Preloads the live CustomInputMap and InputAction scripts.
 
 
@@ -60,6 +62,21 @@ var unhandled_key_input_walk:Array[RefCounted] = []
 ## Front-to-back responders for [code]_unhandled_input[/code].
 var unhandled_input_walk:Array[RefCounted] = []
 
+## Table composed from contributing maps, front first.
+var effective_map:CustomInputMap
+
+## Emitted with the settled table while a rebuild is still marked running.
+signal input_map_changed( effective:CustomInputMap )
+
+## Emitted when a queued rebuild has settled and no follow-up is waiting.
+signal rebuild_finished
+
+## Set while a rebuild is queued.
+var _want_rebuild:bool = false
+
+## Set through [method apply_to_engine] and [signal input_map_changed].
+var _rebuilding:bool = false
+
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
 #         ████  ████ ██         ██    ██   ██ ██    ██ ██   ██ ██              #
@@ -77,6 +94,7 @@ func _init( map:CustomInputMap = null ) -> void:
 	if map != null:
 		initial = map
 	root.set( &"input_map", initial )
+	request_rebuild()
 
 
 ## Appends [param record] as the root's last child.
@@ -187,6 +205,98 @@ func _walk_array( slot:StringName ) -> Array[RefCounted]:
 	return unhandled_input_walk
 
 #endregion Walks
+
+
+#region Map
+#MARK: Map
+
+## Queues one deferred rebuild. Further requests wait for that rebuild to finish.
+func request_rebuild() -> void:
+	if _want_rebuild:
+		return
+	_want_rebuild = true
+	if _rebuilding:
+		return
+	_rebuild_input_map.call_deferred()
+
+
+## Suspends until [signal rebuild_finished] while a rebuild is queued or running.
+func until_rebuilt() -> void:
+	if not _want_rebuild and not _rebuilding:
+		return
+	while _want_rebuild or _rebuilding:
+		await rebuild_finished
+
+
+## True when [param record] or a descendant contributes a map.
+func branch_affects_map( record:Object ) -> bool:
+	if not is_instance_valid( record ):
+		return false
+	if record.get_script() != LinkResponderScript:
+		return false
+	var contributes:bool = record.call( &"contributes_map" )
+	if contributes:
+		return true
+	var kids:Array = record.get( &"children" )
+	for child:Variant in kids:
+		var next:Object = child
+		if branch_affects_map( next ):
+			return true
+	return false
+
+
+## Builds [member effective_map] from the front and writes it to the engine.
+func _rebuild_input_map() -> void:
+	if _rebuilding:
+		return
+	if not is_instance_valid( root ):
+		_want_rebuild = false
+		rebuild_finished.emit()
+		return
+	_want_rebuild = false
+	_rebuilding = true
+
+	var layers:Array[CustomInputMap] = []
+	_collect_maps( root, layers )
+	layers.reverse()
+
+	var effective:CustomInputMap = CustomInputMap.new()
+	for layer:CustomInputMap in layers:
+		effective.merge( layer, false )
+
+	if effective_map != effective:
+		_release_map( effective_map )
+	effective_map = effective
+	effective.apply_to_engine()
+	input_map_changed.emit( effective )
+	_rebuilding = false
+	if _want_rebuild:
+		_rebuild_input_map.call_deferred()
+		return
+	rebuild_finished.emit()
+
+
+func _collect_maps( record:Object, out:Array[CustomInputMap] ) -> void:
+	var contributes:bool = record.call( &"contributes_map" )
+	if contributes:
+		var loaded:Object = record.get( &"input_map" )
+		if loaded is CustomInputMap:
+			var map:CustomInputMap = loaded
+			out.append( map )
+	var kids:Array = record.get( &"children" )
+	for child:Variant in kids:
+		var next:Object = child
+		_collect_maps( next, out )
+
+
+func _release_map( map:CustomInputMap ) -> void:
+	if not is_instance_valid( map ):
+		return
+	if map == DefaultInputMap:
+		return
+	map.clear()
+
+#endregion Map
 
 
 #region Dispatch
