@@ -16,8 +16,8 @@ extends Resource
 ## [br][br]
 ## There is no implicit project-settings base map — only maps contributed by
 ## active responders. Create `.tres` assets by hand and assign them on responders.
-## [br]Supports [code]for action_name in map:[/code] — each element is a
-## [StringName] action name, in the same order as [method get_action_names].
+## [br]Action names are the keys of [member _actions], in the same order as
+## [method get_action_names].
 
 
 ## Default deadzone for materialised [InputAction]s on this map.
@@ -32,6 +32,10 @@ const DEFAULT_TOGGLE_DEADZONE:float = 0.5
 # ██      ██   ██ ██    ██ ██      ██      ██   ██    ██    ██ ██           ██ #
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
+
+## Engine map captured at startup, before the first rebuild writes [InputMap].
+static var _engine_baseline:CustomInputMap
+
 
 ## Maps action names to [InputAction] definitions (or [code]null[/code]).
 ## [br][code]null[/code] is a name-only placeholder (panel “add name” with no
@@ -62,35 +66,6 @@ func _property_can_revert( property:StringName ) -> bool:
 
 func _property_get_revert( _property:StringName ) -> Variant:
 	return null
-
-# for-in: Object._iter_* — Godot gives a one-slot Array (state) so the loop can
-# update the cursor by reference. Nested loops each get their own Array.
-#   _iter_init → write state[0], return true if a first element exists
-#   _iter_next → advance state[0], return true if another element remains
-#   _iter_get  → return current element; argument is state[0], not the Array
-func _iter_init( state:Array ) -> bool:
-	# Snapshot names so nested loops / mid-loop edits do not share a cursor.
-	var action_names:Array = _actions.keys()
-	state[0] = {
-		&"index": 0,
-		&"action_names": action_names,
-	}
-	return not action_names.is_empty()
-
-
-func _iter_next( state:Array ) -> bool:
-	var cursor:Dictionary = state[0]
-	var next_index:int = cursor[&"index"] + 1
-	cursor[&"index"] = next_index
-	var action_names:Array = cursor[&"action_names"]
-	return next_index < action_names.size()
-
-
-# cursor is state[0] from init/next: { index, action_names }
-func _iter_get( cursor:Variant ) -> Variant:
-	var loop_state:Dictionary = cursor
-	var action_names:Array = loop_state[&"action_names"]
-	return action_names[loop_state[&"index"]]
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -171,8 +146,10 @@ static func is_trivial_action_def( ia:InputAction ) -> bool:
 		return true
 	if not is_equal_approx( ia.deadzone, InputAction.DEFAULT_DEADZONE ):
 		return false
-	for _ev:InputEvent in ia:
-		return false
+	var evs:Array[InputEvent] = ia.events
+	for i:int in evs.size():
+		if is_instance_valid( evs[i] ):
+			return false
 	return true
 
 
@@ -421,7 +398,7 @@ func                        __Clone___Merge__________              ()->void:pass
 func duplicate_map() -> CustomInputMap:
 	var dup:CustomInputMap = CustomInputMap.new()
 	dup.resource_name = resource_name
-	for action_name:StringName in self:
+	for action_name:StringName in _actions:
 		var ia:InputAction = _actions[action_name]
 		dup._actions[action_name] = (
 				ia.duplicate_action() if is_instance_valid( ia ) else null )
@@ -433,16 +410,104 @@ func duplicate_map() -> CustomInputMap:
 ## When [param overwrite] is [code]true[/code] (default), [param other] wins on
 ## clash — later input layers override earlier ones. When [code]false[/code],
 ## existing names are kept (Dictionary default; less common for layer stacks).
-func merge( other:CustomInputMap, overwrite:bool = true ) -> void:
+## [br]The copied events are kept while the source action still holds those same
+## event objects. [param refresh] updates the inspector dictionary.
+func merge(
+		other:CustomInputMap,
+		overwrite:bool = true,
+		refresh:bool = true ) -> void:
 	assert( is_instance_valid( other ), "CustomInputMap.merge: other is invalid" )
-	for action_name:StringName in other:
+	_sweep_cached_events()
+	for action_name:StringName in other._actions:
 		if not overwrite and _actions.has( action_name ):
 			continue
 		var ia:InputAction = other._actions[action_name]
 		# Preserve null placeholders; do not invent empty InputAction resources.
 		_actions[action_name] = (
-				ia.duplicate_action() if ia != null else null )
-	refresh_actions_inspector()
+				InputAction.new( ia.deadzone, _cached_events( ia ) ) if ia != null else null )
+	if refresh:
+		refresh_actions_inspector()
+
+
+## Instance id of a source action to its duplicated events and the objects they came from.
+static var _dup_events:Dictionary = {}
+
+
+## Duplicated events for [param ia]. The copy stays while [param ia] still holds
+## the same event objects. A field edit on one of those objects is not seen here.
+func _cached_events( ia:InputAction ) -> Array[InputEvent]:
+	var id:int = ia.get_instance_id()
+	if _dup_events.has( id ):
+		var row:Dictionary = _dup_events[id]
+		var owner:WeakRef = row[&"owner"]
+		var held:Array[InputEvent] = row[&"source"]
+		if owner.get_ref() == ia and _same_event_objects( ia.events, held ):
+			return row[&"events"]
+	var stored:Array[InputEvent] = []
+	var source:Array[InputEvent] = []
+	var evs:Array[InputEvent] = ia.events
+	for i:int in evs.size():
+		var ev:InputEvent = evs[i]
+		if not is_instance_valid( ev ):
+			continue
+		source.append( ev )
+		stored.append( ev.duplicate() as InputEvent )
+	_dup_events[id] = {
+		&"owner": weakref( ia ),
+		&"events": stored,
+		&"source": source,
+	}
+	return stored
+
+
+## True when [param evs] still holds [param source], skipping empty slots.
+func _same_event_objects(
+		evs:Array[InputEvent],
+		source:Array[InputEvent] ) -> bool:
+	var index:int = 0
+	for i:int in evs.size():
+		var ev:InputEvent = evs[i]
+		if not is_instance_valid( ev ):
+			continue
+		if index >= source.size() or source[index] != ev:
+			return false
+		index += 1
+	return index == source.size()
+
+
+## Drop copies whose source action has been freed.
+static func _sweep_cached_events() -> void:
+	var dead:Array[int] = []
+	for key:Variant in _dup_events:
+		if key is int:
+			var id:int = key
+			var row:Dictionary = _dup_events[id]
+			var owner:WeakRef = row[&"owner"]
+			if owner.get_ref() == null:
+				dead.append( id )
+	for id:int in dead:
+		var _drop_events:bool = _dup_events.erase( id )
+
+
+## Install [param source] by sharing its event objects.
+## [br]Each stored name gets a new [InputAction] whose event list points at
+## [param source]'s events. The source map and its action objects stay as they
+## are, so clearing this map does not clear the baseline.
+## [br]When [param overwrite] is [code]false[/code], a name already stored here stays.
+func install( source:CustomInputMap, overwrite:bool = true ) -> void:
+	assert( is_instance_valid( source ), "CustomInputMap.install: source is invalid" )
+	var next:Dictionary[StringName, InputAction] = {}
+	for action_name:StringName in _actions:
+		next[action_name] = _actions[action_name]
+	for action_name:StringName in source._actions:
+		if not overwrite and next.has( action_name ):
+			continue
+		var ia:InputAction = source._actions[action_name]
+		if not is_instance_valid( ia ):
+			next[action_name] = null
+			continue
+		next[action_name] = InputAction.new( ia.deadzone, ia.events )
+	_actions = next
 
 
 ## New map: this map with [param other] folded in (same shape as [method Dictionary.merged]).
@@ -465,6 +530,7 @@ func                        __Engine_________________              ()->void:pass
 
 ## Snapshot the current engine [InputMap] into a new resource.
 ## Useful when bootstrapping hand-authored `.tres` files from a running session.
+## Events are copied, so a later edit of the snapshot leaves the engine alone.
 static func from_engine() -> CustomInputMap:
 	var new_map:CustomInputMap = CustomInputMap.new()
 	for action_name:StringName in InputMap.get_actions():
@@ -473,6 +539,30 @@ static func from_engine() -> CustomInputMap:
 				InputMap.action_get_deadzone( action_name ),
 				InputMap.action_get_events( action_name ))
 	return new_map
+
+
+## Read the engine [InputMap] and keep its event objects.
+## The startup baseline uses this. [method from_engine] is the copying snapshot.
+static func alias_from_engine() -> CustomInputMap:
+	var actions:Dictionary[StringName, InputAction] = {}
+	for action_name:StringName in InputMap.get_actions():
+		var deadzone:float = InputMap.action_get_deadzone( action_name )
+		var evs:Array[InputEvent] = InputMap.action_get_events( action_name )
+		if evs.is_empty() and is_equal_approx( deadzone, DEFAULT_DEADZONE ):
+			actions[action_name] = null
+			continue
+		actions[action_name] = InputAction.new( deadzone, evs )
+	var new_map:CustomInputMap = CustomInputMap.new()
+	new_map._actions = actions
+	return new_map
+
+
+## The startup engine map. The first call reads [method alias_from_engine].
+## Later calls return that same map, so a rebuild cannot recapture the table it just wrote.
+static func engine_baseline() -> CustomInputMap:
+	if not is_instance_valid( _engine_baseline ):
+		_engine_baseline = alias_from_engine()
+	return _engine_baseline
 
 
 ## Push this map into the engine [InputMap] for each action name it contains.
@@ -484,24 +574,35 @@ static func from_engine() -> CustomInputMap:
 ## already present ([method InputMap.action_has_event]). Null [InputAction]
 ## placeholders ensure the action exists with [constant DEFAULT_DEADZONE].
 func apply_to_engine( do_merge:bool = false ) -> void:
-	for action_name:StringName in self:
+	for action_name:StringName in _actions:
 		var ia:InputAction = _actions[action_name]
 		if do_merge:
 			_merge_action_into_engine( action_name, ia )
-		else:
-			_replace_action_in_engine( action_name, ia )
-
-
-# Erase-then-add this name from the engine map (wholesale for that name).
-func _replace_action_in_engine( action_name:StringName, ia:InputAction ) -> void:
-	if InputMap.has_action( action_name ):
-		InputMap.erase_action( action_name )
-	if not is_instance_valid( ia ):
-		InputMap.add_action( action_name, DEFAULT_DEADZONE )
-		return
-	InputMap.add_action( action_name, ia.deadzone )
-	for ie:InputEvent in ia:
-		InputMap.action_add_event( action_name, ie )
+			continue
+		var matches:bool = false
+		if InputMap.has_action( action_name ):
+			var want_deadzone:float = (
+					ia.deadzone if is_instance_valid( ia ) else DEFAULT_DEADZONE )
+			if is_equal_approx(
+					InputMap.action_get_deadzone( action_name ), want_deadzone ):
+				var live:Array[InputEvent] = InputMap.action_get_events( action_name )
+				if is_instance_valid( ia ):
+					matches = _same_event_objects( ia.events, live )
+				else:
+					matches = live.is_empty()
+		if matches:
+			continue
+		if InputMap.has_action( action_name ):
+			InputMap.erase_action( action_name )
+		if not is_instance_valid( ia ):
+			InputMap.add_action( action_name, DEFAULT_DEADZONE )
+			continue
+		InputMap.add_action( action_name, ia.deadzone )
+		var evs:Array[InputEvent] = ia.events
+		for i:int in evs.size():
+			var ie:InputEvent = evs[i]
+			if is_instance_valid( ie ):
+				InputMap.action_add_event( action_name, ie )
 
 
 # Keep existing engine events; update deadzone and append missing events.
@@ -514,7 +615,11 @@ func _merge_action_into_engine( action_name:StringName, ia:InputAction ) -> void
 		InputMap.action_set_deadzone( action_name, deadzone )
 	if not is_instance_valid( ia ):
 		return
-	for ie:InputEvent in ia:
+	var evs:Array[InputEvent] = ia.events
+	for i:int in evs.size():
+		var ie:InputEvent = evs[i]
+		if not is_instance_valid( ie ):
+			continue
 		if InputMap.action_has_event( action_name, ie ):
 			continue
 		InputMap.action_add_event( action_name, ie )
@@ -551,7 +656,7 @@ static func from_project_settings() -> CustomInputMap:
 func save_to_config( path:String ) -> Error:
 	assert( not path.is_empty(), "CustomInputMap.save_to_config: empty path" )
 	var cfg:ConfigFile = ConfigFile.new()
-	for action_name:StringName in self:
+	for action_name:StringName in _actions:
 		cfg.set_value(
 				"input",
 				String( action_name ),
@@ -601,8 +706,11 @@ static func _action_to_project_dict( ia:InputAction ) -> Dictionary:
 	var deadzone:float = DEFAULT_DEADZONE
 	if is_instance_valid( ia ):
 		deadzone = ia.deadzone
-		for ie:InputEvent in ia:
-			events.append( ie )
+		var evs:Array[InputEvent] = ia.events
+		for i:int in evs.size():
+			var ie:InputEvent = evs[i]
+			if is_instance_valid( ie ):
+				events.append( ie )
 	return {
 		"deadzone": deadzone,
 		"events": events,

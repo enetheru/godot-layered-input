@@ -39,15 +39,15 @@ func _ready() -> void:
 	var events:Array[InputEvent] = map.get_action_events( &"smoke_jump" )
 	failed += _check( "add_action_event", events.size() == 1 )
 
-	var names:Array[StringName] = []
-	for action_name:StringName in map:
-		names.append( action_name )
-	failed += _check( "CustomInputMap for-in", names.has( &"smoke_jump" ) )
+	var names:Array[StringName] = map.get_action_names()
+	failed += _check( "action names", names.has( &"smoke_jump" ) )
 
 	var event_count:int = 0
-	for _ie:InputEvent in jump:
-		event_count += 1
-	failed += _check( "InputAction for-in", event_count == 1 )
+	var jump_events:Array[InputEvent] = jump.events
+	for i:int in jump_events.size():
+		if is_instance_valid( jump_events[i] ):
+			event_count += 1
+	failed += _check( "action events", event_count == 1 )
 
 	var other:CustomInputMap = CustomInputMap.new()
 	var smoke_use:InputAction = other.add_action( &"smoke_use", 0.2 )

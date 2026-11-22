@@ -6,7 +6,7 @@ The layer branch is the source, and the engine map is the projection. The maps t
 
 ## Names and rows
 
-`_actions` is a `Dictionary` from `StringName` to `InputAction`. `for action_name in map` yields the names in `get_action_names` order.
+`_actions` is a `Dictionary` from `StringName` to `InputAction`. Its keys are the action names, in `get_action_names` order.
 
 ### Placeholder
 
@@ -26,11 +26,11 @@ A new name at the default deadzone, ahead of any events, stores `null` and retur
 
 ### merge
 
-`merge` folds another map in place. The same name is replaced wholesale. The incoming event list becomes that action, because a later layer's meaning of the name replaces the earlier one. The incoming map wins when `overwrite` is true, which is the default. `duplicate_map` copies the incoming map, so each layer keeps its own action.
+`merge` folds another map in place. The same name is replaced wholesale. The incoming event list becomes that action, because a later layer's meaning of the name replaces the earlier one. The incoming map wins when `overwrite` is true, which is the default. The duplicated events are kept while the source action still holds those same event objects. `duplicate_map` copies the incoming map, so each layer keeps its own action.
 
 ### Engine
 
-`apply_to_engine` writes each name this map contains onto the engine `InputMap`. The usual path erases that name and adds it back from this map, so the engine action matches this map's events. The write covers those names. The rest of the engine map stays as the other layers left it. `from_engine` snapshots the engine map into a new resource.
+`apply_to_engine` writes each name this map contains onto the engine `InputMap`. A name whose deadzone and event objects are already on the engine is left in place. Any other name is erased and added back from this map. The rest of the engine map stays as the other layers left it. `from_engine` copies the engine map into a new resource. `alias_from_engine` keeps the engine's event objects. The autoload stores that alias at startup, and each rebuild installs the names no layer wrote.
 
 ## Authoring
 

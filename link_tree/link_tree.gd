@@ -15,6 +15,7 @@ extends RefCounted
 ## Each dispatch pass calls the walk and the callables copied at its start, and returns when the viewport is handled.
 ##[br][br]
 ## Composes [member effective_map] from the front of that order. A name the front wrote stays.
+## The startup engine map fills a name the responders left empty, and that fill keeps the engine's events.
 ##[br][br]
 ## Preloads the live CustomInputMap and InputAction scripts.
 
@@ -87,6 +88,8 @@ func                        _________METHODS_________              ()->void:pass
 
 ## Creates the active root. [param map] replaces the stock map when set.
 func _init( map:CustomInputMap = null ) -> void:
+	# Before request_rebuild. A later read would see the merged table.
+	var _baseline:CustomInputMap = CustomInputMap.engine_baseline()
 	root = LinkResponderScript.new()
 	root.set( &"_tree", self )
 
@@ -262,7 +265,8 @@ func _rebuild_input_map() -> void:
 
 	var effective:CustomInputMap = CustomInputMap.new()
 	for layer:CustomInputMap in layers:
-		effective.merge( layer, false )
+		effective.merge( layer, false, false )
+	effective.install( CustomInputMap.engine_baseline(), false )
 
 	if effective_map != effective:
 		_release_map( effective_map )

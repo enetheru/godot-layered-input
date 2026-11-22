@@ -17,8 +17,8 @@ extends Resource
 ## `.tres`). Nested under an external map on a scene, the inspector shows
 ## “linked”; make the [CustomInputMap] unique/local, not only this action —
 ## Dictionary value overrides often fail to stick on save.
-## [br]Supports [code]for event in action:[/code] — each element is a valid
-## [InputEvent] in storage order (empty/null slots are not visited).
+## [br][member events] is the binding list in storage order. Empty slots are
+## skipped by the methods that read it.
 
 
 ## Default deadzone for new actions and inspector revert.
@@ -86,36 +86,6 @@ func _property_get_revert( property:StringName ) -> Variant:
 	return null
 
 
-# for-in: Object._iter_* — Godot gives a one-slot Array (state) so the loop can
-# update the cursor by reference. Nested loops each get their own Array.
-#   _iter_init → write state[0], return true if a first element exists
-#   _iter_next → advance state[0], return true if another element remains
-#   _iter_get  → return current element; argument is state[0], not the Array
-# state[0] here is the index into events of the current valid InputEvent.
-
-## Start [code]for event in action:[/code] on the first valid [InputEvent].
-func _iter_init( state:Array ) -> bool:
-	# Start before slot 0 so the same advance helper can find the first valid.
-	var first_index:int = _index_of_next_valid_event( -1 )
-	state[0] = first_index
-	return first_index >= 0
-
-
-## Advance to the next valid [InputEvent] for [code]for event in action:[/code].
-func _iter_next( state:Array ) -> bool:
-	var current_index:int = state[0]
-	var next_index:int = _index_of_next_valid_event( current_index )
-	state[0] = next_index
-	return next_index >= 0
-
-
-# event_index is state[0]: index into events for this loop step.
-
-## Current valid [InputEvent] for the active for-in step.
-func _iter_get( event_index:Variant ) -> Variant:
-	return events[event_index]
-
-
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
 #         ████  ████ ██         ██    ██   ██ ██    ██ ██   ██ ██              #
 #         ██ ████ ██ █████      ██    ███████ ██    ██ ██   ██ ███████         #
@@ -127,16 +97,19 @@ func                        _________METHODS_________              ()->void:pass
 func duplicate_action() -> InputAction:
 	var out:InputAction = InputAction.new()
 	out.deadzone = deadzone
-	for ev:InputEvent in self:
-		out.events.append( ev.duplicate() )
+	for i:int in events.size():
+		var ev:InputEvent = events[i]
+		if is_instance_valid( ev ):
+			out.events.append( ev.duplicate() )
 	return out
 
 
 ## True if [param event] matches any stored entry ([method compare_event]).
 func has_event( event:InputEvent ) -> bool:
 	assert( event, "InputAction.has_event: event is invalid" )
-	for ev:InputEvent in self:
-		if compare_event( event, ev ):
+	for i:int in events.size():
+		var ev:InputEvent = events[i]
+		if is_instance_valid( ev ) and compare_event( event, ev ):
 			return true
 	return false
 
@@ -197,13 +170,3 @@ static func compare_event(
 			exact_match:bool = true ) -> bool:
 	assert( a and b, "InputAction.compare_event: a or b is invalid" )
 	return a == b or a.is_match( b, exact_match )
-
-
-# First valid event index after after_index, or -1 if none remain.
-func _index_of_next_valid_event( after_index:int ) -> int:
-	var index:int = after_index + 1
-	while index < events.size():
-		if is_instance_valid( events[index] ):
-			return index
-		index += 1
-	return -1

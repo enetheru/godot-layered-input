@@ -15,7 +15,8 @@ extends Node
 ## Owns the responder branch (last child of the scene root) and projects the
 ## merged set of active [CustomInputMap] layers onto the engine [InputMap].
 ##[br][br]
-## No project-settings base map is kept. Only maps on active responders count.
+## The engine map at startup is the baseline. Rebuilds install those actions
+## by sharing their events, then responder maps replace the names they define.
 ##[br][br]
 ## Merge order is tree order (depth-first, children first-to-last) so later
 ## siblings both receive input first and win action-name conflicts.
@@ -113,6 +114,8 @@ func                        ________OVERRIDES________              ()->void:pass
 
 ## Create [member responder_root], wire tree signals, and schedule first rebuild.
 func _enter_tree() -> void:
+	# Before request_rebuild. A later read would see the merged table.
+	var _baseline:CustomInputMap = CustomInputMap.engine_baseline()
 	var parent:Node = get_parent()
 	if parent \
 	and not parent.child_order_changed.is_connected( _on_parent_child_order_changed ):
@@ -307,7 +310,9 @@ func _rebuild_input_map() -> void:
 	var effective:CustomInputMap = CustomInputMap.new()
 	for layer:CustomInputMap in layers:
 		# Later layers overwrite on name clash (merge default).
-		effective.merge( layer )
+		effective.merge( layer, true, false )
+	# Names no layer wrote keep the startup events.
+	effective.install( CustomInputMap.engine_baseline(), false )
 
 	# Drop the previous merge so its duplicated events/actions free promptly.
 	if effective_map != effective:

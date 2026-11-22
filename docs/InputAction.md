@@ -12,7 +12,7 @@ The default is `0.2`, the same constant the map uses for a new action. The sette
 
 ### Events
 
-`events` is the binding list, in storage order. `for event in action` walks that list and yields the stored events, passing over empty slots. `add_event`, `erase_event`, and `clear_events` update that list. Replacing the whole array emits `changed` as well.
+`events` is the binding list, in storage order. The methods that read it pass over empty slots. `add_event`, `erase_event`, and `clear_events` update that list. Replacing the whole array emits `changed` as well.
 
 ## Where it lives
 
