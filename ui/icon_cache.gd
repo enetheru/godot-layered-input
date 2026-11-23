@@ -66,10 +66,12 @@ static func get_icon( cache_key:StringName ) -> Texture2D:
 static func at_size( source:Texture2D, size:Vector2i ) -> Texture2D:
 	if source == null:
 		return null
-	if size.x <= 0 or size.y <= 0:
+	if size.x <= 0 \
+	or size.y <= 0:
 		return source
 	var source_size:Vector2 = source.get_size()
-	if int( source_size.x ) == size.x and int( source_size.y ) == size.y:
+	if int( source_size.x ) == size.x \
+	and int( source_size.y ) == size.y:
 		return source
 
 	var key:String = "%s@%dx%d" % [str( source.get_rid().get_id() ), size.x, size.y]
@@ -78,14 +80,16 @@ static func at_size( source:Texture2D, size:Vector2i ) -> Texture2D:
 
 	var tex:Texture2D
 	var img:Image = source.get_image()
-	if img != null and not img.is_empty():
+	if img != null \
+	and not img.is_empty():
 		var copy:Image = img.duplicate()
 		copy.resize( size.x, size.y, Image.INTERPOLATE_LANCZOS )
 		tex = ImageTexture.create_from_image( copy )
 	else:
 		# DPITexture / compressed sources may not expose pixels.
 		var fallback:ImageTexture = ImageTexture.new()
-		if img != null and not img.is_empty():
+		if img != null \
+		and not img.is_empty():
 			fallback.set_image( img )
 		else:
 			var blank:Image = Image.create_from_data( size.x, size.y, false, Image.FORMAT_RGBA8, [] )
