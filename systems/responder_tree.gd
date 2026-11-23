@@ -21,13 +21,13 @@ extends RefCounted
 
 
 ## Live map script.
-const CustomInputMapScript = preload( "../systems/custom_input_map.gd" )
+const CustomInputMapScript = preload( "custom_input_map.gd" )
 
 ## Live action script.
-const InputActionScript = preload( "../systems/input_action.gd" )
+const InputActionScript = preload( "input_action.gd" )
 
 ## Record script.
-const LinkResponderScript = preload( "link_responder.gd" )
+const ResponderScript = preload( "responder.gd" )
 
 ## Stock root map. Assigned when the caller passes no map.
 const DefaultInputMap:CustomInputMap = preload( "../settings/default_input_map.tres" )
@@ -90,7 +90,7 @@ func                        _________METHODS_________              ()->void:pass
 func _init( map:CustomInputMap = null ) -> void:
 	# Before request_rebuild. A later read would see the merged table.
 	var _baseline:CustomInputMap = CustomInputMap.engine_baseline()
-	root = LinkResponderScript.new()
+	root = ResponderScript.new()
 	root.set( &"_tree", self )
 
 	var initial:CustomInputMap = DefaultInputMap
@@ -103,7 +103,7 @@ func _init( map:CustomInputMap = null ) -> void:
 ## Appends [param record] as the root's last child.
 func add_responder( record:Variant ) -> void:
 	if record == root:
-		push_warning( "LinkTree.add_responder: root stays held by the tree" )
+		push_warning( "ResponderTree.add_responder: root stays held by the tree" )
 		return
 
 	root.call( &"add_responder", record )
@@ -112,13 +112,13 @@ func add_responder( record:Variant ) -> void:
 ## Detaches [param record] from its parent. The root stays on the tree.
 func remove_responder( record:Variant ) -> void:
 	if record == root:
-		push_warning( "LinkTree.remove_responder: cannot remove root" )
+		push_warning( "ResponderTree.remove_responder: cannot remove root" )
 		return
 	if not _is_record( record ):
 		return
 	var other:Object = record
 	var holder:Object = other.get( &"parent" )
-	if holder == null or holder.get_script() != LinkResponderScript:
+	if holder == null or holder.get_script() != ResponderScript:
 		return
 
 	holder.call( &"remove_responder", record )
@@ -128,7 +128,7 @@ func _is_record( record:Variant ) -> bool:
 	if not is_instance_valid( record ):
 		return false
 	var other:Object = record
-	return other.get_script() == LinkResponderScript
+	return other.get_script() == ResponderScript
 
 
 #region Walks
@@ -235,7 +235,7 @@ func until_rebuilt() -> void:
 func branch_affects_map( record:Object ) -> bool:
 	if not is_instance_valid( record ):
 		return false
-	if record.get_script() != LinkResponderScript:
+	if record.get_script() != ResponderScript:
 		return false
 	var contributes:bool = record.call( &"contributes_map" )
 	if contributes:
@@ -335,7 +335,7 @@ func dispatch_unhandled_input( viewport:Viewport, event:InputEvent ) -> void:
 ## Copies [param walk] and each record's [param slot] callable, then calls that copy until [param viewport] is handled.
 func _dispatch( walk:Array[RefCounted], slot:StringName, viewport:Viewport, event:InputEvent ) -> void:
 	if not is_instance_valid( viewport ):
-		push_warning( "LinkTree.dispatch: viewport is missing" )
+		push_warning( "ResponderTree.dispatch: viewport is missing" )
 		return
 
 	var records:Array[RefCounted] = []

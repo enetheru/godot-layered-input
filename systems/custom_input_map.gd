@@ -10,9 +10,8 @@ extends Resource
 ##╰─────────────────────────────────────|_|─────────────────────────|_|─────
 ##[/codeblock]Resource representing one input-mapping layer.
 ##
-## Layers are owned by [Responder] nodes. [InputManager] walks the active
-## responder tree, merges layers, and applies the result to the engine
-## [InputMap] singleton.
+## Layers are link responders. [InputManager] owns one link tree, merges the
+## active maps, and applies the result to the engine [InputMap] singleton.
 ## [br][br]
 ## There is no implicit project-settings base map — only maps contributed by
 ## active responders. Create `.tres` assets by hand and assign them on responders.

@@ -4,9 +4,9 @@ Godot only has a singular `InputMap` and it is even made as a singleton for some
 I want multiple action maps, and depending on the context I enable/disable them.
 So I created the Layered Input Addon to solve that need.
 
-The autoload class is `_InputManager`. A layer is a [[Responder]]. A layer's table is a [[CustomInputMap]], and a row in that table is an [[InputAction]]. This page is the runtime side. [[EditorPlugin]] writes the tables in the editor, and [[Runtime]] is the index for the program the game loads.
+The autoload class is `_InputManager`. A layer is a link responder. A layer's table is a [[CustomInputMap]], and a row in that table is an [[InputAction]]. This page is the runtime side. [[EditorPlugin]] writes the tables in the editor, and [[Runtime]] is the index for the program the game loads.
 
-Today the layers are still child nodes. The branch below is the one being built, because adding and removing those nodes pays SceneTree enter and exit. The work list is `agent_knowledge/ReplaceSceneTree/responder.md`.
+The autoload is the one node the viewport calls. It owns a link tree. Adding and removing a layer edits that tree.
 
 ## The branch
 
@@ -22,11 +22,11 @@ The manager holds the layer tree and projects it onto the engine `InputMap`. Dom
 
 ### Delivery
 
-The manager implements `_input`, `_unhandled_input`, and `_unhandled_key_input`. Each pass walks the packed order backward and calls that method on active layers, then stops when the event is handled. The three passes share one order and differ in the method each one calls.
+The manager implements `_input`, `_shortcut_input`, `_unhandled_key_input`, and `_unhandled_input`. Each pass calls the link tree's walk for that callback. The walk starts at the front. A callback marks the viewport handled to stop the pass.
 
 ### Merged map
 
-A forward walk of the same order merges each active layer's `CustomInputMap`. A later layer overwrites an action of the same name. This merge is its own cache. Delivery reads that finished table. `request_rebuild` coalesces into one deferred rebuild when a contributing layer is added, removed, activated, or its map changes.
+The link tree merges each active layer's `CustomInputMap`. A name the front of the walk wrote stays. Delivery reads that finished table. `request_rebuild` coalesces into one deferred rebuild when a contributing layer is added, removed, activated, or its map changes.
 
 ### Edits during a pass
 
@@ -34,4 +34,4 @@ A handler may mount a layer while an event is still being delivered. That change
 
 ## Lifecycle
 
-Mount and unmount are `add_responder`, `remove_responder`, and `pop_responder`. The layer object stays with its owner. Context, UI, and agents own going back.
+Mount and unmount are `add_responder` and `remove_responder`. The layer record stays with its owner. Context, UI, and agents own going back.

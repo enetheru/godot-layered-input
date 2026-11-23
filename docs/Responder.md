@@ -1,6 +1,6 @@
 # Responder
 
-A responder is one layer in the input branch. [[InputManager]] owns the branch and is the node the viewport calls. [[EditorPlugin]] authors the maps. This branch is where the layers live.
+A responder is one layer in the link tree. [[InputManager]] owns that tree and is the node the viewport calls. [[EditorPlugin]] authors the maps. The layer record is where the map and the callbacks live.
 
 ## Delegation
 

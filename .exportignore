@@ -11,9 +11,6 @@ export_plugin.gd.uid
 # Headless smoke / tests
 test/
 
-# Link tree (test preload; export keeps systems/ and ui/)
-link_tree/
-
 # Docs
 README.md
 docs/

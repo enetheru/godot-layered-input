@@ -8,7 +8,7 @@ The project turns this side on by adding an autoload named `InputManager` whose 
 
 ## Layers
 
-[[InputManager]] is the one node the viewport calls. A [[Responder]] is one layer on the branch that node owns. While a layer is active it contributes one [[CustomInputMap]], and each row of that map is an [[InputAction]]. The layer is how a context changes what a key means on Godot's single action table. The manager walks the active layers, merges those maps, and writes the result onto `InputMap`.
+[[InputManager]] is the one node the viewport calls. It owns a link tree. A link responder is one layer on that tree. While a layer is active it contributes one [[CustomInputMap]], and each row of that map is an [[InputAction]]. The layer is how a context changes what a key means on Godot's single action table. The tree merges those maps and writes the result onto `InputMap`.
 
 ## Stock map
 
@@ -18,7 +18,7 @@ The autoload also reads the engine `InputMap` once, before the first rebuild. Th
 
 ## Where the layers sit
 
-Today each layer is still a child node, so adding and removing one pays SceneTree enter and exit. [[InputManager]] and [[Responder]] describe the branch being built. The manager stays the one node in Godot's tree, layers live in a packed list, merge walks that list forward, and delivery walks it backward. The work list for that move is `agent_knowledge/ReplaceSceneTree/responder.md`.
+The autoload is the one node in Godot's tree. Each layer is a link responder in that tree's parent and child lists. Merge reads the front-to-back walk. Dispatch calls that same walk and stops when the viewport is handled.
 
 ## Files
 

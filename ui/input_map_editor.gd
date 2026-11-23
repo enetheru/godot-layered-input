@@ -12,7 +12,7 @@ extends PanelContainer
 ##
 ## Port of Godot's `ActionMapEditor` (editor/settings/action_map_editor.*).
 ## Binds to [InputManager] by default:
-##[br] • Root — editable map on [code]responder_root[/code]
+##[br] • Root — editable map on the link tree root
 ##[br] • Effective — read-only merge currently applied to the engine
 ##[br] • Loaded — read-only hierarchy of every responder contribution
 ##[br][br]
@@ -689,8 +689,8 @@ func _refresh_tree() -> void:
 		var parent:TreeItem = root
 		if multi_section or not _show_root:
 			parent = _make_section_item(root, "Loaded Actions (read-only)", &"section_loaded")
-		var responder_root:Responder = _get_responder_root()
-		if responder_root:
+		var responder_root:Object = _get_responder_root()
+		if responder_root != null:
 			_populate_responder_branch(
 					parent,
 					responder_root,
@@ -1076,52 +1076,62 @@ func _populate_map_actions(
 
 func _populate_responder_branch(
 		parent:TreeItem,
-		responder:Responder,
+		record:Object,
 		key_prefix:String,
 		collapsed:Dictionary,
 		selected_key:String,
 		selected_col:int
 ) -> void:
-	var node_key:String = "%s/%s" % [key_prefix, responder.name]
+	var node_key:String = "%s/%d" % [key_prefix, record.get_instance_id()]
 	var node_item:TreeItem = action_tree.create_item( parent )
-	var label:String = String( responder.name )
-	if not responder.active:
+	var active_value:Variant = record.get( &"active" )
+	var active:bool = active_value == true
+	var loaded:Variant = record.get( &"input_map" )
+	var input_map:CustomInputMap = null
+	if loaded is CustomInputMap:
+		input_map = loaded
+	var label:String = "layer"
+	if not active:
 		label += " (inactive)"
-	if responder.input_map == null:
+	if input_map == null:
 		label += " — no map"
-	elif not responder.contributes_map():
-		label += " — not contributing"
+	else:
+		var contributes:Variant = record.call( &"contributes_map" )
+		if contributes != true:
+			label += " — not contributing"
 	node_item.set_text( Column.ACTION, label )
 	node_item.set_meta( &"__responder", true )
 	node_item.set_meta( &"__select_key", node_key )
-	if responder.input_map != null:
-		node_item.set_meta( &"__map", responder.input_map )
+	if input_map != null:
+		node_item.set_meta( &"__map", input_map )
 	node_item.collapsed = collapsed.get( node_key, false )
 	node_item.set_custom_color( Column.ACTION, Color( 0.85, 0.85, 0.7 ) )
 
-	if responder.input_map != null:
+	if input_map != null:
 		_populate_map_actions(
 				node_item,
-				responder.input_map,
+				input_map,
 				false,
 				node_key,
 				collapsed,
 				selected_key,
 				selected_col,
-				responder.input_map
+				input_map
 		)
 
-	for child:Node in responder.get_children():
-		if child is Responder:
-			var child_resp:Responder = child
-			_populate_responder_branch(
-					node_item,
-					child_resp,
-					node_key,
-					collapsed,
-					selected_key,
-					selected_col
-			)
+	var children:Array = record.get( &"children" )
+	for child:Variant in children:
+		var next:Object = child
+		if next == null:
+			continue
+		_populate_responder_branch(
+				node_item,
+				next,
+				node_key,
+				collapsed,
+				selected_key,
+				selected_col
+		)
 
 
 func _add_action_item(
@@ -1412,9 +1422,12 @@ func _get_target_map() -> CustomInputMap:
 		return opened[0]
 	if resource_edit_mode:
 		return null
-	var rr:Responder = _get_responder_root()
-	if rr != null and rr.input_map != null:
-		return rr.input_map
+	var rr:Object = _get_responder_root()
+	if rr == null:
+		return null
+	var loaded:Variant = rr.get( &"input_map" )
+	if loaded is CustomInputMap:
+		return loaded
 	return null
 
 
@@ -1512,10 +1525,13 @@ func _submit_new_action( action_name:String ) -> void:
 #   ██ ██   ████ ██       ██████     ██        ██      ██  ██████  ██   ██     #
 func                        ________INPUT_MGR________              ()->void:pass
 
-func _get_responder_root() -> Responder:
+func _get_responder_root() -> Object:
 	if Engine.is_editor_hint() or not is_instance_valid(input_manager):
 		return null
-	return input_manager.responder_root
+	var link:Object = input_manager.get( &"tree" )
+	if link == null:
+		return null
+	return link.get( &"root" )
 
 
 ## After a panel mutation: refresh the tree and mark the map dirty for save.
@@ -1535,9 +1551,10 @@ func _host_refresh(
 		map.apply_to_engine()
 	# Runtime only: rebuild merged engine map when we edited the live root layer.
 	if not resource_edit_mode and not Engine.is_editor_hint():
-		var rr:Responder = _get_responder_root()
+		var rr:Object = _get_responder_root()
 		if rr != null and is_instance_valid(input_manager):
-			if map == rr.input_map or edit_map == null:
+			var loaded:Variant = rr.get( &"input_map" )
+			if loaded == map or edit_map == null:
 				input_manager.request_rebuild()
 	# Skip self-driven changed → refresh while we rebuild the tree + dirty list.
 	_host_mutating = true

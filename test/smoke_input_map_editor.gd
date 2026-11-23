@@ -19,8 +19,8 @@ func _ready() -> void:
 			_has_global_class( &"CustomInputMap" ) )
 	failed += _check( "global class InputAction",
 			_has_global_class( &"InputAction" ) )
-	failed += _check( "global class Responder",
-			_has_global_class( &"Responder" ) )
+	failed += _check( "link tree script",
+			ResourceLoader.exists( "res://addons/enetheru.layered-input/systems/responder_tree.gd" ) )
 	failed += _check( "global class _InputManager",
 			_has_global_class( &"_InputManager" ) )
 
@@ -113,8 +113,8 @@ func _ready() -> void:
 	var im:Node = get_node_or_null( "/root/InputManager" )
 	failed += _check( "InputManager autoload present", is_instance_valid( im ) )
 	if is_instance_valid( im ):
-		failed += _check( "InputManager.responder_root",
-				im.get( &"responder_root" ) != null )
+		failed += _check( "InputManager.link tree",
+				im.get( &"tree" ) != null )
 		failed += _check( "InputManager has request_rebuild",
 				im.has_method( &"request_rebuild" ) )
 		var default_from_mgr:Variant = im.call( &"get_default_input_map" )

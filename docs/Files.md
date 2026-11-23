@@ -9,8 +9,9 @@ What a running game loads, through the autoload [[InputManager]].
 | `systems/custom_input_map.gd` | Defines [[CustomInputMap]], one layer's action table. |
 | `systems/input_action.gd` | Defines [[InputAction]], the deadzone and the events for one action name. |
 | `systems/input_manager.gd` | Defines `_InputManager`, the autoload. The note is [[InputManager]]. |
-| `systems/responder.gd` | Defines [[Responder]], one layer. |
-| `settings/default_input_map.tres` | The stock [[CustomInputMap]] for the root [[Responder]]. |
+| `systems/responder_tree.gd` | The responder tree. It merges the layers and dispatches the four input passes. |
+| `systems/responder.gd` | One layer record. It holds the map, the active flag, and the four callbacks. |
+| `settings/default_input_map.tres` | The stock [[CustomInputMap]] for the link root. |
 
 ## EditorPlugin
 

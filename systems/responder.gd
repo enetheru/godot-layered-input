@@ -1,22 +1,16 @@
-@abstract
-class_name Responder
-extends Node
+extends RefCounted
 
-##[codeblock]
-##│ ___                          _
-##│| _ \___ ____ __  ___ _ _  __| |___ _ _
-##│|   / -_|_-< '_ \/ _ \ ' \/ _` / -_) '_|
-##│|_|_\___/__/ .__/\___/_||_\__,_\___|_|
-##╰───────────|_|────────────────────────────
-##[/codeblock]Node in the [input_manager] responder tree.
+##[codeblock lang=text]
+##│ _    _      _                                  _
+##│| |  (_)_ _ | |__  _ _ ___ ____ __  ___ _ _  __| |___ _ _
+##│| |__| | ' \| / / | '_/ -_|_-< '_ \/ _ \ ' \/ _` / -_) '_|
+##│|____|_|_||_|_\_\ |_| \___/__/ .__/\___/_||_\__,_\___|_|
+##╰─────────────────────────────|_|────────────────────────────
+##[/codeblock]One context's claim on what input means.
 ##
-## • [member input_map] — optional layer contributed while [member active].
-##[br]
-## • [member active] — when false, input processing is off and the map is
-##   excluded from the merged engine [InputMap].
-##[br][color=goldenrod]TODO[/color]:Document how game code should mount
-## responders — defer until the plugin API is more mature (would need a rewrite
-## if written too early).
+## The fields are input_map, active, the four callback callables, parent, children, and the walk tree.
+##[br][br]
+## contributes_map() reports active with input_map set.
 
 
 # ██████  ██████   ██████  ██████  ███████ ██████  ████████ ██ ███████ ███████ #
@@ -26,27 +20,42 @@ extends Node
 # ██      ██   ██  ██████  ██      ███████ ██   ██    ██    ██ ███████ ███████ #
 func                        ________PROPERTIES_______              ()->void:pass
 
-## Layer contributed to the merged InputMap while this responder is active.
-@export var input_map:CustomInputMap:
+## CustomInputMap this responder contributes.
+var input_map:CustomInputMap:
 	set = set_input_map
 
-## When false: no `_input*` callbacks and no map contribution.
-@export var active:bool = true:
+## Process flag. Walk membership and [method contributes_map] read it.
+var active:bool = true:
 	set = set_active
 
-## The InputManager this Responder belongs to, often an autoload.
-var input_manager:_InputManager
+## Callable for the pass before the GUI. It takes the [InputEvent].
+## An empty callable stays off that walk. Filling or clearing rewrites it.
+var _input:Callable:
+	set = set_input_callback
 
-#      ██████  ██    ██ ███████ ██████  ██████  ██ ██████  ███████ ███████     #
-#     ██    ██ ██    ██ ██      ██   ██ ██   ██ ██ ██   ██ ██      ██          #
-#     ██    ██ ██    ██ █████   ██████  ██████  ██ ██   ██ █████   ███████     #
-#     ██    ██  ██  ██  ██      ██   ██ ██   ██ ██ ██   ██ ██           ██     #
-#      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
-func                        ________OVERRIDES________              ()->void:pass
+## Callable for the pass after the GUI for a key, a shortcut, or a joypad button.
+## An empty callable stays off that walk. Filling or clearing rewrites it.
+var _shortcut_input:Callable:
+	set = set_shortcut_input
 
-## Apply process flags from [member active] when entering the tree.
-func _enter_tree() -> void:
-	_sync_process_flags()
+## Callable for a key still unhandled after the shortcut pass.
+## An empty callable stays off that walk. Filling or clearing rewrites it.
+var _unhandled_key_input:Callable:
+	set = set_unhandled_key_input
+
+## Callable for an event still left after the key pass.
+## An empty callable stays off that walk. Filling or clearing rewrites it.
+var _unhandled_input:Callable:
+	set = set_unhandled_input
+
+## Responder this one is linked under. The root keeps this empty.
+var parent:RefCounted
+
+## Child responders, first to last. [method add_responder] appends.
+var children:Array[RefCounted] = []
+
+## Tree that stores the walks while this record is linked there.
+var _tree:RefCounted
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -56,112 +65,187 @@ func _enter_tree() -> void:
 #         ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████         #
 func                        _________METHODS_________              ()->void:pass
 
-## Property setter for [member input_map]; rebuilds when contribution changes.
+## Writes the map when [param value] differs from the current map.
+## Requests a rebuild when the contribution changes.
 func set_input_map( value:CustomInputMap ) -> void:
 	if input_map == value:
 		return
+
 	var was_contributing:bool = contributes_map()
 	input_map = value
 	if was_contributing or contributes_map():
-		_notify_map_dirty()
+		_request_map()
 
 
-## Property setter for [member active]; toggles process flags and map contribution.
+## Writes the process flag when [param value] differs from the current flag.
+## Each filled slot's walk is rewritten from the tree.
 func set_active( value:bool ) -> void:
 	if active == value:
 		return
+
 	var was_contributing:bool = contributes_map()
 	active = value
-	_sync_process_flags()
+	_notify_record()
 	if was_contributing or contributes_map():
-		_notify_map_dirty()
+		_request_map()
 
 
-## True when this node should contribute its [member input_map] to the merge.
+## Writes [param value] and rewrites the input walk when the slot gains or loses its callable.
+func set_input_callback( value:Callable ) -> void:
+	if _input == value:
+		return
+	var was_filled:bool = _input.is_valid()
+	_input = value
+	if was_filled == _input.is_valid():
+		return
+	_notify_walk( &"_input" )
+
+
+## Writes [param value] and rewrites the shortcut walk when the slot gains or loses its callable.
+func set_shortcut_input( value:Callable ) -> void:
+	if _shortcut_input == value:
+		return
+	var was_filled:bool = _shortcut_input.is_valid()
+	_shortcut_input = value
+	if was_filled == _shortcut_input.is_valid():
+		return
+	_notify_walk( &"_shortcut_input" )
+
+
+## Writes [param value] and rewrites the key walk when the slot gains or loses its callable.
+func set_unhandled_key_input( value:Callable ) -> void:
+	if _unhandled_key_input == value:
+		return
+	var was_filled:bool = _unhandled_key_input.is_valid()
+	_unhandled_key_input = value
+	if was_filled == _unhandled_key_input.is_valid():
+		return
+	_notify_walk( &"_unhandled_key_input" )
+
+
+## Writes [param value] and rewrites the unhandled walk when the slot gains or loses its callable.
+func set_unhandled_input( value:Callable ) -> void:
+	if _unhandled_input == value:
+		return
+	var was_filled:bool = _unhandled_input.is_valid()
+	_unhandled_input = value
+	if was_filled == _unhandled_input.is_valid():
+		return
+	_notify_walk( &"_unhandled_input" )
+
+
+func _notify_walk( slot:StringName ) -> void:
+	if _tree == null:
+		return
+	_tree.call( &"_rebuild_walk", slot )
+
+
+func _notify_record() -> void:
+	if _tree == null:
+		return
+	_tree.call( &"_rebuild_record", self )
+
+
+func _request_map() -> void:
+	if _tree == null:
+		return
+	_tree.call( &"request_rebuild" )
+
+
+## True when [member active] is set and [member input_map] is set.
 func contributes_map() -> bool:
 	return active and input_map != null
 
 
-## Add a responder node to this branch. Does not free or replace existing
-## siblings. Requests a map rebuild when the new branch can contribute layers.
-func add_responder( node:Responder ) -> void:
-	if not is_instance_valid( node ):
-		push_warning( "Responder.add_responder: invalid node" )
+#region Children
+#MARK: Children
+func                        __Children_______________              ()->void:pass
+# │  ___ _    _ _    _
+# │ / __| |_ (_) |__| |_ _ ___ _ _
+# │| (__| ' \| | / _` | '_/ -_) ' \
+# │ \___|_||_|_|_\__,_|_| \___|_||_|
+# ╰──────────────────────────────────
+
+## Appends [param record] as the last child.
+func add_responder( record:Variant ) -> void:
+	if not _is_record( record ):
+		push_warning( "Responder.add_responder: record is missing or uses another script" )
 		return
-	if node.get_parent() == self:
+	var other:Object = record
+	if other == self:
+		push_warning( "Responder.add_responder: record is this responder" )
 		return
-	if is_instance_valid( node.get_parent() ):
-		push_warning( "Responder.add_responder: node already has a parent" )
+	if other.get( &"parent" ) == self:
 		return
-	var affects:bool = _branch_affects_map( node )
-	add_child( node )
-	if affects:
-		_request_rebuild()
+	if other.get( &"parent" ) != null:
+		push_warning( "Responder.add_responder: record already has a parent" )
+		return
+	if other.get( &"_tree" ) != null:
+		push_warning( "Responder.add_responder: record is held by a tree" )
+		return
+
+	other.set( &"parent", self )
+	children.append( other as RefCounted )
+	if _tree == null:
+		return
+	_bind_tree( other, _tree )
+	_request_branch( _tree, other )
 
 
-## Detach [param node] from this branch without freeing it. Rebuilds when the
-## detached branch could have contributed to the merged map.
-func remove_responder( node:Responder ) -> void:
-	if not is_instance_valid( node ) or node.get_parent() != self:
+## Detaches [param record] when this responder is its parent. The caller keeps the record.
+func remove_responder( record:Variant ) -> void:
+	if not _is_record( record ):
 		return
-	var affects:bool = _branch_affects_map( node )
-	remove_child( node )
-	if affects:
-		_request_rebuild()
+	var other:Object = record
+	if other.get( &"parent" ) != self:
+		return
+
+	var owner:RefCounted = _tree
+	other.set( &"parent", null )
+	children.erase( other as RefCounted )
+	_unbind_tree( other )
+	_request_branch( owner, other )
 
 
-## Detach and return the last child [Responder] (does not free). [code]null[/code]
-## if this node has no children or the last child is not a [Responder].
-func pop_responder() -> Responder:
-	var layers:Array[Node] = get_children()
-	if layers.is_empty():
+## Detaches and returns the last child. Returns null when [member children] is empty.
+func pop_responder() -> RefCounted:
+	if children.is_empty():
 		return null
-	# Typed assign after `is` still emits UNSAFE_CAST; `as` is the safe form.
-	var node:Responder = layers[-1] as Responder
-	if not is_instance_valid( node ):
-		return null
-	var affects:bool = _branch_affects_map( node )
-	remove_child( node )
+
+	var record:RefCounted = children[-1]
+	remove_responder( record )
+	return record
+
+
+func _request_branch( owner:RefCounted, branch:Object ) -> void:
+	if owner == null:
+		return
+	owner.call( &"_rebuild_branch", branch )
+	var affects:bool = owner.call( &"branch_affects_map", branch )
 	if affects:
-		_request_rebuild()
-	return node
+		owner.call( &"request_rebuild" )
 
 
-#       ██ ███    ██ ████████ ███████ ██████  ███    ██  █████  ██             #
-#       ██ ████   ██    ██    ██      ██   ██ ████   ██ ██   ██ ██             #
-#       ██ ██ ██  ██    ██    █████   ██████  ██ ██  ██ ███████ ██             #
-#       ██ ██  ██ ██    ██    ██      ██   ██ ██  ██ ██ ██   ██ ██             #
-#       ██ ██   ████    ██    ███████ ██   ██ ██   ████ ██   ██ ███████        #
-func                        ________INTERNAL_________              ()->void:pass
-
-func _sync_process_flags() -> void:
-	set_process_input( active )
-	set_process_unhandled_input( active )
-	set_process_unhandled_key_input( active )
+func _is_record( record:Variant ) -> bool:
+	if not is_instance_valid( record ):
+		return false
+	var other:Object = record
+	return other.get_script() == get_script()
 
 
-func _notify_map_dirty() -> void:
-	if not is_inside_tree():
-		return
-	_request_rebuild()
+func _bind_tree( record:Object, tree:RefCounted ) -> void:
+	record.set( &"_tree", tree )
+	var kids:Array = record.get( &"children" )
+	for child:Variant in kids:
+		var next:Object = child
+		_bind_tree( next, tree )
 
 
-func _request_rebuild() -> void:
-	# Autoload can be a placeholder while the editor plugin reloads.
-	if not is_instance_valid( input_manager ):
-		return
-	if not input_manager.has_method( &"request_rebuild" ):
-		return
-	input_manager.request_rebuild()
+func _unbind_tree( record:Object ) -> void:
+	record.set( &"_tree", null )
+	var kids:Array = record.get( &"children" )
+	for child:Variant in kids:
+		var next:Object = child
+		_unbind_tree( next )
 
-
-# Whether this node or a descendant can change the merged engine map.
-func _branch_affects_map( node:Node ) -> bool:
-	if is_instance_valid( input_manager ) \
-	and input_manager.has_method( &"branch_affects_map" ):
-		return input_manager.branch_affects_map( node )
-	# Fallback before autoload is ready: local contribution only.
-	if node is Responder:
-		var responder:Responder = node
-		return responder.contributes_map()
-	return false
+#endregion Children
