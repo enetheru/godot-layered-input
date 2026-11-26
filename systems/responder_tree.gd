@@ -98,8 +98,14 @@ func add_responder( record:Responder ) -> void:
 
 
 ## Detaches [param record] from its parent.
+## When [param record] has no tree, the call warns and returns.
 func remove_responder( record:Responder ) -> void:
 	assert( record != root, "ResponderTree.remove_responder: record is the root" )
+	# A hide can ask before add has linked the record.
+	if not is_instance_valid( record._tree ):
+		push_warning( "ResponderTree.remove_responder: record is not in a tree" )
+		return
+
 	record.parent.remove_responder( record )
 
 
