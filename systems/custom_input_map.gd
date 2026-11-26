@@ -55,16 +55,10 @@ static var _engine_baseline:CustomInputMap
 #      ██████    ████   ███████ ██   ██ ██   ██ ██ ██████  ███████ ███████     #
 func                        ________OVERRIDES________              ()->void:pass
 
-## No useful factory default for [member _actions] (empty dict would wipe the
-## map). Disable inspector revert for that property.
-func _property_can_revert( property:StringName ) -> bool:
-	if property == &"_actions":
-		return false
+## The inspector has no revert on this map. [member _actions] would otherwise
+## revert to an empty dictionary and wipe the layer.
+func _property_can_revert( _property:StringName ) -> bool:
 	return false
-
-
-func _property_get_revert( _property:StringName ) -> Variant:
-	return null
 
 
 #         ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████         #
@@ -509,6 +503,50 @@ func install( source:CustomInputMap, overwrite:bool = true ) -> void:
 	_actions = next
 
 
+## Stores one row from [param source_action].
+## [br][param share] keeps that action's event objects. A gameplay row stores the
+## cached duplicates instead, and those duplicates stay while the source action
+## still holds the same event objects.
+## [br]An existing row with the same deadzone and the same event objects stays,
+## so a later compose does not allocate it again.
+## [br]Returns true when the stored row changes. A null [param source_action] stores
+## a null placeholder.
+func project_action(
+		action_name:StringName,
+		source_action:InputAction,
+		share:bool ) -> bool:
+	var deadzone:float = DEFAULT_DEADZONE
+	var wanted:Array[InputEvent] = []
+	if source_action != null:
+		deadzone = source_action.deadzone
+		if share:
+			wanted = source_action.events
+		else:
+			wanted = _cached_events( source_action )
+
+	if _actions.has( action_name ):
+		var existing:InputAction = _actions[action_name]
+		if source_action == null:
+			if existing == null:
+				return false
+		elif existing != null \
+				and is_equal_approx( existing.deadzone, deadzone ) \
+				and _same_event_objects( existing.events, wanted ):
+			return false
+
+	if source_action == null:
+		_actions[action_name] = null
+		return true
+	_actions[action_name] = InputAction.new( deadzone, wanted )
+	return true
+
+
+## Drops [param action_name] without clearing its events.
+## A shared row's events still belong to the source map.
+func release_action( action_name:StringName ) -> void:
+	var _gone:bool = _actions.erase( action_name )
+
+
 ## New map: this map with [param other] folded in (same shape as [method Dictionary.merged]).
 func merged( other:CustomInputMap, overwrite:bool = true ) -> CustomInputMap:
 	var out:CustomInputMap = duplicate_map()
@@ -574,34 +612,43 @@ static func engine_baseline() -> CustomInputMap:
 ## placeholders ensure the action exists with [constant DEFAULT_DEADZONE].
 func apply_to_engine( do_merge:bool = false ) -> void:
 	for action_name:StringName in _actions:
-		var ia:InputAction = _actions[action_name]
-		if do_merge:
-			_merge_action_into_engine( action_name, ia )
-			continue
-		var matches:bool = false
-		if InputMap.has_action( action_name ):
-			var want_deadzone:float = (
-					ia.deadzone if is_instance_valid( ia ) else DEFAULT_DEADZONE )
-			if is_equal_approx(
-					InputMap.action_get_deadzone( action_name ), want_deadzone ):
-				var live:Array[InputEvent] = InputMap.action_get_events( action_name )
-				if is_instance_valid( ia ):
-					matches = _same_event_objects( ia.events, live )
-				else:
-					matches = live.is_empty()
-		if matches:
-			continue
-		if InputMap.has_action( action_name ):
-			InputMap.erase_action( action_name )
-		if not is_instance_valid( ia ):
-			InputMap.add_action( action_name, DEFAULT_DEADZONE )
-			continue
-		InputMap.add_action( action_name, ia.deadzone )
-		var evs:Array[InputEvent] = ia.events
-		for i:int in evs.size():
-			var ie:InputEvent = evs[i]
-			if is_instance_valid( ie ):
-				InputMap.action_add_event( action_name, ie )
+		apply_action( action_name, do_merge )
+
+
+## Writes one name to the engine [InputMap].
+## [br]A name whose deadzone and event objects already match is left in place.
+## Missing names are skipped. [param do_merge] appends events instead of replacing the name.
+func apply_action( action_name:StringName, do_merge:bool = false ) -> void:
+	if not _actions.has( action_name ):
+		return
+	var ia:InputAction = _actions[action_name]
+	if do_merge:
+		_merge_action_into_engine( action_name, ia )
+		return
+	var matches:bool = false
+	if InputMap.has_action( action_name ):
+		var want_deadzone:float = (
+				ia.deadzone if is_instance_valid( ia ) else DEFAULT_DEADZONE )
+		if is_equal_approx(
+				InputMap.action_get_deadzone( action_name ), want_deadzone ):
+			var live:Array[InputEvent] = InputMap.action_get_events( action_name )
+			if is_instance_valid( ia ):
+				matches = _same_event_objects( ia.events, live )
+			else:
+				matches = live.is_empty()
+	if matches:
+		return
+	if InputMap.has_action( action_name ):
+		InputMap.erase_action( action_name )
+	if not is_instance_valid( ia ):
+		InputMap.add_action( action_name, DEFAULT_DEADZONE )
+		return
+	InputMap.add_action( action_name, ia.deadzone )
+	var evs:Array[InputEvent] = ia.events
+	for i:int in evs.size():
+		var ie:InputEvent = evs[i]
+		if is_instance_valid( ie ):
+			InputMap.action_add_event( action_name, ie )
 
 
 # Keep existing engine events; update deadzone and append missing events.

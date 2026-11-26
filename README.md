@@ -16,23 +16,20 @@ the `SceneTree`.
 So I created an `InputManager` auto load, ensured it was the last child or the root
 and that guarantees that it will process events before the rest of the tree.
 
-The `InputManager` has a `Responder` node child which is a root node of a tree of
-`Responder` nodes.
+The `InputManager` holds a `ResponderTree`. The root of that tree is a
+`Responder`, and the other responders hang under it. They are records, not
+nodes in the scene.
 
-Each `Responder` node has a reference to a `CustomInputMap` resource
+Each `Responder` has a reference to a `CustomInputMap` resource
 
 The `CustomInputMap` resource contains a dictionary of action names, and
 `InputAction` resources. which is a 1:1 representation of what the editor provides.
 
 ## How it works:
 
-On initialisation, and when the tree is modified, the `InputManager` walks the
-responder-tree merging the `CustomInputMaps` and then replaces the actions in
-the engines `InputMap` singleton. Structural ops (`add_responder` /
-`remove_responder` / `pop_responder`) and map contribution changes
-(`input_map`, `active`) flag a deferred rebuild when they can affect the merge.
-There is no snapshot undo on the tree — callers own layer lifetime (context,
-UI, agents).
+When a responder is added or removed, or its map or active flag changes the
+merge, the tree rebuilds once at idle and writes the actions onto the engine
+`InputMap`. Callers own layer lifetime (context, UI, agents).
 
 > [!NOTE] It's important to note that any nodes processing input must only reference
 actions which are valid, or errors will be recevied in the console.
@@ -41,8 +38,8 @@ This gives us a layerable input map which is easily modifiable ar runtime by
 re-arranging and managing the responder-tree.
 
 Where this de-couples from the main scene tree is that because the `InputManager` is
-the last child, it's input processing comes first, so delegating input functionality
-to `Responder` node overrides handles the input before it reaches the main tree.
+the last child, its input processing comes first. The tree calls each responder's
+callbacks before the event reaches the rest of the scene.
 
 At the moment I tend to make my `Responder` overrides extra simple, and keep a
 priority list of delegates to forward input to, which keeps the input handling code

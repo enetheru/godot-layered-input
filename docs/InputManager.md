@@ -22,15 +22,15 @@ The manager holds the layer tree and projects it onto the engine `InputMap`. Dom
 
 ### Delivery
 
-The manager implements `_input`, `_shortcut_input`, `_unhandled_key_input`, and `_unhandled_input`. Each pass calls the link tree's walk for that callback. The walk starts at the front. A callback marks the viewport handled to stop the pass.
+The manager implements `_input`, `_shortcut_input`, `_unhandled_key_input`, and `_unhandled_input`, in the order Godot already uses, so a caller meets the names they know. `_input` runs before the GUI. `_shortcut_input` runs after it for a key, a shortcut, or a joypad button. `_unhandled_key_input` runs for a key that is still unhandled. `_unhandled_input` runs for anything still left. Each pass calls the tree's walk for that callback. The walk starts at the front, because the last child was stored at the far end of the parent list and the walk reads that list backwards. A callback marks the viewport handled to stop the pass. The remaining callables stay in the copy this event started with.
 
 ### Merged map
 
-The link tree merges each active layer's `CustomInputMap`. A name the front of the walk wrote stays. Delivery reads that finished table. `request_rebuild` coalesces into one deferred rebuild when a contributing layer is added, removed, activated, or its map changes.
+The link tree reads each contributing layer's `CustomInputMap` from that same front. A name the front wrote stays, so a later layer's row for that name is left unread. That skip is the work a second copy would throw away. A stock row shares the stock map's events, so a later compose does not duplicate them. A gameplay row keeps its copy while the source events stay the same. Adding, removing, activating, or swapping a layer patches the names that layer owns, and those edits in one frame land as one table. Delivery and `Input.get_vector` read the table the engine was given.
 
 ### Edits during a pass
 
-A handler may mount a layer while an event is still being delivered. That change is queued. The order cache rebuilds when the pass returns, so the walk that is already in progress keeps the order it started with.
+A handler may mount a layer while an event is still being delivered. The stored walks rebuild at the change. The pass keeps the callables it copied at the start, so this key finishes on the tree that was current when it arrived. The map rebuild waits until idle, which is why the engine table and the walks can move on different frames.
 
 ## Lifecycle
 

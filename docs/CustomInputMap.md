@@ -26,11 +26,13 @@ A new name at the default deadzone, ahead of any events, stores `null` and retur
 
 ### merge
 
-`merge` folds another map in place. The same name is replaced wholesale. The incoming event list becomes that action, because a later layer's meaning of the name replaces the earlier one. The incoming map wins when `overwrite` is true, which is the default. The duplicated events are kept while the source action still holds those same event objects. `duplicate_map` copies the incoming map, so each layer keeps its own action.
+`merge` folds another map in place. The same name is replaced wholesale when `overwrite` is true, which is the default, so a caller who merges back-to-front lets the incoming layer win. When `overwrite` is false, a name already stored stays, and the incoming row is left unread. `refresh` recopies the dictionary for the inspector. The duplicated events are kept while the source action still holds those same event objects. `duplicate_map` copies the incoming map, so each layer keeps its own action.
+
+The tree keeps one table. `project_action` writes a single name into it. A stock map or the startup engine map shares its event objects. A gameplay map uses the cached duplicates. An existing row with the same deadzone and the same event objects stays, so the compose does not allocate that row again.
 
 ### Engine
 
-`apply_to_engine` writes each name this map contains onto the engine `InputMap`. A name whose deadzone and event objects are already on the engine is left in place. Any other name is erased and added back from this map. The rest of the engine map stays as the other layers left it. `from_engine` copies the engine map into a new resource. `alias_from_engine` keeps the engine's event objects. The autoload stores that alias at startup, and each rebuild installs the names no layer wrote.
+`apply_to_engine` writes each name this map contains onto the engine `InputMap`. A name whose deadzone and event objects are already on the engine is left in place. Any other name is erased and added back from this map. The rest of the engine map stays as the other layers left it. `from_engine` copies the engine map into a new resource. `alias_from_engine` keeps the engine's event objects. The autoload stores that alias at startup. A name no layer wrote is shared from that alias. `apply_action` writes one name, which is how a patch leaves the rest of the engine map alone.
 
 ## Authoring
 

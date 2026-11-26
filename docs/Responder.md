@@ -1,43 +1,53 @@
 # Responder
 
-A responder is one layer in the link tree. [[InputManager]] owns that tree and is the node the viewport calls. [[EditorPlugin]] authors the maps. The layer record is where the map and the callbacks live.
+A responder is one context's claim on what an input means. [[InputManager]] owns the tree and is the node the viewport calls. The scene tree stays the drawing order. This record is the order a key should see.
 
-## Delegation
+## Why a separate tree
 
-A layer delegates to one or more targets. The target stays in the world or the UI. Mounting a layer leaves the target on the node that already owns it. A priority lets one layer serve several targets. Until that field exists, sibling position is the order. Depth in the branch is how a key changes meaning.
+Godot walks `_input` from the last child of a parent back to that parent. A menu drawn on top of play already sits in that place. A key should also reach the layer the game pushed last, and that layer is often a different node from the one drawn last. The link tree stores the order the game means. The autoload stays the last child of the root so the viewport asks it first.
 
-## What it contributes
+## Links
 
-The map and the active flag are separate. Active is what puts a mounted layer into the projection.
+**parent**
+  The responder this one hangs under. The root leaves it empty. The tree holds the root.
 
-### Map
+**children**
+  The child responders, first to last. `add_responder` appends, so a layer added last is the front of its parent. The walk reads the stored order from the other end, which is why that last child sees the event first.
 
-`input_map` is the one [[CustomInputMap]] this layer contributes while it is active. Each row of that map is an [[InputAction]].
+Master order is parent, then children. A root, a play child, and an inventory child of play stand as root, play, inventory. The walk reverses that list, so inventory is index 0. A menu added as the root's last child stands in front of that whole branch, which is how a screen pushed on the root covers the play branch without a second sort.
 
-### Active
+## Callbacks
 
-Delivery and the merge include an active layer. The order cache records the shape of the branch. Active filters the walk, and toggling it leaves that cache as it is.
+The record has four callables, one for each pass the autoload receives. An empty callable leaves the responder out of that one walk. A caller fills the passes it handles and leaves the others empty. The callable may forward to a target that already lives on the world or the UI. Adding the responder leaves that target where it is.
 
-## Storage
+**_input**
+  The pass before the GUI.
 
-SceneTree keeps a parent pointer and a child list, and every walk chases those links. This branch stores layers in slots and walks a packed cache.
+**_shortcut_input**
+  The pass after the GUI, for a key, a shortcut, or a joypad button.
 
-### Slots
+**_unhandled_key_input**
+  A key that is still unhandled after the shortcut pass.
 
-Each layer is a slot. A slot id carries a generation, so a call during a pass resolves to the layer that still owns that slot.
+**_unhandled_input**
+  Anything still left after the key pass.
 
-### One order
+The tree caches each walk. Chasing parent and child links on every event would repeat the walk the last membership change already knew. Filling or clearing a slot rebuilds that one walk. `set_active` rebuilds every walk the record has filled, because the flag is membership in all four.
 
-The order cache is a contiguous list of slot ids: parent, then children, siblings from first to last. Merge walks it forward. Delivery and teardown walk the same list backward, so a child runs before its parent and a later sibling runs first.
+A pass copies the records and the callables at its start. A handler may add or remove a responder before it returns, and this event still belongs to the responders that were in front when it arrived. The next event reads the walk the handler left behind.
 
-### Subtree
+## Map
 
-A layer's descendants occupy the slice from its index through its last descendant. Asking whether a branch affects the map is a scan of that slice, which is why the descendants have to sit together.
+**input_map**
+  The one [[CustomInputMap]] this layer contributes.
 
-### Edits
+**active**
+  The process flag. `contributes_map()` is active with `input_map` set. An inactive parent stays out of the table. An active child is still visited, because that child is a context of its own.
 
-Append, erase, and a change of parent rebuild the order cache. The walk itself is an index along that array. The packed list keeps that walk on the index.
+The table reads the same front-to-back order as a walk. The front map is written first, and a name it wrote stays, including a name with no events. A menu in front can clear jump, and play's Space is left unread. A name only a layer behind defines is still written, so an action the menu never mentions keeps the binding from play.
 
-### Priority
+A row from the stock map, or from the engine map captured at startup, shares that map's events. A gameplay map stores a copy, and the copy stays while the source action still holds the same event objects. The table itself stays. An edit rewrites the names that layer owns, or used to own, and leaves the other rows where they are.
 
-When a priority field exists it changes the comparator that writes the cache. The forward and backward scans stay as they are.
+`set_active` and `set_input_map` return when the value is already current. Each remembers whether the record was contributing, and asks the tree to patch when it contributed before the write or contributes after it. An edit made before the record is linked waits, because `_tree` is empty. A frame can add a responder, silence one, and swap a map. Those edits are one meaning, so they queue a single deferred compose and the engine sees one table. `request_rebuild` still composes every name, and an unchanged stock row stays in place for that pass too.
+
+`add_responder` and `remove_responder` keep the record with the caller. The link is the parent pointer and one entry in `children`. The tree holds the root, and both calls take a child.

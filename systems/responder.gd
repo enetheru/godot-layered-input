@@ -69,19 +69,24 @@ var _tree:ResponderTree
 func                        _________METHODS_________              ()->void:pass
 
 ## Writes the map when [param value] differs from the current map.
-## Requests a rebuild when the contribution changes.
+## Patches the names the old map and the new map own when the contribution changes.
 func set_input_map( value:CustomInputMap ) -> void:
 	if input_map == value:
 		return
 
 	var was_contributing:bool = contributes_map()
+	var names:PackedStringArray = PackedStringArray()
+	if was_contributing:
+		_append_map_names( input_map, names )
 	input_map = value
+	if contributes_map():
+		_append_map_names( input_map, names )
 	if was_contributing or contributes_map():
-		_request_map()
+		_request_patch( names )
 
 
 ## Writes the process flag when [param value] differs from the current flag.
-## Each filled slot's walk is rewritten from the tree.
+## Each filled slot's walk is rewritten. A change in contribution patches that map's names.
 func set_active( value:bool ) -> void:
 	if active == value:
 		return
@@ -90,7 +95,9 @@ func set_active( value:bool ) -> void:
 	active = value
 	_notify_record()
 	if was_contributing or contributes_map():
-		_request_map()
+		var names:PackedStringArray = PackedStringArray()
+		_append_map_names( input_map, names )
+		_request_patch( names )
 
 
 ## Writes [param value] and rewrites the input walk when the slot gains or loses its callable.
@@ -149,10 +156,28 @@ func _notify_record() -> void:
 	_tree._rebuild_record( self )
 
 
-func _request_map() -> void:
-	if _tree == null:
+func _request_patch( names:PackedStringArray ) -> void:
+	if _tree == null or names.is_empty():
 		return
-	_tree.request_rebuild()
+	_tree.request_patch( names )
+
+
+func _append_map_names( map:CustomInputMap, into:PackedStringArray ) -> void:
+	if map == null:
+		return
+	for action_name:StringName in map.get_action_names():
+		if into.has( action_name ):
+			continue
+		var _added:bool = into.append( action_name )
+
+
+func _append_branch_names( record:Responder, into:PackedStringArray ) -> void:
+	if not is_instance_valid( record ):
+		return
+	if record.contributes_map():
+		_append_map_names( record.input_map, into )
+	for child:Responder in record.children:
+		_append_branch_names( child, into )
 
 
 ## True when [member active] is set and [member input_map] is set.
@@ -222,8 +247,11 @@ func _request_branch( owner:ResponderTree, branch:Responder ) -> void:
 	if owner == null:
 		return
 	owner._rebuild_branch( branch )
-	if owner.branch_affects_map( branch ):
-		owner.request_rebuild()
+	if not owner.branch_affects_map( branch ):
+		return
+	var names:PackedStringArray = PackedStringArray()
+	_append_branch_names( branch, names )
+	owner.request_patch( names )
 
 
 func _bind_tree( record:Responder, tree:ResponderTree ) -> void:
