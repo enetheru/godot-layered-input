@@ -118,53 +118,74 @@ func                        __Walks__________________              ()->void:pass
 # │  \_/\_/\__,_|_|_\_\/__/
 # ╰─────────────────────────
 
-# The next event reads this list. A membership change leaves the stored order stale.
+# An insertion has no stored index, so these walks are collected again.
+# Last child is visited first, then the record, which is the order a pass reads.
+# Each stored array is cleared and filled in place.
+func _rebuild_walks( slots:Array[StringName] ) -> void:
+	for slot:StringName in slots:
+		_walk_array( slot ).clear()
+
+	if not is_instance_valid( root ):
+		return
+
+	_collect_walks( root, slots )
+
+
+# One filled callback. The insertion case of _rebuild_walks.
 func _rebuild_walk( slot:StringName ) -> void:
-	var ordered:Array[Responder] = []
-	if is_instance_valid( root ):
-		_collect_preorder( root, slot, ordered )
-	ordered.reverse()
-
-	var walk:Array[Responder] = _walk_array( slot )
-	walk.clear()
-	walk.append_array( ordered )
+	var slots:Array[StringName] = []
+	slots.append( slot )
+	_rebuild_walks( slots )
 
 
-# The active flag is membership in every filled slot, so each of those walks is rewritten.
+# Turning a record on puts it back in every filled walk. The index comes from one collect.
 func _rebuild_record( record:Responder ) -> void:
+	var slots:Array[StringName] = []
 	for slot:StringName in CALLBACK_SLOTS:
 		if _slot_filled( record, slot ):
-			_rebuild_walk( slot )
+			slots.append( slot )
+
+	if slots.is_empty():
+		return
+
+	_rebuild_walks( slots )
 
 
-# One link change can touch several slots. Each of those walks is rewritten once.
-func _rebuild_branch( branch:Responder ) -> void:
-	var slots:Array[StringName] = []
-	_slots_in_branch( branch, slots )
+# _rebuild_walks calls this only when root is valid, after the destination walks are clear.
+func _collect_walks( record:Responder, slots:Array[StringName] ) -> void:
+	var kids:Array[Responder] = record.children
+	for index:int in range( kids.size() - 1, -1, -1 ):
+		_collect_walks( kids[index], slots )
 
 	for slot:StringName in slots:
-		_rebuild_walk( slot )
+		if _in_walk( record, slot ):
+			_walk_array( slot ).append( record )
 
 
-# _rebuild_walk calls this only when root is valid.
-# Stored order is parent, then children. The walk reverses that list, so collection has to be that order.
-func _collect_preorder( record:Responder, slot:StringName, out:Array[Responder] ) -> void:
-	if _in_walk( record, slot ):
-		out.append( record )
+# remove_responder has already cleared _tree on the detached branch.
+# Survivors stay in the stored order. The array object stays the one the passes hold.
+func _drop_unlinked( slots:Array[StringName] ) -> void:
+	for slot:StringName in slots:
+		var walk:Array[Responder] = _walk_array( slot )
+		var write:int = 0
+		for index:int in walk.size():
+			var record:Responder = walk[index]
+			if is_instance_valid( record ) and record._tree == self:
+				walk[write] = record
+				write += 1
 
-	for child:Responder in record.children:
-		_collect_preorder( child, slot, out )
+		if write != walk.size() and walk.resize( write ) != OK:
+			push_error( "ResponderTree._drop_unlinked: walk resize failed" )
 
 
-# Several records in one branch can fill the same slot. The walk is rewritten once for that slot.
-func _slots_in_branch( record:Responder, slots:Array[StringName] ) -> void:
-	if record.active:
-		for slot:StringName in CALLBACK_SLOTS:
-			if _slot_filled( record, slot ) and not slots.has( slot ):
-				slots.append( slot )
+# set_active(false) and a cleared slot drop one record. Other members stay.
+func _erase_from_walk( record:Responder, slot:StringName ) -> void:
+	var walk:Array[Responder] = _walk_array( slot )
+	var index:int = walk.find( record )
+	if index < 0:
+		return
 
-	for child:Responder in record.children:
-		_slots_in_branch( child, slots )
+	walk.remove_at( index )
 
 
 # An inactive record, or an empty slot, is not a member of the pass.
@@ -215,9 +236,9 @@ func request_rebuild() -> void:
 		_schedule()
 
 
-## Queues one deferred rewrite of [param names].
+## Queues one deferred rewrite of the keys in [param names].
 ## A full rebuild already queued covers those names.
-func request_patch( names:PackedStringArray ) -> void:
+func request_patch( names:Dictionary[StringName, bool] ) -> void:
 	if _full or names.is_empty():
 		return
 
@@ -237,21 +258,6 @@ func request_patch( names:PackedStringArray ) -> void:
 func until_rebuilt() -> void:
 	while _want_rebuild or _rebuilding:
 		await rebuild_finished
-
-
-## True when [param record] or a descendant contributes a map.
-func branch_affects_map( record:Responder ) -> bool:
-	if not is_instance_valid( record ):
-		return false
-
-	if record.contributes_map():
-		return true
-
-	for child:Responder in record.children:
-		if branch_affects_map( child ):
-			return true
-
-	return false
 
 
 # Callers return when _want_rebuild is already set, so this is entered once per queued compose.

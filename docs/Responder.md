@@ -32,7 +32,7 @@ The record has four callables, one for each pass the autoload receives. An empty
 **_unhandled_input**
   Anything still left after the key pass.
 
-The tree caches each walk. Chasing parent and child links on every event would repeat the walk the last membership change already knew. Filling or clearing a slot rebuilds that one walk. `set_active` rebuilds every walk the record has filled, because the flag is membership in all four.
+The tree caches each walk. Chasing parent and child links on every event would repeat the walk the last membership change already knew. Filling a slot, turning a record on, or adding a branch rebuilds the walks those records join, because the cache has no index for an insertion. Clearing a slot, turning a record off, or removing a branch erases those records from the cached walks and leaves the others in order.
 
 A pass copies the records and the callables at its start. A handler may add or remove a responder before it returns, and this event still belongs to the responders that were in front when it arrived. The next event reads the walk the handler left behind.
 

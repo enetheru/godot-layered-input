@@ -32,22 +32,22 @@ var active:bool = true:
 	set = set_active
 
 ## Callable for the pass before the GUI. It takes the [InputEvent].
-## An empty callable stays off that walk. Filling or clearing rewrites it.
+## An empty callable stays off that walk. Filling it rebuilds the walk. Clearing it erases this record.
 var _input:Callable:
 	set = set_input_callback
 
 ## Callable for the pass after the GUI for a key, a shortcut, or a joypad button.
-## An empty callable stays off that walk. Filling or clearing rewrites it.
+## An empty callable stays off that walk. Filling it rebuilds the walk. Clearing it erases this record.
 var _shortcut_input:Callable:
 	set = set_shortcut_input
 
 ## Callable for a key still unhandled after the shortcut pass.
-## An empty callable stays off that walk. Filling or clearing rewrites it.
+## An empty callable stays off that walk. Filling it rebuilds the walk. Clearing it erases this record.
 var _unhandled_key_input:Callable:
 	set = set_unhandled_key_input
 
 ## Callable for an event still left after the key pass.
-## An empty callable stays off that walk. Filling or clearing rewrites it.
+## An empty callable stays off that walk. Filling it rebuilds the walk. Clearing it erases this record.
 var _unhandled_input:Callable:
 	set = set_unhandled_input
 
@@ -75,79 +75,103 @@ func set_input_map( value:CustomInputMap ) -> void:
 		return
 
 	var was_contributing:bool = contributes_map()
-	var names:PackedStringArray = PackedStringArray()
+	var names:Dictionary[StringName, bool] = {}
 	if was_contributing:
 		_append_map_names( input_map, names )
+
 	input_map = value
 	if contributes_map():
 		_append_map_names( input_map, names )
+
 	if was_contributing or contributes_map():
-		_request_patch( names )
+		_deliver_patch( _tree, names )
 
 
 ## Writes the process flag when [param value] differs from the current flag.
-## Each filled slot's walk is rewritten. A change in contribution patches that map's names.
+## Turning the record on rebuilds each filled walk. Turning it off erases the record from those walks.
+## A change in contribution patches that map's names.
 func set_active( value:bool ) -> void:
 	if active == value:
 		return
 
 	var was_contributing:bool = contributes_map()
 	active = value
-	_notify_record()
+	if active:
+		_notify_record()
+	else:
+		_erase_filled_walks()
+
 	if was_contributing or contributes_map():
-		var names:PackedStringArray = PackedStringArray()
+		var names:Dictionary[StringName, bool] = {}
 		_append_map_names( input_map, names )
-		_request_patch( names )
+		_deliver_patch( _tree, names )
 
 
-## Writes [param value] and rewrites the input walk when the slot gains or loses its callable.
+## Writes [param value]. Gaining the input callable rebuilds that walk. Losing it erases this record.
 func set_input_callback( value:Callable ) -> void:
 	if _input == value:
 		return
+
 	var was_filled:bool = _input.is_valid()
 	_input = value
-	if was_filled == _input.is_valid():
-		return
-	_notify_walk( &"_input" )
+	_retarget_walk( &"_input", was_filled, _input.is_valid() )
 
 
-## Writes [param value] and rewrites the shortcut walk when the slot gains or loses its callable.
+## Writes [param value]. Gaining the shortcut callable rebuilds that walk. Losing it erases this record.
 func set_shortcut_input( value:Callable ) -> void:
 	if _shortcut_input == value:
 		return
+
 	var was_filled:bool = _shortcut_input.is_valid()
 	_shortcut_input = value
-	if was_filled == _shortcut_input.is_valid():
-		return
-	_notify_walk( &"_shortcut_input" )
+	_retarget_walk( &"_shortcut_input", was_filled, _shortcut_input.is_valid() )
 
 
-## Writes [param value] and rewrites the key walk when the slot gains or loses its callable.
+## Writes [param value]. Gaining the key callable rebuilds that walk. Losing it erases this record.
 func set_unhandled_key_input( value:Callable ) -> void:
 	if _unhandled_key_input == value:
 		return
+
 	var was_filled:bool = _unhandled_key_input.is_valid()
 	_unhandled_key_input = value
-	if was_filled == _unhandled_key_input.is_valid():
-		return
-	_notify_walk( &"_unhandled_key_input" )
+	_retarget_walk( &"_unhandled_key_input", was_filled, _unhandled_key_input.is_valid() )
 
 
-## Writes [param value] and rewrites the unhandled walk when the slot gains or loses its callable.
+## Writes [param value]. Gaining the unhandled callable rebuilds that walk. Losing it erases this record.
 func set_unhandled_input( value:Callable ) -> void:
 	if _unhandled_input == value:
 		return
+
 	var was_filled:bool = _unhandled_input.is_valid()
 	_unhandled_input = value
-	if was_filled == _unhandled_input.is_valid():
+	_retarget_walk( &"_unhandled_input", was_filled, _unhandled_input.is_valid() )
+
+
+# A filled slot is an insertion. An emptied slot is one record leaving that walk.
+func _retarget_walk( slot:StringName, was_filled:bool, now_filled:bool ) -> void:
+	if was_filled == now_filled or _tree == null:
 		return
-	_notify_walk( &"_unhandled_input" )
+
+	if now_filled:
+		_tree._rebuild_walk( slot )
+		return
+
+	_tree._erase_from_walk( self, slot )
 
 
-func _notify_walk( slot:StringName ) -> void:
+# The record stays linked. Each filled slot loses this one member.
+func _erase_filled_walks() -> void:
 	if _tree == null:
 		return
-	_tree._rebuild_walk( slot )
+
+	if _input.is_valid():
+		_tree._erase_from_walk( self, &"_input" )
+	if _shortcut_input.is_valid():
+		_tree._erase_from_walk( self, &"_shortcut_input" )
+	if _unhandled_key_input.is_valid():
+		_tree._erase_from_walk( self, &"_unhandled_key_input" )
+	if _unhandled_input.is_valid():
+		_tree._erase_from_walk( self, &"_unhandled_input" )
 
 
 func _notify_record() -> void:
@@ -156,28 +180,20 @@ func _notify_record() -> void:
 	_tree._rebuild_record( self )
 
 
-func _request_patch( names:PackedStringArray ) -> void:
-	if _tree == null or names.is_empty():
+func _deliver_patch( owner:ResponderTree, names:Dictionary[StringName, bool] ) -> void:
+	if owner == null or names.is_empty():
 		return
-	_tree.request_patch( names )
+
+	owner.request_patch( names )
 
 
-func _append_map_names( map:CustomInputMap, into:PackedStringArray ) -> void:
+# Names inside one map are already unique. The dictionary dedups a name shared by two maps.
+func _append_map_names( map:CustomInputMap, into:Dictionary[StringName, bool] ) -> void:
 	if map == null:
 		return
+
 	for action_name:StringName in map.get_action_names():
-		if into.has( action_name ):
-			continue
-		var _added:bool = into.append( action_name )
-
-
-func _append_branch_names( record:Responder, into:PackedStringArray ) -> void:
-	if not is_instance_valid( record ):
-		return
-	if record.contributes_map():
-		_append_map_names( record.input_map, into )
-	for child:Responder in record.children:
-		_append_branch_names( child, into )
+		into[action_name] = true
 
 
 ## True when [member active] is set and [member input_map] is set.
@@ -215,8 +231,14 @@ func add_responder( record:Responder ) -> void:
 	children.append( record )
 	if _tree == null:
 		return
-	_bind_tree( record, _tree )
-	_request_branch( _tree, record )
+
+	var slots:Array[StringName] = []
+	var names:Dictionary[StringName, bool] = {}
+	_bind_tree( record, _tree, slots, names )
+	if not slots.is_empty():
+		_tree._rebuild_walks( slots )
+
+	_deliver_patch( _tree, names )
 
 
 ## Detaches [param record] when this responder is its parent. The caller keeps the record.
@@ -229,8 +251,17 @@ func remove_responder( record:Responder ) -> void:
 	var owner:ResponderTree = _tree
 	record.parent = null
 	children.erase( record )
-	_unbind_tree( record )
-	_request_branch( owner, record )
+
+	var slots:Array[StringName] = []
+	var names:Dictionary[StringName, bool] = {}
+	_unbind_tree( record, slots, names )
+	if owner == null:
+		return
+
+	if not slots.is_empty():
+		owner._drop_unlinked( slots )
+
+	_deliver_patch( owner, names )
 
 
 ## Detaches and returns the last child. Returns null when [member children] is empty.
@@ -243,26 +274,41 @@ func pop_responder() -> Responder:
 	return record
 
 
-func _request_branch( owner:ResponderTree, branch:Responder ) -> void:
-	if owner == null:
-		return
-	owner._rebuild_branch( branch )
-	if not owner.branch_affects_map( branch ):
-		return
-	var names:PackedStringArray = PackedStringArray()
-	_append_branch_names( branch, names )
-	owner.request_patch( names )
-
-
-func _bind_tree( record:Responder, tree:ResponderTree ) -> void:
+func _bind_tree(
+		record:Responder,
+		tree:ResponderTree,
+		slots:Array[StringName],
+		names:Dictionary[StringName, bool] ) -> void:
 	record._tree = tree
+	record._note_membership( slots, names )
 	for child:Responder in record.children:
-		_bind_tree( child, tree )
+		_bind_tree( child, tree, slots, names )
 
 
-func _unbind_tree( record:Responder ) -> void:
+func _unbind_tree(
+		record:Responder,
+		slots:Array[StringName],
+		names:Dictionary[StringName, bool] ) -> void:
+	record._note_membership( slots, names )
 	record._tree = null
 	for child:Responder in record.children:
-		_unbind_tree( child )
+		_unbind_tree( child, slots, names )
+
+
+# Active filled slots, and the names a contributing map owns.
+func _note_membership( slots:Array[StringName], names:Dictionary[StringName, bool] ) -> void:
+	if active:
+		_note_slot( slots, &"_input", _input )
+		_note_slot( slots, &"_shortcut_input", _shortcut_input )
+		_note_slot( slots, &"_unhandled_key_input", _unhandled_key_input )
+		_note_slot( slots, &"_unhandled_input", _unhandled_input )
+
+	if contributes_map():
+		_append_map_names( input_map, names )
+
+
+func _note_slot( slots:Array[StringName], slot:StringName, callback:Callable ) -> void:
+	if callback.is_valid() and not slots.has( slot ):
+		slots.append( slot )
 
 #endregion Children
