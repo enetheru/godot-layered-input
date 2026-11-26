@@ -87,11 +87,7 @@ func _init( map:CustomInputMap = null ) -> void:
 	var _baseline:CustomInputMap = CustomInputMap.engine_baseline()
 	root = Responder.new()
 	root._tree = self
-
-	var initial:CustomInputMap = DefaultInputMap
-	if map != null:
-		initial = map
-	root.input_map = initial
+	root.input_map = DefaultInputMap if map == null else map
 	request_rebuild()
 
 
@@ -104,12 +100,7 @@ func add_responder( record:Responder ) -> void:
 ## Detaches [param record] from its parent.
 func remove_responder( record:Responder ) -> void:
 	assert( record != root, "ResponderTree.remove_responder: record is the root" )
-	var holder:RefCounted = record.parent
-	if not holder is Responder:
-		return
-
-	var parent_record:Responder = holder
-	parent_record.remove_responder( record )
+	record.parent.remove_responder( record )
 
 
 #region Walks
@@ -144,6 +135,7 @@ func _rebuild_record( record:Responder ) -> void:
 func _rebuild_branch( branch:Responder ) -> void:
 	var slots:Array[StringName] = []
 	_slots_in_branch( branch, slots )
+
 	for slot:StringName in slots:
 		_rebuild_walk( slot )
 
@@ -153,6 +145,7 @@ func _rebuild_branch( branch:Responder ) -> void:
 func _collect_preorder( record:Responder, slot:StringName, out:Array[Responder] ) -> void:
 	if _in_walk( record, slot ):
 		out.append( record )
+
 	for child:Responder in record.children:
 		_collect_preorder( child, slot, out )
 
@@ -163,6 +156,7 @@ func _slots_in_branch( record:Responder, slots:Array[StringName] ) -> void:
 		for slot:StringName in CALLBACK_SLOTS:
 			if _slot_filled( record, slot ) and not slots.has( slot ):
 				slots.append( slot )
+
 	for child:Responder in record.children:
 		_slots_in_branch( child, slots )
 
@@ -215,44 +209,43 @@ func request_rebuild() -> void:
 		_schedule()
 
 
-
 ## Queues one deferred rewrite of [param names].
 ## A full rebuild already queued covers those names.
 func request_patch( names:PackedStringArray ) -> void:
 	if _full or names.is_empty():
 		return
+
 	var added:bool = false
 	for action_name:StringName in names:
 		if _patch_names.has( action_name ):
 			continue
+
 		_patch_names[action_name] = true
 		added = true
-	if not added or _want_rebuild:
-		return
-	_schedule()
 
+	if added or not _want_rebuild:
+		_schedule()
 
 
 ## Suspends until [signal rebuild_finished] while a rebuild is queued or running.
 func until_rebuilt() -> void:
-	if not _want_rebuild and not _rebuilding:
-		return
 	while _want_rebuild or _rebuilding:
 		await rebuild_finished
-
 
 
 ## True when [param record] or a descendant contributes a map.
 func branch_affects_map( record:Responder ) -> bool:
 	if not is_instance_valid( record ):
 		return false
+
 	if record.contributes_map():
 		return true
+
 	for child:Responder in record.children:
 		if branch_affects_map( child ):
 			return true
-	return false
 
+	return false
 
 
 # Callers return when _want_rebuild is already set, so this is entered once per queued compose.
@@ -260,9 +253,10 @@ func branch_affects_map( record:Responder ) -> bool:
 # A defer here as well would line up a second rebuild.
 func _schedule() -> void:
 	_want_rebuild = true
-	if not _rebuilding:
-		_rebuild_input_map.call_deferred( false )
+	if _rebuilding:
+		return
 
+	_rebuild_input_map.call_deferred( false )
 
 
 # Callers return when a compose is already queued. _schedule defers this only when not _rebuilding.
@@ -273,8 +267,10 @@ func _schedule() -> void:
 func _rebuild_input_map( force_full:bool = true ) -> void:
 	if _rebuilding:
 		return
+
 	if not force_full and not _want_rebuild:
 		return
+
 	if not is_instance_valid( root ):
 		_want_rebuild = false
 		_full = false
@@ -287,6 +283,7 @@ func _rebuild_input_map( force_full:bool = true ) -> void:
 	if not full:
 		for action_name:StringName in _patch_names:
 			pending[action_name] = true
+
 	_full = false
 	_patch_names.clear()
 	_want_rebuild = false
@@ -295,20 +292,22 @@ func _rebuild_input_map( force_full:bool = true ) -> void:
 	if effective_map == null:
 		effective_map = CustomInputMap.new()
 		full = true
+
 	CustomInputMap._sweep_cached_events()
 	var dirty:Dictionary[StringName, bool] = {}
 	if full:
 		_compose_all( dirty )
 	else:
 		_compose_names( pending, dirty )
+
 	_write_dirty( dirty )
 	input_map_changed.emit( effective_map )
 	_rebuilding = false
 	if _want_rebuild:
 		_rebuild_input_map.call_deferred( false )
 		return
-	rebuild_finished.emit()
 
+	rebuild_finished.emit()
 
 
 # _rebuild_input_map calls this only after its own early returns, so the root is present.
@@ -323,27 +322,29 @@ func _compose_all( dirty:Dictionary[StringName, bool] ) -> void:
 		for action_name:StringName in layer.get_action_names():
 			if claimed.has( action_name ):
 				continue
+
 			claimed[action_name] = true
-			if effective_map.project_action(
-					action_name, layer.get_action( action_name ), share ):
+			if effective_map.project_action( action_name,
+						layer.get_action( action_name ), share ):
 				dirty[action_name] = true
 
 	var baseline:CustomInputMap = CustomInputMap.engine_baseline()
 	for action_name:StringName in baseline.get_action_names():
 		if claimed.has( action_name ):
 			continue
+
 		claimed[action_name] = true
-		if effective_map.project_action(
-				action_name, baseline.get_action( action_name ), true ):
+		if effective_map.project_action( action_name,
+					baseline.get_action( action_name ), true ):
 			dirty[action_name] = true
 
 	var present:Array[StringName] = effective_map.get_action_names()
 	for action_name:StringName in present:
 		if claimed.has( action_name ):
 			continue
+
 		effective_map.release_action( action_name )
 		dirty[action_name] = true
-
 
 
 # _rebuild_input_map calls this only after its own early returns, and only for a patch.
@@ -359,6 +360,7 @@ func _compose_names(
 		if winner == null and baseline.has_action( action_name ):
 			source = baseline
 			share = true
+
 		if source == null:
 			if effective_map.has_action( action_name ):
 				effective_map.release_action( action_name )
@@ -366,12 +368,13 @@ func _compose_names(
 			elif InputMap.has_action( action_name ):
 				dirty[action_name] = true
 			continue
+
 		if winner != null:
 			share = _shares_row( winner )
+
 		if effective_map.project_action(
 				action_name, source.get_action( action_name ), share ):
 			dirty[action_name] = true
-
 
 
 # Children are visited before the parent, last child first, so the front write is the one that wins.
@@ -381,16 +384,16 @@ func _front_map( record:Responder, action_name:StringName ) -> CustomInputMap:
 		var found:CustomInputMap = _front_map( kids[index], action_name )
 		if found != null:
 			return found
+
 	if record.contributes_map() and record.input_map.has_action( action_name ):
 		return record.input_map
-	return null
 
+	return null
 
 
 # Stock and the startup engine map are the rows a later compose must not copy.
 func _shares_row( layer:CustomInputMap ) -> bool:
 	return layer == DefaultInputMap or layer == CustomInputMap.engine_baseline()
-
 
 
 # An unchanged name is already on the engine. A name that left the table has to leave the engine with it.
@@ -402,11 +405,11 @@ func _write_dirty( dirty:Dictionary[StringName, bool] ) -> void:
 			InputMap.erase_action( action_name )
 
 
-
 # An inactive parent stays out of the table. An active child is still a layer of its own.
 func _collect_maps( record:Responder, out:Array[CustomInputMap] ) -> void:
 	if record.contributes_map():
 		out.append( record.input_map )
+
 	for child:Responder in record.children:
 		_collect_maps( child, out )
 
@@ -424,34 +427,34 @@ func                        __Dispatch_______________              ()->void:pass
 
 ## Calls the captured [code]_input[/code] callables with [param event] until [param viewport] is handled.
 func dispatch_input( viewport:Viewport, event:InputEvent ) -> void:
-	if not is_instance_valid( viewport ):
-		push_warning( "ResponderTree.dispatch: viewport is missing" )
+	if is_instance_valid( viewport ):
+		_dispatch( input_walk, &"_input", viewport, event )
 		return
-	_dispatch( input_walk, &"_input", viewport, event )
+	push_warning( "ResponderTree.dispatch: viewport is missing" )
 
 
 ## Calls the captured [code]_shortcut_input[/code] callables with [param event] until [param viewport] is handled.
 func dispatch_shortcut_input( viewport:Viewport, event:InputEvent ) -> void:
-	if not is_instance_valid( viewport ):
-		push_warning( "ResponderTree.dispatch: viewport is missing" )
+	if is_instance_valid( viewport ):
+		_dispatch( shortcut_input_walk, &"_shortcut_input", viewport, event )
 		return
-	_dispatch( shortcut_input_walk, &"_shortcut_input", viewport, event )
+	push_warning( "ResponderTree.dispatch: viewport is missing" )
 
 
 ## Calls the captured [code]_unhandled_key_input[/code] callables with [param event] until [param viewport] is handled.
 func dispatch_unhandled_key_input( viewport:Viewport, event:InputEvent ) -> void:
-	if not is_instance_valid( viewport ):
-		push_warning( "ResponderTree.dispatch: viewport is missing" )
+	if is_instance_valid( viewport ):
+		_dispatch( unhandled_key_input_walk, &"_unhandled_key_input", viewport, event )
 		return
-	_dispatch( unhandled_key_input_walk, &"_unhandled_key_input", viewport, event )
+	push_warning( "ResponderTree.dispatch: viewport is missing" )
 
 
 ## Calls the captured [code]_unhandled_input[/code] callables with [param event] until [param viewport] is handled.
 func dispatch_unhandled_input( viewport:Viewport, event:InputEvent ) -> void:
-	if not is_instance_valid( viewport ):
-		push_warning( "ResponderTree.dispatch: viewport is missing" )
+	if is_instance_valid( viewport ):
+		_dispatch( unhandled_input_walk, &"_unhandled_input", viewport, event )
 		return
-	_dispatch( unhandled_input_walk, &"_unhandled_input", viewport, event )
+	push_warning( "ResponderTree.dispatch: viewport is missing" )
 
 
 # Callers return when the viewport is missing. This pass assumes that viewport is live.
