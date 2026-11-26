@@ -1,33 +1,21 @@
 extends RefCounted
 
 ##[codeblock lang=text]
-##│ _    _      _     _
-##│| |  (_)_ _ | |__ | |_ _ _ ___ ___
-##│| |__| | ' \| / / |  _| '_/ -_) -_)
-##│|____|_|_||_|_\_\  \__|_| \___\___|
-##╰─────────────────────────────────────
-##[/codeblock]Tree of link responders.
+##│ ___                          _           _____
+##│| _ \___ ____ __  ___ _ _  __| |___ _ _  |_   _| _ ___ ___
+##│|   / -_|_-< '_ \/ _ \ ' \/ _` / -_) '_|   | || '_/ -_) -_)
+##│|_|_\___/__/ .__/\___/_||_\__,_\___|_|     |_||_| \___\___|
+##╰───────────|_|───────────────────────────────────────────────
+##[/codeblock]Orders responders and runs each input pass.
 ##
-## Holds the root and links responders in parent and child lists.
+## Children are stored first to last under [member root]. Each walk reverses that order, so the last child is index 0 and sees the event first.
 ##[br][br]
-## Keeps a front-to-back walk for each callback. Index 0 sees the event first.
+## A pass calls the callables copied at its start, and stops when the viewport is handled.
 ##[br][br]
-## Each dispatch pass calls the walk and the callables copied at its start, and returns when the viewport is handled.
-##[br][br]
-## Composes [member effective_map] from the front of that order. A name the front wrote stays.
-## The startup engine map fills a name the responders left empty, and that fill keeps the engine's events.
-##[br][br]
-## Preloads the live CustomInputMap and InputAction scripts.
-
-
-## Live map script.
-const CustomInputMapScript = preload( "custom_input_map.gd" )
-
-## Live action script.
-const InputActionScript = preload( "input_action.gd" )
+## [member effective_map] keeps the first write of each name. The startup engine map fills a name the responders left empty, and that fill keeps the engine's events.
 
 ## Record script.
-const ResponderScript = preload( "responder.gd" )
+const Responder = preload( "responder.gd" )
 
 ## Stock root map. Assigned when the caller passes no map.
 const DefaultInputMap:CustomInputMap = preload( "../settings/default_input_map.tres" )
@@ -49,19 +37,19 @@ const CALLBACK_SLOTS:Array[StringName] = [
 func                        ________PROPERTIES_______              ()->void:pass
 
 ## Root responder. The tree holds it, and its parent stays empty.
-var root:RefCounted
+var root:Responder
 
 ## Front-to-back responders for [code]_input[/code].
-var input_walk:Array[RefCounted] = []
+var input_walk:Array[Responder] = []
 
 ## Front-to-back responders for [code]_shortcut_input[/code].
-var shortcut_input_walk:Array[RefCounted] = []
+var shortcut_input_walk:Array[Responder] = []
 
 ## Front-to-back responders for [code]_unhandled_key_input[/code].
-var unhandled_key_input_walk:Array[RefCounted] = []
+var unhandled_key_input_walk:Array[Responder] = []
 
 ## Front-to-back responders for [code]_unhandled_input[/code].
-var unhandled_input_walk:Array[RefCounted] = []
+var unhandled_input_walk:Array[Responder] = []
 
 ## Table composed from contributing maps, front first.
 var effective_map:CustomInputMap
@@ -90,45 +78,36 @@ func                        _________METHODS_________              ()->void:pass
 func _init( map:CustomInputMap = null ) -> void:
 	# Before request_rebuild. A later read would see the merged table.
 	var _baseline:CustomInputMap = CustomInputMap.engine_baseline()
-	root = ResponderScript.new()
-	root.set( &"_tree", self )
+	root = Responder.new()
+	root._tree = self
 
 	var initial:CustomInputMap = DefaultInputMap
 	if map != null:
 		initial = map
-	root.set( &"input_map", initial )
+	root.input_map = initial
 	request_rebuild()
 
 
 ## Appends [param record] as the root's last child.
-func add_responder( record:Variant ) -> void:
+func add_responder( record:Responder ) -> void:
 	if record == root:
 		push_warning( "ResponderTree.add_responder: root stays held by the tree" )
 		return
 
-	root.call( &"add_responder", record )
+	root.add_responder( record )
 
 
 ## Detaches [param record] from its parent. The root stays on the tree.
-func remove_responder( record:Variant ) -> void:
+func remove_responder( record:Responder ) -> void:
 	if record == root:
 		push_warning( "ResponderTree.remove_responder: cannot remove root" )
 		return
-	if not _is_record( record ):
-		return
-	var other:Object = record
-	var holder:Object = other.get( &"parent" )
-	if holder == null or holder.get_script() != ResponderScript:
+	var holder:RefCounted = record.parent
+	if not holder is Responder:
 		return
 
-	holder.call( &"remove_responder", record )
-
-
-func _is_record( record:Variant ) -> bool:
-	if not is_instance_valid( record ):
-		return false
-	var other:Object = record
-	return other.get_script() == ResponderScript
+	var parent_record:Responder = holder
+	parent_record.remove_responder( record )
 
 
 #region Walks
@@ -142,63 +121,66 @@ func                        __Walks__________________              ()->void:pass
 
 ## Rewrites the stored walk for [param slot] from the current links.
 func _rebuild_walk( slot:StringName ) -> void:
-	var ordered:Array[RefCounted] = []
+	var ordered:Array[Responder] = []
 	if is_instance_valid( root ):
 		_collect_preorder( root, slot, ordered )
 	ordered.reverse()
 
-	var walk:Array[RefCounted] = _walk_array( slot )
+	var walk:Array[Responder] = _walk_array( slot )
 	walk.clear()
 	walk.append_array( ordered )
 
 
 ## Rewrites each walk whose slot this record has filled.
-func _rebuild_record( record:Object ) -> void:
+func _rebuild_record( record:Responder ) -> void:
 	for slot:StringName in CALLBACK_SLOTS:
 		if _slot_filled( record, slot ):
 			_rebuild_walk( slot )
 
 
 ## Rewrites each walk an active filled slot in [param branch] touches.
-func _rebuild_branch( branch:Object ) -> void:
+func _rebuild_branch( branch:Responder ) -> void:
 	var slots:Array[StringName] = []
 	_slots_in_branch( branch, slots )
 	for slot:StringName in slots:
 		_rebuild_walk( slot )
 
 
-func _collect_preorder( record:Object, slot:StringName, out:Array[RefCounted] ) -> void:
+func _collect_preorder( record:Responder, slot:StringName, out:Array[Responder] ) -> void:
 	if _in_walk( record, slot ):
-		out.append( record as RefCounted )
-	var kids:Array = record.get( &"children" )
-	for child:Variant in kids:
-		var next:Object = child
-		_collect_preorder( next, slot, out )
+		out.append( record )
+	for child:Responder in record.children:
+		_collect_preorder( child, slot, out )
 
 
-func _slots_in_branch( record:Object, slots:Array[StringName] ) -> void:
-	var active:bool = record.get( &"active" )
-	if active:
+func _slots_in_branch( record:Responder, slots:Array[StringName] ) -> void:
+	if record.active:
 		for slot:StringName in CALLBACK_SLOTS:
 			if _slot_filled( record, slot ) and not slots.has( slot ):
 				slots.append( slot )
-	var kids:Array = record.get( &"children" )
-	for child:Variant in kids:
-		var next:Object = child
-		_slots_in_branch( next, slots )
+	for child:Responder in record.children:
+		_slots_in_branch( child, slots )
 
 
-func _in_walk( record:Object, slot:StringName ) -> bool:
-	var active:bool = record.get( &"active" )
-	return active and _slot_filled( record, slot )
+func _in_walk( record:Responder, slot:StringName ) -> bool:
+	return record.active and _slot_filled( record, slot )
 
 
-func _slot_filled( record:Object, slot:StringName ) -> bool:
-	var cb:Callable = record.get( slot )
-	return cb.is_valid()
+func _slot_filled( record:Responder, slot:StringName ) -> bool:
+	return _callback( record, slot ).is_valid()
 
 
-func _walk_array( slot:StringName ) -> Array[RefCounted]:
+func _callback( record:Responder, slot:StringName ) -> Callable:
+	if slot == &"_input":
+		return record._input
+	if slot == &"_shortcut_input":
+		return record._shortcut_input
+	if slot == &"_unhandled_key_input":
+		return record._unhandled_key_input
+	return record._unhandled_input
+
+
+func _walk_array( slot:StringName ) -> Array[Responder]:
 	if slot == &"_input":
 		return input_walk
 	if slot == &"_shortcut_input":
@@ -232,18 +214,13 @@ func until_rebuilt() -> void:
 
 
 ## True when [param record] or a descendant contributes a map.
-func branch_affects_map( record:Object ) -> bool:
+func branch_affects_map( record:Responder ) -> bool:
 	if not is_instance_valid( record ):
 		return false
-	if record.get_script() != ResponderScript:
-		return false
-	var contributes:bool = record.call( &"contributes_map" )
-	if contributes:
+	if record.contributes_map():
 		return true
-	var kids:Array = record.get( &"children" )
-	for child:Variant in kids:
-		var next:Object = child
-		if branch_affects_map( next ):
+	for child:Responder in record.children:
+		if branch_affects_map( child ):
 			return true
 	return false
 
@@ -280,17 +257,11 @@ func _rebuild_input_map() -> void:
 	rebuild_finished.emit()
 
 
-func _collect_maps( record:Object, out:Array[CustomInputMap] ) -> void:
-	var contributes:bool = record.call( &"contributes_map" )
-	if contributes:
-		var loaded:Object = record.get( &"input_map" )
-		if loaded is CustomInputMap:
-			var map:CustomInputMap = loaded
-			out.append( map )
-	var kids:Array = record.get( &"children" )
-	for child:Variant in kids:
-		var next:Object = child
-		_collect_maps( next, out )
+func _collect_maps( record:Responder, out:Array[CustomInputMap] ) -> void:
+	if record.contributes_map():
+		out.append( record.input_map )
+	for child:Responder in record.children:
+		_collect_maps( child, out )
 
 
 func _release_map( map:CustomInputMap ) -> void:
@@ -333,16 +304,16 @@ func dispatch_unhandled_input( viewport:Viewport, event:InputEvent ) -> void:
 
 
 ## Copies [param walk] and each record's [param slot] callable, then calls that copy until [param viewport] is handled.
-func _dispatch( walk:Array[RefCounted], slot:StringName, viewport:Viewport, event:InputEvent ) -> void:
+func _dispatch( walk:Array[Responder], slot:StringName, viewport:Viewport, event:InputEvent ) -> void:
 	if not is_instance_valid( viewport ):
 		push_warning( "ResponderTree.dispatch: viewport is missing" )
 		return
 
-	var records:Array[RefCounted] = []
+	var records:Array[Responder] = []
 	records.assign( walk )
 	var calls:Array[Callable] = []
-	for record:RefCounted in records:
-		var captured:Callable = record.get( slot )
+	for record:Responder in records:
+		var captured:Callable = _callback( record, slot )
 		calls.append( captured )
 
 	for cb:Callable in calls:
