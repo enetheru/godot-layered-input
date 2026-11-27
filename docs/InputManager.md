@@ -35,3 +35,7 @@ A handler may mount a layer while an event is still being delivered. The stored 
 ## Lifecycle
 
 Mount and unmount are `add_responder` and `remove_responder`. The layer record stays with its owner. Context, UI, and agents own going back.
+
+## Still open
+
+Priority is unset. A layer binds one callable. A list of targets waits until a layer needs more than one. The autoload enables every pass when it enters the tree. Enabling a pass only while its walk has a member is a later saving.
